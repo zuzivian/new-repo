@@ -48,7 +48,7 @@ export const CAMERA_ADAPT = 0.75;
 
 export const LIGHT_PRESETS = {
   studio: {
-    label: "Jeweler's light tent", kelvin: 5500, sky: [0.8, 0.5, 0.1], uv: 0.08,
+    label: "Jeweller's light tent", kelvin: 5500, sky: [0.8, 0.5, 0.1], uv: 0.08,
     key: [0, 0.9, 0.45], shadow: 0.4, shadowRadius: 9,
     emitters: [
       rect([0, 1, 0.3], 72, 46, 2.6),

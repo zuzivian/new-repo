@@ -132,7 +132,7 @@ vec3 toSRGB( vec3 c ) {
 }
 vec3 bright( vec2 uv ) {
   vec4 s = texture2D( tRing, uv );
-  return max( s.rgb * tint * exposure - vec3( 1.2 ), vec3( 0.0 ) );
+  return max( s.rgb * tint * exposure - vec3( 1.0 ), vec3( 0.0 ) );
 }
 void main() {
   vec4 r;
@@ -159,11 +159,14 @@ void main() {
 
   vec3 glow = vec3( 0.0 );
   if ( bloom > 0.0 ) {
+    // a filled disc (three rings plus the centre) so a point flash blooms
+    // into a soft dot rather than a bullseye
     float R = 4.0 * pixelScale;
+    glow += bright( vUv ) * 0.12;
     for ( int k = 0; k < 12; k ++ ) {
-      float a = float( k ) * 0.5236;
+      float a = float( k ) * 0.5236 + ( mod( float( k ), 2.0 ) * 0.2618 );
       vec2 o = vec2( cos( a ), sin( a ) );
-      glow += bright( vUv + o * R * texel ) * 0.06 + bright( vUv + o * R * 2.2 * texel ) * 0.025;
+      glow += bright( vUv + o * R * 0.5 * texel ) * 0.08 + bright( vUv + o * R * texel ) * 0.05 + bright( vUv + o * R * 1.8 * texel ) * 0.025;
     }
     glow *= bloom;
   }

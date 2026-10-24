@@ -128,7 +128,8 @@ function opticsFor(st, gem, { forceDiamond = false } = {}) {
     } else {
       const grade = forceDiamond ? 'F' : st.color;
       const k = (COLOR_GRADES.find((g) => g[0] === grade) || COLOR_GRADES[3])[1];
-      absorb = [k * 0.1, k * 0.38, k];
+      // cape-series diamonds absorb blue and violet, almost no green
+      absorb = [k * 0.04, k * 0.12, k];
     }
   } else if (type.kind === 'colorless') {
     if (type.tint) absorb = type.tint.map((v) => -Math.log(v) / 10);
@@ -233,7 +234,7 @@ function applyLook() {
   engine.setLook({
     exposure: expo, tint,
     softness: inHand ? p.softness : 0, grain: inHand ? p.grain : 0,
-    bloom: l.bloom, glints: l.glints, shadow: l.shadow, ao: inHand ? 0.42 : 0.5, saturation: 1,
+    bloom: l.bloom, glints: l.glints, shadow: l.shadow, ao: inHand ? 0.42 : 0.5, saturation: inHand ? 1 : 1.08,
   });
   engine.rock = l.rock && !reduceMotion;
 }
