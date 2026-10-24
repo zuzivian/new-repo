@@ -446,7 +446,7 @@ const schema = [
   {
     id: 'photo', label: 'Photo', groups: [
       { title: 'Hand photo', controls: [
-        { type: 'buttons', items: [['Add a hand photo', () => fileInput.click(), 'primary'], ['Place the ring again', () => startPlacement(), 'ghost']] },
+        { type: 'buttons', items: [['Add a hand photo', () => fileInput.click(), 'primary'], ['Place the ring again', () => startPlacement(), 'ghost', () => !photo]] },
         { type: 'info', render: () => photoTips() },
       ] },
       { title: 'Fit to the finger', when: (s) => !!photo && placement.step === 2, controls: [
