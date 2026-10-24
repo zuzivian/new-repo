@@ -550,7 +550,7 @@ export class Engine {
     // On a finger the light is large and close (a room, a window), so the
     // shadow is softer and lighter than on the studio table.
     const hand = this.mode === 'hand';
-    const shadowScale = (this.env.preset ? this.env.preset.shadow / 0.45 : 1) * (hand ? 0.6 : 1);
+    const shadowScale = (this.env.preset ? this.env.preset.shadow / 0.45 : 1) * (hand ? 0.5 : 1);
     this.key.shadow.radius = Math.max(hand ? 5 : 1, (this.env.preset ? this.env.preset.shadowRadius : 6) * (hand ? 1.6 : 1));
     for (const m of [this.catcherMat, this.groundMat]) {
       m.uniforms.shadowStrength.value = this.look.shadow * shadowScale;
@@ -640,7 +640,10 @@ export class Engine {
     const centre = new THREE.Vector3();
     this.ringRoot.getWorldPosition(centre);
     this.key.target.position.copy(centre);
-    this.key.position.copy(centre).addScaledVector(this.env.keyDir, 80);
+    // over a hand the light is above the camera too, so the shadow stays
+    // close under the ring instead of streaking down the finger
+    const keyDir = this.mode === 'hand' ? this.env.keyDir.clone().add(new THREE.Vector3(0, 0, 1.2)).normalize() : this.env.keyDir;
+    this.key.position.copy(centre).addScaledVector(keyDir, 80);
     this.key.target.updateMatrixWorld();
     this.key.updateMatrixWorld();
 
