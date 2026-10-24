@@ -43,16 +43,22 @@ export class Panel {
   }
 
   build() {
-    const nav = el('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Ring options' });
+    const nav = el('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Option groups' });
     const bodies = el('div', { class: 'tab-bodies' });
     this.schema.forEach((tab, i) => {
-      const btn = el('button', { class: 'tab', role: 'tab', id: `tab-${tab.id}`, 'aria-controls': `panel-${tab.id}`, 'aria-selected': i === 0 ? 'true' : 'false', type: 'button', text: tab.label });
+      const btn = el('button', { class: 'tab', role: 'tab', id: `tab-${tab.id}`, 'aria-controls': `panel-${tab.id}`, 'aria-selected': i === 0 ? 'true' : 'false', tabindex: i === 0 ? '0' : '-1', type: 'button', text: tab.label });
       const body = el('div', { class: 'tab-body', role: 'tabpanel', id: `panel-${tab.id}`, 'aria-labelledby': `tab-${tab.id}` });
       if (i !== 0) body.hidden = true;
       btn.addEventListener('click', () => this.select(tab.id));
       btn.addEventListener('keydown', (e) => {
-        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-        const j = (i + (e.key === 'ArrowRight' ? 1 : -1) + this.schema.length) % this.schema.length;
+        const n = this.schema.length;
+        let j;
+        if (e.key === 'ArrowRight') j = (i + 1) % n;
+        else if (e.key === 'ArrowLeft') j = (i - 1 + n) % n;
+        else if (e.key === 'Home') j = 0;
+        else if (e.key === 'End') j = n - 1;
+        else return;
+        e.preventDefault();
         this.select(this.schema[j].id);
         this.tabs[j].btn.focus();
       });
@@ -69,6 +75,7 @@ export class Panel {
     for (const t of this.tabs) {
       const on = t.id === id;
       t.btn.setAttribute('aria-selected', on ? 'true' : 'false');
+      t.btn.tabIndex = on ? 0 : -1;
       t.body.hidden = !on;
     }
     this.active = id;
@@ -90,7 +97,8 @@ export class Panel {
     const ctl = maker(c, this);
     const wrap = el('div', { class: `field field-${c.type}` });
     if (c.label && c.type !== 'toggle') {
-      const lab = el('div', { class: 'field-label' }, el('label', { for: ctl.id, id: ctl.id + '-label', text: c.label }));
+      const labelable = c.type === 'slider' || c.type === 'select';
+      const lab = el('div', { class: 'field-label' }, el(labelable ? 'label' : 'span', { class: 'field-name', for: labelable ? ctl.id : null, id: ctl.id + '-label', text: c.label }));
       if (ctl.readout) lab.append(ctl.readout);
       wrap.append(lab);
     }
@@ -119,12 +127,34 @@ export class Panel {
   }
 }
 
+// Radio groups (segmented, shapes, scale, swatches): one tab stop per group, arrow
+// keys move and select, Home/End jump to the ends.
+function radioKeys(node) {
+  node.addEventListener('keydown', (e) => {
+    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+    if (!step && e.key !== 'Home' && e.key !== 'End') return;
+    const radios = [...node.querySelectorAll('[role="radio"]')];
+    const i = radios.indexOf(document.activeElement);
+    if (i < 0) return;
+    e.preventDefault();
+    const j = e.key === 'Home' ? 0 : e.key === 'End' ? radios.length - 1 : (i + step + radios.length) % radios.length;
+    radios[j].focus();
+    radios[j].click();
+  });
+}
+function rovingTab(node) {
+  const radios = [...node.querySelectorAll('[role="radio"]')];
+  const on = radios.find((r) => r.getAttribute('aria-checked') === 'true') || radios[0];
+  for (const r of radios) r.tabIndex = r === on ? 0 : -1;
+}
+
 // ---------------------------------------------------------------------------
 
 const MAKERS = {
   segmented(c, panel) {
     const id = nextId(c.path);
     const node = el('div', { class: 'segmented', role: 'radiogroup', id, 'aria-labelledby': id + '-label' });
+    radioKeys(node);
     let last = '';
     return {
       id, node,
@@ -142,6 +172,7 @@ const MAKERS = {
           last = key;
         }
         for (const b of node.children) b.setAttribute('aria-checked', String(b.dataset.v === String(val)));
+        rovingTab(node);
       },
     };
   },
@@ -207,6 +238,7 @@ const MAKERS = {
   shapes(c, panel) {
     const id = nextId(c.path);
     const node = el('div', { class: 'shape-grid', role: 'radiogroup', id, 'aria-labelledby': id + '-label' });
+    radioKeys(node);
     let last = '';
     return {
       id, node,
@@ -227,19 +259,24 @@ const MAKERS = {
         }
         const val = getPath(s, c.path);
         for (const b of node.children) b.setAttribute('aria-checked', String(b.dataset.v === val));
+        rovingTab(node);
       },
     };
   },
 
-  // graded scale (diamond colour D–Z, clarity FL–I3): a row of cells with band labels
+  // graded scale (diamond colour D–Z, clarity FL–I3): a row of cells with band labels.
+  // The readout names the chosen grade and its band, so it stays legible when the
+  // cells are small or a finger covers them.
   scale(c, panel) {
     const id = nextId(c.path);
-    const node = el('div', { class: 'scale', id, role: 'radiogroup', 'aria-labelledby': id + '-label' });
+    const node = el('div', { class: `scale${c.options.length > 12 ? ' dense' : ''}`, id, role: 'radiogroup', 'aria-labelledby': id + '-label' });
     const cells = el('div', { class: 'scale-cells' });
     const bands = el('div', { class: 'scale-bands', 'aria-hidden': 'true' });
+    const readout = el('output', { class: 'readout' });
     node.append(cells, bands);
+    radioKeys(node);
     for (const [v, label, swatch] of c.options) {
-      const b = el('button', { type: 'button', role: 'radio', class: 'scale-cell', 'data-v': v, title: label, text: v });
+      const b = el('button', { type: 'button', role: 'radio', class: 'scale-cell', 'data-v': v, title: label, 'aria-label': label, text: v });
       if (swatch) b.style.setProperty('--swatch', swatch);
       b.addEventListener('click', () => panel.emit(c.path, v));
       cells.append(b);
@@ -249,11 +286,19 @@ const MAKERS = {
       d.style.flex = String(span);
       bands.append(d);
     }
+    const bandOf = (i) => {
+      let acc = 0;
+      for (const [label, span] of c.bands || []) { acc += span; if (i < acc) return label; }
+      return '';
+    };
     return {
-      id, node,
+      id, node, readout,
       update(s) {
         const val = getPath(s, c.path);
         for (const b of cells.children) b.setAttribute('aria-checked', String(b.dataset.v === val));
+        const i = c.options.findIndex((o) => o[0] === val);
+        readout.textContent = i < 0 ? '' : [val, bandOf(i)].filter(Boolean).join(' · ');
+        rovingTab(node);
       },
     };
   },
@@ -262,6 +307,7 @@ const MAKERS = {
     const id = nextId(c.path);
     const node = el('div', { class: 'swatches', role: 'radiogroup', id, 'aria-labelledby': id + '-label' });
     const readout = el('output', { class: 'readout' });
+    radioKeys(node);
     let last = '';
     return {
       id, node, readout,
@@ -273,7 +319,6 @@ const MAKERS = {
           for (const [v, label, color] of opts) {
             const b = el('button', { type: 'button', role: 'radio', class: 'swatch', 'data-v': v, title: label, 'aria-label': label });
             b.style.setProperty('--sw', color);
-            b.append(el('span', { class: 'swatch-label', text: label }));
             b.addEventListener('click', () => panel.emit(c.path, v));
             node.append(b);
           }
@@ -283,6 +328,7 @@ const MAKERS = {
         for (const b of node.children) b.setAttribute('aria-checked', String(b.dataset.v === val));
         const hit = opts.find((o) => o[0] === val);
         readout.textContent = hit ? hit[1] : '';
+        rovingTab(node);
       },
     };
   },
@@ -290,12 +336,14 @@ const MAKERS = {
   buttons(c, panel) {
     const id = nextId(c.label || 'buttons');
     const node = el('div', { class: 'button-row', id });
-    for (const [label, fn, kind] of c.items) {
+    const btns = [];
+    for (const [label, fn, kind, disabledWhen] of c.items) {
       const b = el('button', { type: 'button', class: `btn ${kind || 'ghost'}`, text: label });
       b.addEventListener('click', () => { fn(); panel.refresh(); });
       node.append(b);
+      btns.push([b, disabledWhen]);
     }
-    return { id, node, update() {} };
+    return { id, node, update(s) { for (const [b, off] of btns) b.disabled = !!(off && off(s)); } };
   },
 
   info(c) {
@@ -304,3 +352,26 @@ const MAKERS = {
     return { id, node, update(s) { node.replaceChildren(...[].concat(c.render(s))); } };
   },
 };
+
+// ---------------------------------------------------------------------------
+// Saved-image dialog: Escape and a click on the backdrop close it, Tab stays on the
+// button, and focus goes back to where it was.
+// ---------------------------------------------------------------------------
+
+function wireDialog() {
+  const dlg = document.getElementById('preview');
+  if (!dlg) return;
+  let opener = null;
+  document.addEventListener('focusin', (e) => { if (!dlg.contains(e.target)) opener = e.target; });
+  const close = () => { dlg.hidden = true; };
+  dlg.addEventListener('click', (e) => { if (e.target === dlg) close(); });
+  document.addEventListener('keydown', (e) => {
+    if (dlg.hidden) return;
+    if (e.key === 'Escape') { e.preventDefault(); close(); }
+    else if (e.key === 'Tab') { e.preventDefault(); dlg.querySelector('button').focus(); }
+  });
+  new MutationObserver(() => {
+    if (dlg.hidden && opener && document.contains(opener) && !opener.disabled) opener.focus();
+  }).observe(dlg, { attributes: true, attributeFilter: ['hidden'] });
+}
+wireDialog();

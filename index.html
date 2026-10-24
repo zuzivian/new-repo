@@ -37,15 +37,15 @@
 
   <main class="workspace">
     <section class="stage" id="stage" aria-label="Ring preview">
-      <canvas id="view" aria-label="Rendered ring"></canvas>
-      <svg id="guides" class="guides" aria-label="Placement guides"></svg>
+      <canvas id="view" role="img" aria-label="Rendered ring preview"></canvas>
+      <svg id="guides" class="guides" role="group" aria-label="Placement guides"></svg>
       <p class="hint" id="hint" role="status" hidden></p>
       <canvas id="loupe" class="loupe" width="150" height="150" hidden aria-hidden="true"></canvas>
       <div class="stage-tools" id="stage-tools" hidden>
         <button type="button" id="zoom-out" aria-label="Zoom out">−</button>
         <button type="button" id="zoom-ring" aria-label="Zoom to the ring">Ring</button>
         <button type="button" id="zoom-in" aria-label="Zoom in">+</button>
-        <button type="button" id="toggle-guides" aria-pressed="true">Guides</button>
+        <button type="button" id="toggle-guides" aria-pressed="true" aria-label="Show guides">Guides</button>
       </div>
       <div class="empty-hand" id="empty-hand" hidden>
         <h2>See it on a real hand</h2>
@@ -66,8 +66,8 @@
 
     <aside class="panel" aria-label="Ring options">
       <div class="starts-wrap">
-        <h2 class="panel-heading">Start from</h2>
-        <div class="starts" id="starts"></div>
+        <h2 class="panel-heading" id="starts-title">Start from</h2>
+        <div class="starts" id="starts" role="group" aria-labelledby="starts-title"></div>
       </div>
       <div id="panel-controls"></div>
       <section class="looks-wrap" aria-labelledby="looks-title">
