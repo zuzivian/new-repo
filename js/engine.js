@@ -737,13 +737,20 @@ export class Engine {
     return new Promise((res) => c.toBlob((b) => res({ blob: b, canvas: c }), 'image/png'));
   }
 
-  thumbnail(size = 220) {
+  // focus: { x, y, size } in CSS pixels on the canvas; defaults to the centre square
+  thumbnail(size = 220, focus = null) {
     const c = document.createElement('canvas');
     const a = this.canvas;
-    const s = Math.min(a.width, a.height);
+    const pr = a.width / this.size.x;
+    let s = Math.min(a.width, a.height), x = (a.width - s) / 2, y = (a.height - s) / 2;
+    if (focus) {
+      s = Math.min(s, Math.max(48, focus.size * pr));
+      x = Math.min(a.width - s, Math.max(0, focus.x * pr - s / 2));
+      y = Math.min(a.height - s, Math.max(0, focus.y * pr - s / 2));
+    }
     c.width = c.height = size;
     this.render();
-    c.getContext('2d').drawImage(a, (a.width - s) / 2, (a.height - s) / 2, s, s, 0, 0, size, size);
+    c.getContext('2d').drawImage(a, x, y, s, s, 0, 0, size, size);
     return c.toDataURL('image/jpeg', 0.82);
   }
 }

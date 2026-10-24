@@ -358,7 +358,7 @@ const schema = [
         { type: 'slider', path: 'stone.pavilionAngle', label: 'Pavilion angle', when: (s) => s.stone.custom, min: 37, max: 50, step: 0.05, format: (v) => `${v.toFixed(2)}°` },
         { type: 'slider', path: 'stone.girdle', label: 'Girdle', when: (s) => s.stone.custom, min: 1, max: 7, step: 0.1, format: (v) => `${v.toFixed(1)}%` },
       ] },
-      { title: 'Fluorescence', when: (s) => kind(s) === 'diamond' && s.stone.fancy === 'none', hint: 'Blue glow under the ultraviolet in daylight. Indoors it barely shows.', controls: [
+      { title: 'Fluorescence', when: (s) => kind(s) === 'diamond' && s.stone.fancy === 'none', hint: 'Blue glow under ultraviolet light, which daylight contains. Indoors it barely shows.', controls: [
         { type: 'segmented', path: 'stone.fluorescence', label: 'Strength', options: [['none', 'None'], ['faint', 'Faint'], ['medium', 'Medium'], ['strong', 'Strong'], ['veryStrong', 'Very strong']] },
       ] },
     ],
@@ -409,7 +409,7 @@ const schema = [
         { type: 'slider', path: 'band.thickness', label: 'Thickness', min: 1.0, max: 3.0, step: 0.05, format: fmtMm },
       ] },
       { title: 'Stones on the band', controls: [
-        { type: 'segmented', path: 'band.accent', label: 'Setting', options: Object.entries(ACCENTS).map(([k, v]) => [k, v.label.replace(' (halfway)', '').replace(' all the way round', ' eternity')]) },
+        { type: 'segmented', path: 'band.accent', label: 'Style', options: Object.entries(ACCENTS).map(([k, v]) => [k, v.label.replace(' (halfway)', '').replace(' all the way round', ' eternity')]) },
         { type: 'slider', path: 'band.accentScale', label: 'Stone size', when: (s) => s.band.accent !== 'none', min: 0.7, max: 1.3, step: 0.01, format: () => (current && current.built.stats.accentCount ? `${current.built.stats.accentCount} stones` : '') },
         { type: 'toggle', path: 'band.milgrain', label: 'Milgrain edges', when: (s) => ['plain', 'tapered'].includes(s.band.shank) },
       ] },
@@ -427,7 +427,7 @@ const schema = [
   {
     id: 'light', label: 'Light', groups: [
       { title: 'Lighting', controls: [
-        { type: 'select', path: 'light.preset', label: 'Where she is', options: Object.entries(LIGHT_PRESETS).map(([k, p]) => [k, p.label]) },
+        { type: 'select', path: 'light.preset', label: 'Lighting scene', options: Object.entries(LIGHT_PRESETS).map(([k, p]) => [k, p.label]) },
         { type: 'slider', path: 'light.azimuth', label: 'Light direction', min: -180, max: 180, step: 1, format: (v) => (v === 0 ? 'As set' : `${v > 0 ? 'Turned right' : 'Turned left'} ${Math.abs(v)}°`) },
         { type: 'slider', path: 'light.elevation', label: 'Light height', min: -45, max: 60, step: 1, format: (v) => (v === 0 ? 'As set' : `${v > 0 ? 'Higher' : 'Lower'} ${Math.abs(v)}°`) },
         { type: 'slider', path: 'light.kelvin', label: 'Light colour', min: 1800, max: 9500, step: 50, format: (v) => `${v} K${v < 3200 ? ', warm' : v > 6500 ? ', cool' : ''}` },
@@ -446,14 +446,14 @@ const schema = [
   {
     id: 'photo', label: 'Photo', groups: [
       { title: 'Hand photo', controls: [
-        { type: 'buttons', items: [['Add a hand photo', () => fileInput.click(), 'primary'], ['Place the ring again', () => startPlacement(), 'ghost', () => !photo]] },
+        { type: 'buttons', items: [['Add hand photo', () => fileInput.click(), 'primary'], ['Place the ring again', () => startPlacement(), 'ghost', () => !photo]] },
         { type: 'info', render: () => photoTips() },
       ] },
       { title: 'Fit to the finger', when: (s) => !!photo && placement.step === 2, controls: [
         { type: 'slider', path: 'photo.pitch', label: 'Finger tilt', min: -60, max: 60, step: 1, format: (v) => (v === 0 ? 'Flat to the camera' : v > 0 ? `Tip toward camera ${v}°` : `Tip away ${-v}°`) },
         { type: 'slider', path: 'photo.roll', label: 'Finger turn', min: -80, max: 80, step: 1, format: (v) => (v === 0 ? 'Facing the camera' : `${v > 0 ? 'Turned right' : 'Turned left'} ${Math.abs(v)}°`) },
         { type: 'slider', path: 'photo.slide', label: 'Along the finger', min: -8, max: 8, step: 0.1, format: (v) => (v === 0 ? 'Where you tapped' : `${v > 0 ? 'Toward fingertip' : 'Toward hand'} ${Math.abs(v).toFixed(1)} mm`) },
-        { type: 'toggle', path: 'photo.together', label: 'Fingers together (hide the band’s sides)' },
+        { type: 'toggle', path: 'photo.together', label: 'Fingers touching (hides the sides of the band)' },
         { type: 'toggle', path: 'photo.snap', label: 'Snap the guides to finger edges' },
       ] },
       { title: 'Blend with the photo', when: (s) => !!photo, controls: [
@@ -792,7 +792,7 @@ function drawGuides() {
     guides.append(g);
   }
   pts.forEach((p, i) => {
-    const h = mk('g', { class: 'handle', tabindex: '0', role: 'slider', 'aria-label': `Finger edge ${i + 1}. Arrow keys move it.`, 'data-i': String(i) });
+    const h = mk('g', { class: 'handle', tabindex: '0', role: 'button', 'aria-label': `Finger edge ${i + 1}. Arrow keys move it.`, 'data-i': String(i) });
     h.append(mk('circle', { cx: p[0], cy: p[1], r: 14, class: 'hit' }));
     h.append(mk('circle', { cx: p[0], cy: p[1], r: 6, class: 'dot' }));
     h.addEventListener('keydown', (e) => {
@@ -995,7 +995,7 @@ function loadLooks() { try { return JSON.parse(localStorage.getItem(LOOKS_KEY) |
 function saveLooks(list) { try { localStorage.setItem(LOOKS_KEY, JSON.stringify(list)); return true; } catch (e) { return false; } }
 function lookName() {
   const st = state.stone;
-  return `${st.carat.toFixed(2)} ct ${CUTS[st.shape].label.toLowerCase()}, ${HEAD_STYLES[state.setting.style].label.toLowerCase()}, ${METALS[state.band.metal].label.toLowerCase()}`;
+  return `${st.carat.toFixed(2)} ct ${CUTS[st.shape].label.toLowerCase()}, ${HEAD_STYLES[state.setting.style].label.toLowerCase().replace(/ \(.*\)/, '')}, ${METALS[state.band.metal].label.toLowerCase()}`;
 }
 function renderLooks() {
   const box = $('#looks');
@@ -1014,10 +1014,18 @@ function renderLooks() {
 $('#save-look').addEventListener('click', () => {
   const list = loadLooks();
   const { mode, photo: _p, ...rest } = clone(state);
-  list.unshift({ id: Date.now(), name: lookName(), thumb: engine.thumbnail(200), state: rest });
+  list.unshift({ id: Date.now(), name: lookName(), thumb: engine.thumbnail(200, ringCentreOnCanvas()), state: rest });
   if (!saveLooks(list.slice(0, 12))) toast('This browser is not keeping saved looks.');
   renderLooks();
 });
+
+// where the ring sits on the canvas (hand mode), for thumbnails
+function ringCentreOnCanvas() {
+  if (state.mode !== 'hand' || !photo || placement.step < 2) return null;
+  const c = engine.photoToCanvas((placement.a[0] + placement.b[0]) / 2, (placement.a[1] + placement.b[1]) / 2);
+  const span = Math.hypot(placement.b[0] - placement.a[0], placement.b[1] - placement.a[1]) * (engine.size.x / photo.w) * engine.view.zoom;
+  return { x: c[0], y: c[1], size: span * 2.4 };
+}
 
 function applyPreset(p) {
   const keepPhoto = clone(state.photo);
