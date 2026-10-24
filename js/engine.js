@@ -78,7 +78,7 @@ void main() {
   }
   float facing = groundMode > 0.5 ? 1.0 : smoothstep( 0.08, 0.45, dot( normalize( vWorldNormal ), normalize( vViewDir ) ) );
   float along = groundMode > 0.5 ? 1.0 : 1.0 - smoothstep( 7.0, 15.0, abs( vLocal.z ) );
-  float dark = clamp( sh * shadowStrength + ao * aoStrength, 0.0, 0.9 ) * facing * along;
+  float dark = clamp( sh * shadowStrength + ao * aoStrength, 0.0, groundMode > 0.5 ? 0.9 : 0.6 ) * facing * along;
   gl_FragColor = vec4( vec3( 1.0 - dark ), 1.0 );
 }`;
 
@@ -433,6 +433,7 @@ export class Engine {
 
   setMode(mode) {
     this.mode = mode;
+    this.env.setFrame(mode);
     this.controls.enabled = mode === 'studio';
     this.finger.visible = mode === 'hand';
     this.photoQuad.visible = mode === 'hand' && !!this.photoTex;
@@ -525,8 +526,6 @@ export class Engine {
     this.lightKey = presetKey;
     this.lightOpts = opts;
     this.env.build(presetKey, opts);
-    const p = this.env.preset;
-    this.key.shadow.radius = p.shadowRadius;
     this.requestRender('env');
   }
 
@@ -545,7 +544,11 @@ export class Engine {
     u.bloom.value = this.look.bloom;
     u.glints.value = this.look.glints;
     u.saturation.value = this.look.saturation;
-    const shadowScale = this.env.preset ? this.env.preset.shadow / 0.45 : 1;
+    // On a finger the light is large and close (a room, a window), so the
+    // shadow is softer and lighter than on the studio table.
+    const hand = this.mode === 'hand';
+    const shadowScale = (this.env.preset ? this.env.preset.shadow / 0.45 : 1) * (hand ? 0.6 : 1);
+    this.key.shadow.radius = Math.max(hand ? 5 : 1, (this.env.preset ? this.env.preset.shadowRadius : 6) * (hand ? 1.6 : 1));
     for (const m of [this.catcherMat, this.groundMat]) {
       m.uniforms.shadowStrength.value = this.look.shadow * shadowScale;
       m.uniforms.aoStrength.value = this.look.ao;

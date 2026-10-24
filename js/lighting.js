@@ -272,9 +272,26 @@ export class Environment {
     this.setRotation(opts.azimuth || 0, opts.elevation || 0);
   }
 
+  // In the studio the lights hang above the ring (+Y). On a photo the camera
+  // looks down at the hand, so the same light box is turned to sit above the
+  // hand as the camera sees it: environment +Y → world +Z (toward the camera),
+  // environment +Z (the studio camera side) → world +Y (top of the photo).
+  setFrame(frame) {
+    this.frame = frame;
+    this.setRotation(this.azimuth || 0, this.elevation || 0);
+  }
+
   setRotation(azimuthDeg, elevationDeg) {
+    this.azimuth = azimuthDeg;
+    this.elevation = elevationDeg;
     const e = new THREE.Euler(THREE.MathUtils.degToRad(-elevationDeg), 0, THREE.MathUtils.degToRad(-azimuthDeg), 'ZXY');
-    this.group.quaternion.setFromEuler(e);
+    const q = new THREE.Quaternion().setFromEuler(e);
+    if (this.frame === 'hand') {
+      const toHand = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI)
+        .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2));
+      q.premultiply(toHand);
+    }
+    this.group.quaternion.copy(q);
     this.group.updateMatrixWorld(true);
     const p = this.preset || LIGHT_PRESETS.studio;
     this.keyDir.set(...p.key).normalize().applyQuaternion(this.group.quaternion);
