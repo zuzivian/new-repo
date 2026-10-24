@@ -74,6 +74,14 @@ void main() {
   float cosi = clamp( - dot( V, N ), 0.0, 1.0 );
   vec3 color = vec3( 0.0 );
 
+  // light actually in the room, for what inclusions and haze scatter toward us:
+  // the cube averaged over six directions, weighted toward the sky, so a hazy
+  // stone glows under a softbox and goes dark at a candlelit table
+  vec3 room = ( envLookup( vec3( 0.0, 1.0, 0.0 ) ) * 2.0 + envLookup( vec3( 0.0, -1.0, 0.0 ) ) * 0.5
+             + envLookup( vec3( 1.0, 0.0, 0.0 ) ) + envLookup( vec3( -1.0, 0.0, 0.0 ) )
+             + envLookup( vec3( 0.0, 0.0, 1.0 ) ) + envLookup( vec3( 0.0, 0.0, -1.0 ) ) ) / 6.5;
+  room = min( room, vec3( 1.5 ) );
+
   for ( int s = 0; s < NUM_SAMPLES; s ++ ) {
     float n = iors[ s ];
     float F = fresnel( cosi, 1.0 / n );
@@ -97,6 +105,9 @@ void main() {
       if ( tMin > 1e5 ) break;
       float seg = tMin * vScale;
 
+      // what scatters toward us from inside still crosses the body on the way
+      // out, so a hazy emerald glows green, not milky white
+      vec3 body = exp( - absorb * seg );
       // inclusions along this segment
       for ( int k = 0; k < 8; k ++ ) {
         if ( k >= inclCount ) break;
@@ -107,7 +118,7 @@ void main() {
         if ( disc > 0.0 ) {
           float t0 = - bq - sqrt( disc );
           if ( t0 > 0.0 && t0 < tMin ) {
-            acc += thr * ambient * 0.08;
+            acc += thr * room * body * 0.08;
             thr *= inclTransmit;
           }
         }
@@ -115,10 +126,10 @@ void main() {
 
       if ( haze > 0.0 ) {
         float scat = 1.0 - exp( - haze * seg );
-        acc += thr * scat * ambient * 0.9;
+        acc += thr * scat * room * body * 0.9;
         thr *= 1.0 - scat;
       }
-      thr *= exp( - absorb * seg );
+      thr *= body;
       pos += dir * tMin;
 
       float c = dot( dir, nHit );
