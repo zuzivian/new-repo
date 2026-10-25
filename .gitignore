@@ -42,3 +42,6 @@ tags
 
 
 # End of https://www.gitignore.io/api/osx,vim
+
+# Claude Code worktrees and local settings
+.claude/
