@@ -12,6 +12,8 @@ import { L } from './layers.js';
 const TAU = Math.PI * 2;
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 const smooth = (e0, e1, x) => { const t = clamp((x - e0) / (e1 - e0), 0, 1); return t * t * (3 - 2 * t); };
+// distance from the top of the band (φ = 0) going either way round, 0…π
+const absAngle = (phi) => Math.abs(((phi + Math.PI) % TAU + TAU) % TAU - Math.PI);
 
 // ---------------------------------------------------------------------------
 // Band cross-sections
@@ -313,9 +315,9 @@ function prongLayout(cut, count, gem) {
 }
 
 // one prong in the stone frame; r = prong radius (mm), style: round | claw | double
-function prongGeometry(sf, u, kind, r, style, baseY) {
+function prongGeometry(sf, u, kind, r, style, baseY, tight = false) {
   const parts = [];
-  if (kind === 'v') return vTip(sf, u, r, baseY);
+  if (kind === 'v') return vTip(sf, u, r, baseY, tight);
   const P = sf.P(u), n = sf.N(u);
   const t = new THREE.Vector3(-n.z, 0, n.x);
   const offsets = style === 'double' || kind === 'claw-double' ? [-0.95, 0.95] : [0];
@@ -345,11 +347,12 @@ function prongGeometry(sf, u, kind, r, style, baseY) {
 }
 
 // chevron that guards a point (pear tip, marquise ends, princess corners)
-function vTip(sf, u, r, baseY) {
+function vTip(sf, u, r, baseY, tight = false) {
   const s = sf.s;
   const per = sf.gem.outline.length * s; // mm perimeter
   const spanU = Math.min(0.08, 1.2 / per);
-  const thick = Math.max(0.38, r * 0.75);
+  // inside a halo the chevron is slimmer so it does not bury the first ring of halo stones
+  const thick = tight ? Math.max(0.28, r * 0.55) : Math.max(0.38, r * 0.75);
   const outer = [], inner = [];
   const n = 16;
   for (let i = 0; i <= n; i++) {
@@ -534,7 +537,7 @@ export function buildRing(spec) {
       const count = st.prongCount === 'auto' ? CUTS[st.gem.cut].prongs.default : st.prongCount;
       const layout = prongLayout(st.gem.cut, count, st.gem);
       const pr = hasHalo ? r * 0.82 : r;
-      for (const pp of layout) local.push(...prongGeometry(sf, pp.u, pp.kind, pr, head.prongStyle, baseY));
+      for (const pp of layout) local.push(...prongGeometry(sf, pp.u, pp.kind, pr, head.prongStyle, baseY, hasHalo));
       // basket rail(s) and seat
       const rails = hasHalo ? [] : head.basket === 'double' ? [0.3, 0.68] : head.basket === 'none' ? [] : [0.45];
       for (const f of rails) {
@@ -582,8 +585,11 @@ export function buildRing(spec) {
   const shank = band.shank;
   const profile = band.profile;
   const cathedral = style === 'cathedral';
-  const headSideAngle = Math.asin(clamp((cHalf.x * 0.92) / (Ri + T), 0.05, 0.95));
-  const rise = Math.max(0, Yg - cGem.pavilionDepth * cS * 0.55 - (Ri + T));
+  // cathedral shoulders climb to the basket rail (pavilion fraction 0.45) and end against it
+  const railOut = (1 - 0.45) * cHalf.x + head.prongR * 0.55 + 0.04;
+  const headSideAngle = Math.asin(clamp(railOut / (Ri + T), 0.05, 0.95));
+  const railY = Yg + (-cGem.girdle / 2 + (cGem.yBottom + cGem.girdle / 2) * 0.45) * cS;
+  const rise = Math.max(0, railY - 0.3 - (Ri + T));
   const widthAt = (phi) => {
     const a = Math.abs(((phi + Math.PI) % TAU + TAU) % TAU - Math.PI);
     let w = W;
@@ -615,16 +621,23 @@ export function buildRing(spec) {
     bandParts.push(sweepAroundAxis(phiGap, TAU - phiGap, 220, tSection, { caps: true }));
     rows.push({ z: () => 0, top: (phi) => Ri + profileHeights(profile, W, tensionT).out(0), width: () => W, min: phiGap + 0.25 });
   } else if (shank === 'split') {
+    // the band narrows into two arms that part around the head and close up again under the stone,
+    // so the stem always lands on metal
     const phiS = 0.8;
     const ws = (phi) => widthAt(phi) * 0.52;
     const sep = Math.max(W * 0.45, Math.min(headHalfZ - ws(0) / 2, W * 1.4));
-    const cOf = (phi) => sep * smooth(phiS, 0.22, Math.abs(phi));
-    bandParts.push(sweepAroundAxis(phiS - 0.06, TAU - phiS + 0.06, 200, (phi) => sectionAt(phi), { caps: true }));
+    const z0 = ws(0) * 0.45; // arms overlap a little at the neck under the stem
+    const cOf = (phi) => { const a = Math.abs(phi); return smooth(phiS, 0.3, a) * (z0 + (sep * 1.1 - z0) * smooth(0.02, 0.45, a)); };
+    // the full band tapers to the arm section exactly where the arms start, so there is no step at the fork
+    const taper = (phi) => smooth(phiS + 0.35, phiS, absAngle(phi));
+    const wMain = (phi) => widthAt(phi) * (1 - 0.48 * taper(phi));
+    const tMain = (phi) => thickAt(phi) * (1 - 0.04 * taper(phi));
+    bandParts.push(sweepAroundAxis(phiS, TAU - phiS, 200, (phi) => sectionAt(phi, wMain(phi), tMain(phi)), { caps: true }));
     for (const sgn of [-1, 1]) {
-      bandParts.push(sweepAroundAxis(-phiS - 0.06, phiS + 0.06, 120, (phi) => sectionAt(phi, ws(phi), thickAt(phi) * 0.96, sgn * cOf(phi)), { caps: true }));
+      bandParts.push(sweepAroundAxis(-phiS, phiS, 120, (phi) => sectionAt(phi, ws(phi), thickAt(phi) * 0.96, sgn * cOf(phi)), { caps: true }));
       rows.push({ z: (phi) => (Math.abs(phi) < phiS ? sgn * cOf(phi) : 0), top: (phi) => Ri + profileHeights(profile, ws(phi), thickAt(phi) * 0.96).out(0), width: (phi) => ws(phi), max: phiS, splitRow: true });
     }
-    rows.push({ z: () => 0, top: (phi) => Ri + profileHeights(profile, widthAt(phi), thickAt(phi)).out(0), width: widthAt, min: phiS + 0.12 });
+    rows.push({ z: () => 0, top: (phi) => Ri + profileHeights(profile, wMain(phi), tMain(phi)).out(0), width: wMain, min: phiS + 0.22 });
   } else if (shank === 'twist') {
     const rs = W * 0.27;
     const k = 14;
@@ -854,6 +867,7 @@ function bezel(sf, half, baseY) {
     frames.push({ u, p, n: nn, c: new THREE.Vector3(centre.x, 0, centre.z), up: new THREE.Vector3(0, 1, 0) });
   }
   const cupBottom = Math.max(baseY + 0.2, sf.yCulet - 0.45);
+  // the cup keeps tapering into a solid foot that sits on the band, whatever gap is dialled in under the stone
   const profile = [
     [1, -lip, lipY],
     [1, -lip * 0.3, lipY + 0.05],
@@ -862,6 +876,10 @@ function bezel(sf, half, baseY) {
     [1, wall, sf.yGb - sf.hp * 0.32],
     [0.62, wall * 0.8, sf.yCulet + sf.hp * 0.15],
     [0.4, wall * 0.5, cupBottom],
+    [0.36, wall * 0.46, cupBottom - (cupBottom - baseY) * 0.55],
+    [0.4, wall * 0.54, baseY],
+    [0, 0, baseY],
+    [0, 0, cupBottom + 0.05],
     [0.35, 0, cupBottom + 0.05],
     [0.92, -0.05, sf.yGb - sf.hp * 0.1],
     [1, -0.04, sf.yGb],
@@ -883,12 +901,14 @@ function bezel(sf, half, baseY) {
       parts.push(sweepFrames(sub, profile, { closed: false, caps: true }));
     }
   }
-  // a stem down into the band
-  const stem = [];
-  for (let i = 0; i < 32; i++) { const u = i / 32; const q = sf.pav(u, 0.85); stem.push(new THREE.Vector3(q.x * 0.45, cupBottom - 0.05, q.z * 0.45)); }
-  parts.push(tube(stem, () => 0.35, { closed: true, segments: 48, radial: 8 }));
-  const post = [new THREE.Vector3(0, cupBottom, 0), new THREE.Vector3(0, (cupBottom + baseY) / 2, 0), new THREE.Vector3(0, baseY, 0)];
-  parts.push(tube(post, () => Math.max(0.6, sf.s * 0.1), { segments: 8, radial: 12 }));
+  if (half) {
+    // the open sides still need a seat ring and a post under the stone (a full bezel's foot already covers this)
+    const stem = [];
+    for (let i = 0; i < 32; i++) { const u = i / 32; const q = sf.pav(u, 0.85); stem.push(new THREE.Vector3(q.x * 0.45, cupBottom - 0.05, q.z * 0.45)); }
+    parts.push(tube(stem, () => 0.35, { closed: true, segments: 48, radial: 8 }));
+    const post = [new THREE.Vector3(0, cupBottom, 0), new THREE.Vector3(0, (cupBottom + baseY) / 2, 0), new THREE.Vector3(0, baseY, 0)];
+    parts.push(tube(post, () => Math.max(0.6, sf.s * 0.1), { segments: 8, radial: 12 }));
+  }
   return parts;
 }
 
