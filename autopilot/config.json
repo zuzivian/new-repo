@@ -1,0 +1,64 @@
+{
+  "enabled": true,
+  "timezone": "America/Los_Angeles",
+  "pacing": {
+    "weekly_target": 0.92,
+    "final_sweep_hours": 24,
+    "min_gap": 0.03,
+    "five_hour_ceiling": 0.70,
+    "worker_cost_7d": 0.02,
+    "worker_cost_5h": 0.15,
+    "max_workers": 3,
+    "max_workers_when_user_active": 1
+  },
+  "workers": {
+    "model": null,
+    "max_unreviewed_autopilot_commits": 12,
+    "skip_if_manual_activity_within_hours": 3
+  },
+  "projects": [
+    {
+      "name": "derby-day",
+      "repo": "zuzivian/derby-day",
+      "enabled": true,
+      "weight": 3,
+      "base_branch": "claude/game-polish-accessibility-8bh1a2",
+      "base_branch_note": "Use PR #81's branch while #81 is open; otherwise the default branch.",
+      "brief": "Browser football game. Nat's standing ask (2026-11-06): ongoing polish, no new major features. Premium feel, accessible, fun on web and mobile. Respect the bundle budget and keep unit + e2e tests green. Good targets: open items in NOTES.md, known flaky e2e tests, unverified reduced-motion variants, small UX rough edges found by playing through with Playwright."
+    },
+    {
+      "name": "natwong-dev",
+      "repo": "zuzivian/natwong-dev",
+      "enabled": true,
+      "weight": 1,
+      "brief": "Nat's personal site; Vercel deploys main. Quality work only: performance, accessibility, SEO hygiene, tests, build health. Do NOT change bio, resume, personal copy or add pages, and never link /resume.pdf anywhere."
+    },
+    {
+      "name": "ad-constellation",
+      "repo": "zuzivian/ad-constellation",
+      "enabled": true,
+      "weight": 2,
+      "brief": "Follow NOTES.md / README / open issues for direction. Advance the next listed item; otherwise do a quality pass (bugs, tests, accessibility, docs)."
+    },
+    {
+      "name": "skyviu",
+      "repo": "zuzivian/skyviu",
+      "enabled": true,
+      "weight": 1,
+      "brief": "Follow NOTES.md / README / open issues for direction. Advance the next listed item; otherwise do a quality pass (bugs, tests, accessibility, docs)."
+    },
+    {
+      "name": "temasek-1360",
+      "repo": "zuzivian/temasek-1360",
+      "enabled": true,
+      "weight": 1,
+      "brief": "Follow NOTES.md / README / open issues for direction. Advance the next listed item; otherwise do a quality pass (bugs, tests, accessibility, docs)."
+    },
+    { "name": "ring-studio",   "repo": "zuzivian/ring-studio",   "enabled": false, "weight": 1, "brief": "Generic: follow NOTES.md / README / issues." },
+    { "name": "network-scope", "repo": "zuzivian/network-scope", "enabled": false, "weight": 1, "brief": "Generic: follow NOTES.md / README / issues." },
+    { "name": "marauders-map", "repo": "zuzivian/marauders-map", "enabled": false, "weight": 1, "brief": "Generic: follow NOTES.md / README / issues." },
+    { "name": "drone-rules",   "repo": "zuzivian/drone-rules",   "enabled": false, "weight": 1, "brief": "Private repo. Off until Nat opts in." },
+    { "name": "drones",        "repo": "zuzivian/drones",        "enabled": false, "weight": 1, "brief": "Private repo. Off until Nat opts in." },
+    { "name": "voia-newy",     "repo": "zuzivian/voia-newy",     "enabled": false, "weight": 1, "brief": "Private repo. Off until Nat opts in." }
+  ]
+}
