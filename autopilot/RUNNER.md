@@ -33,6 +33,31 @@ Be cheap. Don't read project code yourself. Don't do project work yourself.
      `workers.skip_if_manual_activity_within_hours` whose title or sources name a
      project. Skip those projects this run: Nat or another orchestrator is on it.
 
+3b. **Recover stalled sessions.** Recovery comes before new work, because a
+   half-done branch is worth more than a fresh start. Candidates are sessions
+   tagged `autopilot-worker` or `autopilot-watch` (Nat opts his own long
+   sessions in with that tag) that are not `working`, not archived, and not
+   tagged `autopilot-stuck`. For each one, read its last `result` and last
+   `rate_limit_event` with `list_events` (`kinds: ["result", "rate_limit_event"]`,
+   limit 100).
+   - **Finished:** a worker whose final message starts with `AUTOPILOT-DONE` or
+     `AUTOPILOT-NOTHING-TO-DO`. For an `autopilot-watch` session, its last turn
+     ended without error and it isn't waiting on a timer it set itself. Skip it.
+   - **Stalled:** anything else, such as hitting a usage limit, an errored turn,
+     a dropped worker, or going idle mid-task.
+   - **Wait:** if its last rate_limit_event shows a non-`allowed` status and that
+     window's `resetsAt` is still in the future. Skip it for now.
+   - **Resume** only while u5 is below `pacing.five_hour_ceiling`. Use at most
+     `max_workers` resumes per run, and count each one against this run's worker
+     budget. Send `send_message`: *"Your previous turn stopped before finishing
+     (likely a usage limit or restart). Check git status, the remote branch and
+     NOTES.md's 'Autopilot in progress' section, then continue from where you left
+     off. Finish per your original instructions."*
+   - **Retry cap:** before resuming, add the tag `autopilot-resume-<k>` (k = 1, 2,
+     3) with `set_session_tags`. If it already has `autopilot-resume-3`, tag it
+     `autopilot-stuck` instead and list it in the report for Nat.
+   Pass the number of resumes into step 4 by adding them to `--in-flight`.
+
 4. **Decide.** Run:
    `python3 autopilot/pace.py --u7 U7 --u5 U5 --reset7 RESET7 --in-flight N [--user-active]`
    It prints `{"workers": n, ...}`. If n is 0, go to step 6.
@@ -60,8 +85,8 @@ Be cheap. Don't read project code yourself. Don't do project work yourself.
 
 6. **Tag yourself and report.** `set_session_tags` on your own session with
    `["autopilot-runner"]`. Finish with one short paragraph: u7, u5, hours to reset
-   (in PT), the pace.py reason, and which workers you started (project + session
-   id), or "nothing started". This text is what Nat sees in the notification.
+   (in PT), the pace.py reason, sessions resumed or marked stuck, and which
+   workers you started (project + session id), or "nothing started". This text is what Nat sees in the notification.
 
 ## Rules
 

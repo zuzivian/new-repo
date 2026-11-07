@@ -18,6 +18,17 @@ is the scarce resource, not tokens. Make every commit worth reading.
    (d) a quality pass: bugs, accessibility, performance, tests, docs.
    If nothing is worth doing, stop without pushing and say so. Don't churn.
 
+## Survive limits and crashes
+A 5-hour usage limit or a container restart can stop you mid-task. The runner
+will message you to continue after the limit resets, or a later worker will pick
+up the branch. Make that cheap:
+- Commit and push to `autopilot/<project>` after every verified step. Never sit
+  on more than ~20 minutes of unpushed work. WIP commits are fine; prefix them `wip:`.
+- Keep a short `## Autopilot in progress` section at the top of NOTES.md: the
+  task, steps done, and the next step. Clear it when you finish.
+- If you're told to continue after a stop: run `git status` and `git log`, read
+  that section, and resume. Don't start over.
+
 ## Hard limits
 - No new major features unless NOTES.md or the BRIEF lists them as next.
 - Don't touch secrets, `.env`, deploy, CI or infra config, licensing or personal
@@ -34,4 +45,7 @@ is the scarce resource, not tokens. Make every commit worth reading.
    missing, else update it. Keep a running changelog in its body: one dated (PT)
    bullet per run with what changed and how you verified it.
 3. Update `NOTES.md` (done / next / gotchas) in the same branch.
-4. End with a two-line summary: what shipped, and what Nat should look at.
+4. End with a final message whose **first line is exactly** `AUTOPILOT-DONE`
+   (or `AUTOPILOT-NOTHING-TO-DO` if you stopped without pushing), followed by a
+   two-line summary: what shipped, and what Nat should look at. The runner treats
+   any idle worker without this line as stalled and resumes it.

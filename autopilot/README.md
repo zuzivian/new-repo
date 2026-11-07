@@ -42,6 +42,29 @@ unblock, best first:
 3. Until then, run it manually: open a cloud session on this repo and say
    "follow autopilot/RUNNER.md". A run takes about a minute.
 
+## Stalls: limits, crashes, restarts
+A session that hits the 5-hour limit, errors out, or loses its container just
+sits idle, so long tasks quietly stall. The runner handles this (RUNNER.md step 3b):
+- **Detect:** workers must end with `AUTOPILOT-DONE` / `AUTOPILOT-NOTHING-TO-DO`.
+  An idle worker without that line counts as stalled. Nat's own long sessions
+  opt in by adding the tag `autopilot-watch`.
+- **Wait:** if the session's last rate-limit event shows it was blocked, the
+  runner leaves it alone until that window's reset time.
+- **Resume:** the runner messages the session to continue, as long as the
+  5-hour window has room. That takes priority over starting new work.
+- **Cap:** after 3 resumes, the session is tagged `autopilot-stuck` and reported
+  to Nat.
+- **Cheap restarts:** workers push after every verified step and keep an
+  "Autopilot in progress" note in NOTES.md, so a resumed session, or a fresh
+  worker on the same branch, picks up where the last one stopped.
+
+## Supervisor mode (works with scheduling off)
+One cloud session can act as the timer: it runs a background `sleep`, and when
+that ends, the session wakes, follows RUNNER.md, and re-arms. To start it, open a
+cloud session on this repo and say *"be the autopilot supervisor: follow
+autopilot/RUNNER.md now and every 90 minutes using a background sleep"*. It
+stops when that session is archived or reclaimed, so check it once a week.
+
 ## Controls
 - **Pause:** set `"enabled": false` in `config.json`, or pause the "Claude plan
   autopilot" scheduled task in claude.ai → Code → Scheduled.
