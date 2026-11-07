@@ -28,6 +28,20 @@ behind a single draft PR per repo named `Autopilot: <project>`.
 | `WORKER.md` | Instructions and hard limits every worker gets |
 | `tests/` | `python3 -m unittest discover -s autopilot/tests` |
 
+## Status (2026-11-07): the timer is blocked
+Scheduled tasks are **off for the Stanford Claude org**. Both recurring and
+one-shot scheduling are refused ("Organization settings → Capabilities"), so
+the runner can't wake itself yet. Everything else is verified: usage reads from
+a cloud session, `pace.py` decides, and `create_session` starts workers. Ways to
+unblock, best first:
+1. A Stanford org admin turns on scheduled tasks. Then create a 3-hourly
+   scheduled task (new session per run) whose prompt is: *follow
+   autopilot/RUNNER.md in zuzivian/new-repo*.
+2. Run the same scheduled task from an account that allows it. Note: pacing is
+   per account. A runner only spends the limit of the account it runs on.
+3. Until then, run it manually: open a cloud session on this repo and say
+   "follow autopilot/RUNNER.md". A run takes about a minute.
+
 ## Controls
 - **Pause:** set `"enabled": false` in `config.json`, or pause the "Claude plan
   autopilot" scheduled task in claude.ai → Code → Scheduled.
