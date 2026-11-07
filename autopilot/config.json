@@ -5,11 +5,12 @@
     "weekly_target": 0.92,
     "final_sweep_hours": 24,
     "min_gap": 0.03,
-    "five_hour_ceiling": 0.70,
-    "worker_cost_7d": 0.02,
-    "worker_cost_5h": 0.15,
-    "max_workers": 3,
-    "max_workers_when_user_active": 1
+    "five_hour_ceiling": 0.7,
+    "worker_cost_7d": 0.004,
+    "worker_cost_5h": 0.025,
+    "max_workers": 6,
+    "max_workers_when_user_active": 1,
+    "calibration_note": "2026-11-07: 3 short workers + 1 orchestrator moved seven_day 0.24->0.25 and five_hour 0.04->0.11 in ~40 min."
   },
   "workers": {
     "model": null,
@@ -54,11 +55,47 @@
       "weight": 1,
       "brief": "Follow NOTES.md / README / open issues for direction. Advance the next listed item; otherwise do a quality pass (bugs, tests, accessibility, docs)."
     },
-    { "name": "ring-studio",   "repo": "zuzivian/ring-studio",   "enabled": false, "weight": 1, "brief": "Generic: follow NOTES.md / README / issues." },
-    { "name": "network-scope", "repo": "zuzivian/network-scope", "enabled": false, "weight": 1, "brief": "Generic: follow NOTES.md / README / issues." },
-    { "name": "marauders-map", "repo": "zuzivian/marauders-map", "enabled": false, "weight": 1, "brief": "Generic: follow NOTES.md / README / issues." },
-    { "name": "drone-rules",   "repo": "zuzivian/drone-rules",   "enabled": false, "weight": 1, "brief": "Private repo. Off until Nat opts in." },
-    { "name": "drones",        "repo": "zuzivian/drones",        "enabled": false, "weight": 1, "brief": "Private repo. Off until Nat opts in." },
-    { "name": "voia-newy",     "repo": "zuzivian/voia-newy",     "enabled": false, "weight": 1, "brief": "Private repo. Off until Nat opts in." }
+    {
+      "name": "ring-studio",
+      "repo": "zuzivian/ring-studio",
+      "enabled": false,
+      "weight": 1,
+      "brief": "Generic: follow NOTES.md / README / issues."
+    },
+    {
+      "name": "network-scope",
+      "repo": "zuzivian/network-scope",
+      "enabled": false,
+      "weight": 1,
+      "brief": "Generic: follow NOTES.md / README / issues."
+    },
+    {
+      "name": "marauders-map",
+      "repo": "zuzivian/marauders-map",
+      "enabled": false,
+      "weight": 1,
+      "brief": "Generic: follow NOTES.md / README / issues."
+    },
+    {
+      "name": "drone-rules",
+      "repo": "zuzivian/drone-rules",
+      "enabled": false,
+      "weight": 1,
+      "brief": "Private repo. Off until Nat opts in."
+    },
+    {
+      "name": "drones",
+      "repo": "zuzivian/drones",
+      "enabled": false,
+      "weight": 1,
+      "brief": "Private repo. Off until Nat opts in."
+    },
+    {
+      "name": "voia-newy",
+      "repo": "zuzivian/voia-newy",
+      "enabled": false,
+      "weight": 1,
+      "brief": "Private repo. Off until Nat opts in."
+    }
   ]
 }

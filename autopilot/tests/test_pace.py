@@ -30,11 +30,12 @@ class Pace(unittest.TestCase):
 
     def test_five_hour_window_guard(self):
         self.assertEqual(run(0.10, 0.75, 10)["workers"], 0)
-        # 0.55 used -> room for one worker at 0.15 each under 0.70
-        self.assertEqual(run(0.10, 0.55, 10)["workers"], 1)
+        # 0.65 used -> room for two workers at 0.025 each under 0.70
+        self.assertEqual(run(0.10, 0.65, 10)["workers"], 2)
 
     def test_in_flight_and_user_active(self):
-        self.assertEqual(run(0.24, 0.04, 10, in_flight=2)["workers"], 1)
+        self.assertEqual(run(0.24, 0.04, 10, in_flight=2)["workers"],
+                         DEFAULTS["max_workers"] - 2)
         self.assertEqual(run(0.24, 0.04, 10, user_active=True)["workers"], 1)
 
     def test_target_reached_and_stale(self):

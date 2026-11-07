@@ -28,9 +28,9 @@ DEFAULTS = {
     "final_sweep_hours": 24,     # in the last N hours, target = weekly_target
     "min_gap": 0.03,             # do nothing if within 3 pts of the curve
     "five_hour_ceiling": 0.70,   # never push the 5h window past this
-    "worker_cost_7d": 0.02,      # est. weekly utilisation one worker uses
-    "worker_cost_5h": 0.15,      # est. 5h-window utilisation one worker uses
-    "max_workers": 3,            # per run
+    "worker_cost_7d": 0.004,     # est. weekly utilisation one worker uses
+    "worker_cost_5h": 0.025,     # est. 5h-window utilisation one worker uses
+    "max_workers": 6,            # per run
     "max_workers_when_user_active": 1,
 }
 

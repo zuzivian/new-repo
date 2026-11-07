@@ -43,6 +43,9 @@ Be cheap. Don't read project code yourself. Don't do project work yourself.
    - **Finished:** a worker whose final message starts with `AUTOPILOT-DONE` or
      `AUTOPILOT-NOTHING-TO-DO`. For an `autopilot-watch` session, its last turn
      ended without error and it isn't waiting on a timer it set itself. Skip it.
+   - **Waiting on Nat:** status_bucket `blocked`, or its summary asks Nat a
+     question or for a decision. This is not a stall: never answer for him. List
+     the session and its question in the report and skip it.
    - **Stalled:** anything else, such as hitting a usage limit, an errored turn,
      a dropped worker, or going idle mid-task.
    - **Wait:** if its last rate_limit_event shows a non-`allowed` status and that
