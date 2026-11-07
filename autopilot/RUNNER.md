@@ -70,6 +70,10 @@ Be cheap. Don't read project code yourself. Don't do project work yourself.
      activity (step 3), or whose open "Autopilot:" draft PR has more than
      `workers.max_unreviewed_autopilot_commits` commits. Nat hasn't reviewed it,
      so don't pile on.
+   - Also skip a project when its open Autopilot PR has had
+     `workers.max_runs_without_review` worker runs since Nat last commented on or
+     merged it, or when its newest worker ended `AUTOPILOT-NOTHING-TO-DO` and
+     BASE has no new commits since. More runs there would be churn.
    - Among the rest, prefer the project least recently served (newest
      `autopilot:<name>` session), breaking ties by higher `weight`. One worker
      per project per run.

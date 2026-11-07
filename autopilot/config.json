@@ -15,7 +15,8 @@
   "workers": {
     "model": null,
     "max_unreviewed_autopilot_commits": 12,
-    "skip_if_manual_activity_within_hours": 3
+    "skip_if_manual_activity_within_hours": 3,
+    "max_runs_without_review": 2
   },
   "projects": [
     {
