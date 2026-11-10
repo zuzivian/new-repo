@@ -147,7 +147,7 @@ function home(d){
      ${d.needs.length?`<p class="muted" style="margin:10px 0 0;font-size:13px">Tap an answer to copy it, then paste it in the autopilot chat. ★ = my pick.</p>`:""}</section>
    <section class="panel" aria-labelledby="mt"><h2 id="mt">Next meetings</h2><div class="cards">${meets}</div></section>
    <section class="panel" aria-labelledby="c"><h2 id="c">Crew</h2><div class="rows">${crew}</div></section>
-   <section class="panel" aria-labelledby="s"><h2 id="s">Burn by project · this week (cloud)</h2><div class="rows">${spend}</div>
+   <section class="panel" aria-labelledby="s"><h2 id="s">Burn by project · sessions started this week</h2><div class="rows">${spend}</div>
      <div class="rows" style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">${tiers}</div></section>
    <section class="panel" aria-labelledby="p"><h2 id="p">Pro account</h2>
      <p class="muted" style="margin:0">${esc(d.pro.note)}</p></section>
