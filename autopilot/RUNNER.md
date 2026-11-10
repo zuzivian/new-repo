@@ -165,6 +165,10 @@ Be cheap. Don't read project code yourself. Don't do project work yourself.
      Nat reads.
    - `data.json` and primers hold people data, and the repo is public: never
      commit them.
+   - Usage history: once a day, write the same snapshot for this (Stanford)
+     account to `usage/stanford/<date>.json` on branch `usage-data` (see
+     `autopilot/usage/PRO_SETUP.md` for the shape and the privacy rule). Each run,
+     read `usage/pro/*.json` from that branch and add the Pro gauge and burn to HQ.
    - Primers: about 2 hours before each 1:1 or coffee chat on his calendar, write
      its primer following his `crm-brief-me` skill. Notion is down, so build it
      from Gmail, Calendar and Binny, marked "not from Notion". Add it to HQ.
