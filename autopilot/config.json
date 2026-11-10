@@ -39,7 +39,8 @@
       "brief": "Nat's personal site; Vercel deploys main. Quality work only: performance, accessibility, SEO hygiene, tests, build health. Do NOT change bio, resume, personal copy or add pages, and never link /resume.pdf anywhere.",
       "approved_tasks": [
         "GitHub Actions workflow running scripts/check.py (2026-11-09); 404 page NOT approved"
-      ]
+      ],
+      "note": "Autopilot PR merged 2026-11-10; next run uses a new branch (-2)."
     },
     {
       "name": "ad-constellation",
@@ -60,7 +61,8 @@
       "approval_note": "Nat 2026-11-09 PT: 2 more runs without review.",
       "approved_tasks": [
         "CI workflow running the smoke test (2026-11-09)"
-      ]
+      ],
+      "note": "Autopilot PR merged 2026-11-10; next run uses a new branch (-2)."
     },
     {
       "name": "temasek-1360",
@@ -74,30 +76,30 @@
       "repo": "zuzivian/temasek-1360",
       "enabled": true,
       "weight": 2,
-      "branch": "autopilot/temasek-1360-server",
+      "branch": "autopilot/temasek-1360-server-2",
       "base_branch": "main",
-      "brief": "Nat approved 2026-11-09 PT: networking roadmap step 1 only. Move src/sim behind a WebSocket server ticking step() every 600 ms and accepting intents; keep offline play working; tests for tick loop and intents. Multi-run task; separate draft PR 'Autopilot: temasek-1360 server'. Do not start steps 2-5."
+      "brief": "Step 1 merged 2026-11-10 (#3). Nat approved step 2 2026-11-10 PT: shared world, send each client only nearby state (deltas). Do not start step 3+."
     },
     {
       "name": "ring-studio",
       "repo": "zuzivian/ring-studio",
-      "enabled": false,
+      "enabled": true,
       "weight": 1,
-      "brief": "Generic: follow NOTES.md / README / issues."
+      "brief": "Enabled by Nat 2026-11-10 PT. Follow NOTES.md / README / open issues for direction. Advance the next listed item; otherwise do a quality pass (bugs, tests, accessibility, docs)."
     },
     {
       "name": "network-scope",
       "repo": "zuzivian/network-scope",
-      "enabled": false,
+      "enabled": true,
       "weight": 1,
-      "brief": "Generic: follow NOTES.md / README / issues."
+      "brief": "Enabled by Nat 2026-11-10 PT. Follow NOTES.md / README / open issues for direction. Advance the next listed item; otherwise do a quality pass (bugs, tests, accessibility, docs)."
     },
     {
       "name": "marauders-map",
       "repo": "zuzivian/marauders-map",
-      "enabled": false,
+      "enabled": true,
       "weight": 1,
-      "brief": "Generic: follow NOTES.md / README / issues."
+      "brief": "Enabled by Nat 2026-11-10 PT. Follow NOTES.md / README / open issues for direction. Advance the next listed item; otherwise do a quality pass (bugs, tests, accessibility, docs)."
     },
     {
       "name": "drone-rules",
