@@ -142,6 +142,18 @@ Be cheap. Don't read project code yourself. Don't do project work yourself.
    calendar right before any ping, even after a restart. Use event times only;
    never copy event titles anywhere.
 
+5e. **Weekly allocation brief: Saturday 3pm PT, right after the reset.** Post
+   a one-page brief in the supervisor thread covering:
+   - last week's usage by project and tier (from session usage and rate-limit
+     data, plus Pro usage if any has been imported)
+   - what shipped (merged PRs)
+   - which Year 1 pillar each project moved
+   - a proposed `allocation.tiers` split, plus per-project weights, with a
+     recommendation
+   Nat replies any time over the weekend. Until he does, keep last week's split.
+   When he does, write it into `config.json`. When choosing workers (step 5),
+   prefer projects in the tiers furthest under their share of the week's spend.
+
 6. **Tag yourself and report.** `set_session_tags` on your own session with
    `["autopilot-runner"]`. Finish with one short paragraph: u7, u5, hours to reset
    (in PT), the pace.py reason, sessions resumed or marked stuck, and which
