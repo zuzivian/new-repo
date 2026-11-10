@@ -36,21 +36,31 @@
       "repo": "zuzivian/natwong-dev",
       "enabled": true,
       "weight": 1,
-      "brief": "Nat's personal site; Vercel deploys main. Quality work only: performance, accessibility, SEO hygiene, tests, build health. Do NOT change bio, resume, personal copy or add pages, and never link /resume.pdf anywhere."
+      "brief": "Nat's personal site; Vercel deploys main. Quality work only: performance, accessibility, SEO hygiene, tests, build health. Do NOT change bio, resume, personal copy or add pages, and never link /resume.pdf anywhere.",
+      "approved_tasks": [
+        "GitHub Actions workflow running scripts/check.py (2026-11-09); 404 page NOT approved"
+      ]
     },
     {
       "name": "ad-constellation",
       "repo": "zuzivian/ad-constellation",
       "enabled": true,
       "weight": 2,
-      "brief": "Follow NOTES.md / README / open issues for direction. Advance the next listed item; otherwise do a quality pass (bugs, tests, accessibility, docs)."
+      "brief": "Follow NOTES.md / README / open issues for direction. Advance the next listed item; otherwise do a quality pass (bugs, tests, accessibility, docs).",
+      "max_runs_without_review": 4,
+      "approval_note": "Nat 2026-11-09 PT: 2 more runs without review."
     },
     {
       "name": "skyviu",
       "repo": "zuzivian/skyviu",
       "enabled": true,
       "weight": 1,
-      "brief": "Follow NOTES.md / README / open issues for direction. Advance the next listed item; otherwise do a quality pass (bugs, tests, accessibility, docs)."
+      "brief": "Follow NOTES.md / README / open issues for direction. Advance the next listed item; otherwise do a quality pass (bugs, tests, accessibility, docs).",
+      "max_runs_without_review": 4,
+      "approval_note": "Nat 2026-11-09 PT: 2 more runs without review.",
+      "approved_tasks": [
+        "CI workflow running the smoke test (2026-11-09)"
+      ]
     },
     {
       "name": "temasek-1360",
@@ -58,6 +68,15 @@
       "enabled": true,
       "weight": 1,
       "brief": "Follow NOTES.md / README / open issues for direction. Advance the next listed item; otherwise do a quality pass (bugs, tests, accessibility, docs)."
+    },
+    {
+      "name": "temasek-1360-server",
+      "repo": "zuzivian/temasek-1360",
+      "enabled": true,
+      "weight": 2,
+      "branch": "autopilot/temasek-1360-server",
+      "base_branch": "main",
+      "brief": "Nat approved 2026-11-09 PT: networking roadmap step 1 only. Move src/sim behind a WebSocket server ticking step() every 600 ms and accepting intents; keep offline play working; tests for tick loop and intents. Multi-run task; separate draft PR 'Autopilot: temasek-1360 server'. Do not start steps 2-5."
     },
     {
       "name": "ring-studio",
