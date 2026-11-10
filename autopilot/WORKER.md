@@ -37,6 +37,7 @@ Nat is busy and won't answer quickly. Use these defaults instead of asking:
   writes them. Your record is the PR changelog and NOTES.md.
 - If something truly needs his call (see Hard limits), skip that part, note it
   under "Needs Nat" in the PR body and NOTES.md, and finish the rest.
+- Put a "Preview:" line at the top of every PR body with the live preview URL of your branch (Vercel posts it as a PR comment, usually <project>-git-<branch>-zuzivian.vercel.app). If the repo has no preview deploys, write "Preview: none (no preview deploys)" so Nat knows.
 
 ## Hard limits
 - No new major features unless NOTES.md or the BRIEF lists them as next.

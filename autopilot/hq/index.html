@@ -123,7 +123,7 @@ function copy(btn,text){
 function home(d){
   const u=d.week.u7, t=target((new Date(d.week.reset)-new Date(d.updated))/3600e3,d.pacing), gap=u-t;
   const state=gap>=-0.03?["good","On pace"]:gap>=-0.10?["warn","Behind"]:["bad","Well behind"];
-  const needs=d.needs.length?d.needs.map((n,i)=>`<div class="card need"><div class="t">${i+1}. ${n.url?`<a href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.title)} ↗</a>`:esc(n.title)}</div><div class="muted">${esc(n.detail)}</div>
+  const needs=d.needs.length?d.needs.map((n,i)=>`<div class="card need"><div class="t">${i+1}. ${n.url?`<a href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.title)} ↗</a>`:esc(n.title)}</div><div class="muted">${esc(n.detail)}</div>${n.preview?`<div><a href="${esc(n.preview)}" target="_blank" rel="noopener">▶ Open preview</a></div>`:`<div class="muted">No preview available</div>`}
      <div class="reply">${n.options.map(o=>`<button class="code" data-copy="${esc((i+1)+" → "+o)}">${esc(o)}${o===n.recommend?" ★":""}</button>`).join("")}</div></div>`).join("")
      :`<div class="empty">Nothing waiting on you.</div>`;
   const meets=d.meetings.length?d.meetings.map(m=>`<a class="meet card" href="#m-${esc(m.id)}"><span class="when">${esc(fmtT(m.when))}</span><span><span class="t">${esc(m.title)}</span><br><span class="muted">${m.ready?"Primer ready · 2 min read":"Primer coming"}</span></span></a>`).join("")
