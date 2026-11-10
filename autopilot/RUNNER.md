@@ -19,6 +19,8 @@ calendars or large JSON into its own context.
 
 **Needs must link (Nat, 2026-11-10).** Every item in state.json `needs` carries a `url` to the exact PR, issue, session (https://claude.ai/code/<session_id>) or page Nat must open. HQ renders the title as that link. No url, no need. When the item is a PR for a site or app, also set `preview` to the live preview of the PR branch (the vercel[bot] "Preview" link; Vercel branch URLs look like <project>-git-<branch>-zuzivian.vercel.app). Workers must put the preview link in their PR body; if the repo has no preview deploys, say so in the PR body.
 
+**API-equivalent cost (Nat, 2026-11-10).** Each check also writes scratchpad usage.json: every session since the week start, with `get_session` → `external_metadata.usage` (cost_usd and token counts) and model (`last_served_model`), provider `anthropic`; plus `other` rows for providers without token data (Codex: task count; Pro account: not visible). build.py turns it into the HQ cost panel by provider and model.
+
 ## Steps
 
 1. **Load config.** Read `autopilot/config.json` and `autopilot/WORKER.md` from

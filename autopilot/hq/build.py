@@ -43,6 +43,25 @@ for s in usage.get("sessions", []):
         continue
     repo = s.get("repo") or "none"
     spend[repo] = spend.get(repo, 0.0) + float(u["cost_usd"])
+# API-equivalent cost by provider -> model. cost_usd comes from the Claude Code CLI, which prices tokens at
+# API list rates. Providers without token data (Codex, Pro) come in as "other" rows with a note.
+prov = {}
+for s in usage.get("sessions", []):
+    u = s.get("usage") or {}
+    created = dt.datetime.fromisoformat(s["created_at"].replace("Z", "+00:00"))
+    if created < week_start or not u.get("cost_usd"):
+        continue
+    P = prov.setdefault(s.get("provider") or "anthropic", {})
+    m = P.setdefault(s.get("model") or "unknown", {"usd": 0.0, "sessions": 0, "tokens": 0})
+    m["usd"] += float(u["cost_usd"]); m["sessions"] += 1
+    m["tokens"] += sum(int(u.get(k) or 0) for k in ("input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens"))
+cost = {"providers": sorted(({"provider": k, "usd": round(sum(m["usd"] for m in v.values()), 2),
+          "models": sorted(({"model": mk, "usd": round(mv["usd"], 2), "sessions": mv["sessions"], "tokens": mv["tokens"]}
+                            for mk, mv in v.items()), key=lambda r: -r["usd"])} for k, v in prov.items()),
+                        key=lambda r: -r["usd"]),
+        "other": usage.get("other", [])}
+cost["total"] = round(sum(p["usd"] for p in cost["providers"]), 2)
+
 spend_rows = sorted(
     ({"project": k, "usd": round(v, 2), "tier": tier_of.get(k, "maintenance")} for k, v in spend.items()),
     key=lambda r: -r["usd"])
@@ -66,6 +85,7 @@ out = {
     "meetings": meetings,
     "pro": state.get("pro", {"note": "Not connected yet."}),
     "supervisor": state.get("supervisor"),
+    "cost": cost,
 }
 with open(os.path.join(HERE, "data.json"), "w") as fh:
     json.dump(out, fh, indent=1)

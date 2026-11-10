@@ -115,6 +115,15 @@ function gaugeChart(d){
   <div class="legend"><span><i class="dot" style="background:var(--core)"></i>Used</span><span><i class="dot" style="background:var(--ink-2)"></i>Target (dashed)</span><span><i class="dot" style="background:var(--accent)"></i>Now</span></div>`;
 }
 
+function costHtml(c){
+  if(!c||(!c.providers.length&&!c.other.length)) return '<div class="empty">No usage collected yet.</div>';
+  const fmtTok=t=>t>=1e6?(t/1e6).toFixed(1)+"M":t>=1e3?(t/1e3).toFixed(0)+"k":String(t);
+  const max=Math.max(1,...c.providers.flatMap(p=>p.models.map(m=>m.usd)));
+  const prov=c.providers.map(p=>`<div class="row"><span class="name"><b>${esc(p.provider)}</b></span><span class="mono">$${p.usd.toFixed(2)}</span></div>`+
+    p.models.map(m=>`<div class="row"><span class="name" style="padding-left:12px">${esc(m.model)} <span class="muted">· ${m.sessions} sessions · ${fmtTok(m.tokens)} tok</span></span><span class="mono muted">$${m.usd.toFixed(2)}</span></div><div class="hbar"><i style="width:${(m.usd/max*100).toFixed(1)}%;background:var(--core)"></i></div>`).join("")).join("");
+  const oth=c.other.map(o=>`<div class="row"><span class="name"><b>${esc(o.provider)}</b> <span class="muted">· ${esc(o.label||"")}</span></span><span class="mono muted">${o.usd!=null?"$"+Number(o.usd).toFixed(2):"n/a"}</span></div><div class="muted" style="font-size:13px;padding-left:12px">${esc(o.note||"")}</div>`).join("");
+  return `<div class="rows">${prov}${oth}</div>`;
+}
 function copy(btn,text){
   const done=()=>{const o=btn.textContent;btn.textContent="Copied";setTimeout(()=>btn.textContent=o,1200)};
   try{navigator.clipboard.writeText(text).then(done,()=>{})}catch(e){}
@@ -160,6 +169,9 @@ function home(d){
      ${d.needs.length?`<p class="muted" style="margin:10px 0 0;font-size:13px">Tap an answer to send it straight to the autopilot (the first tap asks you to allow the Claude Code Remote connector; if sending fails it copies instead). ★ = my pick.</p>`:""}</section>
    <section class="panel" aria-labelledby="mt"><h2 id="mt">Next meetings</h2><div class="cards">${meets}</div></section>
    <section class="panel" aria-labelledby="c"><h2 id="c">Crew</h2><div class="rows">${crew}</div></section>
+   <section class="panel" aria-labelledby="c"><h2 id="c">API-equivalent cost · this week · $${(d.cost&&d.cost.total||0).toFixed(0)}</h2>
+     ${costHtml(d.cost)}
+     <p class="muted" style="margin:10px 0 0;font-size:13px">What these tokens would cost at API list prices (Claude Code's own estimate per session). Plan usage, not a bill.</p></section>
    <section class="panel" aria-labelledby="s"><h2 id="s">Burn by project · sessions started this week</h2><div class="rows">${spend}</div>
      <div class="rows" style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">${tiers}</div></section>
    <section class="panel" aria-labelledby="p"><h2 id="p">Pro account</h2>
