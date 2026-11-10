@@ -10,9 +10,23 @@ hours. The runner reads the account's real usage (cloud sessions record
 compares it with a pacing curve:
 
 ```
-target = 92% × (fraction of the week elapsed)     # linear
+target = 0                                        # Sat 3pm → Wed 3pm: the budget is Nat's
+target = 92% × (1 − hours_left / 72)              # Wed 3pm → Sat 3pm: linear ramp
 target = 92%                                      # in the last 24 h ("final sweep")
 ```
+
+The ramp starts 72 hours before reset (`ramp_start_hours_before_reset`). That
+keeps Saturday to Wednesday free for Nat's own big ideas. From Wednesday on,
+the target is still reachable: at most one 5-hour window, about 14% of the week,
+can be used every 5 hours, which is roughly 2× what the ramp needs. Starting on
+Thursday would be tight, and starting on Friday couldn't reach the target.
+
+**Decision digest.** Nat misses questions spread across many sessions, so the
+supervisor collects them in its own thread as one numbered list. Each item comes
+with a recommended answer. The list covers sessions blocked on him for more than
+2 hours, Autopilot PRs he hasn't touched in more than 24 hours, and proposed new
+tasks for idle projects. He replies there, e.g. "1 → new branch, 4 → yes", and
+the supervisor relays each answer to its session or starts the approved work.
 
 If usage is more than 3 points behind target, it starts up to 3 **worker**
 sessions (1 while Nat is actively using Claude). It never lets the 5-hour window

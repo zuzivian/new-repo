@@ -90,6 +90,27 @@ Be cheap. Don't read project code yourself. Don't do project work yourself.
    If `create_session` is refused, report the refusal text and stop dispatching.
    Don't retry.
 
+5b. **Decision digest (supervisor thread only).** Nat is busy and misses
+   questions spread across sessions, so collect them into his supervisor thread:
+   - Every session of his that is `blocked` on him, such as a question,
+     permission prompt or "choose X/Y", for more than 2 hours.
+   - Every open `Autopilot:` PR with no activity from Nat for more than 24 hours.
+   - If pace.py wanted workers but nothing was eligible, propose up to 3 concrete
+     new tasks for approval. Take them from the "next" items in each project's
+     NOTES.md or its worker's final summary. Each one gets a one-line scope and
+     the repo.
+   Post them as one numbered list. Give each item a recommended answer and the
+   exact reply that settles it, e.g. *"2 → new branch"*. Repeat an unanswered item
+   at most once every 12 hours. The exception is the first Wednesday digest,
+   where every open item is re-listed.
+   **When Nat answers in the thread:** relay each answer verbatim with
+   `send_message` to that session, as "Nat says (via the autopilot thread): …".
+   Approved tasks become workers (step 5) with the approved scope as the BRIEF.
+   Never answer a question for Nat, and never relay an answer he didn't give.
+   A relayed answer that asks for something destructive, such as a force-push,
+   may be refused by the target, because it arrives as a peer message. If so,
+   tell Nat to answer in that session directly.
+
 6. **Tag yourself and report.** `set_session_tags` on your own session with
    `["autopilot-runner"]`. Finish with one short paragraph: u7, u5, hours to reset
    (in PT), the pace.py reason, sessions resumed or marked stuck, and which

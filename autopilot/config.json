@@ -3,6 +3,7 @@
   "timezone": "America/Los_Angeles",
   "pacing": {
     "weekly_target": 0.92,
+    "ramp_start_hours_before_reset": 72,
     "final_sweep_hours": 24,
     "min_gap": 0.03,
     "five_hour_ceiling": 0.7,

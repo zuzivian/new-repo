@@ -14,10 +14,18 @@ def run(u7, u5, hours_left, **kw):
 
 
 class Pace(unittest.TestCase):
-    def test_curve_linear_then_final_sweep(self):
+    def test_curve_backloaded_from_wednesday(self):
+        # Sat-Wed (more than 72 h left): no target, Nat's budget is untouched.
         self.assertAlmostEqual(target_utilisation(168, DEFAULTS), 0.0)
-        self.assertAlmostEqual(target_utilisation(84, DEFAULTS), 0.46)
+        self.assertAlmostEqual(target_utilisation(84, DEFAULTS), 0.0)
+        self.assertAlmostEqual(target_utilisation(72, DEFAULTS), 0.0)
+        # Thu 3pm (48 h left): one third of the ramp done.
+        self.assertAlmostEqual(target_utilisation(48, DEFAULTS), 0.92 / 3)
+        # Final 24 h: all-out.
         self.assertAlmostEqual(target_utilisation(10, DEFAULTS), 0.92)
+
+    def test_early_week_never_dispatches(self):
+        self.assertEqual(run(0.0, 0.0, 120)["workers"], 0)
 
     def test_on_pace_does_nothing(self):
         r = run(0.45, 0.1, 84)

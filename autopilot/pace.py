@@ -25,6 +25,7 @@ WEEK_HOURS = 168.0
 
 DEFAULTS = {
     "weekly_target": 0.92,       # aim to have used this much by reset
+    "ramp_start_hours_before_reset": 72,  # target is 0 before this (Wed 3pm)
     "final_sweep_hours": 24,     # in the last N hours, target = weekly_target
     "min_gap": 0.03,             # do nothing if within 3 pts of the curve
     "five_hour_ceiling": 0.70,   # never push the 5h window past this
@@ -44,11 +45,19 @@ def load_pacing(config_path: str | None) -> dict:
 
 
 def target_utilisation(hours_left: float, cfg: dict) -> float:
-    """Linear pacing curve from 0 at week start to weekly_target at reset."""
+    """Back-loaded pacing curve.
+
+    Target is 0 until `ramp_start_hours_before_reset` (default 72 h = Wed 3pm
+    for a Sat 3pm reset), so Sat-Wed stays free for Nat's own ideas. It then
+    rises linearly to weekly_target at reset; in the final sweep it jumps to
+    weekly_target so autopilot goes all-out on the last day.
+    """
     if hours_left <= cfg["final_sweep_hours"]:
         return cfg["weekly_target"]
-    elapsed = min(max(1.0 - hours_left / WEEK_HOURS, 0.0), 1.0)
-    return cfg["weekly_target"] * elapsed
+    ramp = min(max(cfg["ramp_start_hours_before_reset"], 1.0), WEEK_HOURS)
+    if hours_left >= ramp:
+        return 0.0
+    return cfg["weekly_target"] * (1.0 - hours_left / ramp)
 
 
 def decide(u7: float, u5: float, reset7: float, now: float, cfg: dict,
