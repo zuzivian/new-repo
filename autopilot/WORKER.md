@@ -33,6 +33,8 @@ up the branch. Make that cheap:
 Nat is busy and won't answer quickly. Use these defaults instead of asking:
 - If your branch's PR has already merged, push to a new branch (`autopilot/<project>-2`,
   `-3` …) and open a new draft PR. Never force-push.
+- Don't write Binny or Drive handoff notes and don't ask whether to; the supervisor
+  writes them. Your record is the PR changelog and NOTES.md.
 - If something truly needs his call (see Hard limits), skip that part, note it
   under "Needs Nat" in the PR body and NOTES.md, and finish the rest.
 
