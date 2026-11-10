@@ -119,12 +119,25 @@ function copy(btn,text){
   const done=()=>{const o=btn.textContent;btn.textContent="Copied";setTimeout(()=>btn.textContent=o,1200)};
   try{navigator.clipboard.writeText(text).then(done,()=>{})}catch(e){}
 }
+/* Answer buttons message the supervisor session directly through the viewer's
+   Claude Code Remote connector; if that isn't available, fall back to copy. */
+const CCR="Claude Code Remote";
+async function answer(btn,text,title){
+  const sid=DATA&&DATA.supervisor;
+  let mcp=null; try{mcp=await window.claude?.use?.("mcp")}catch(e){}
+  if(!sid||!mcp){copy(btn,text);return}
+  const orig=btn.textContent; btn.disabled=true; btn.textContent="Sending…";
+  try{
+    await mcp.callTool(CCR,"send_message",{session_id:sid,message:"HQ answer from Nat: "+title+" → "+text.split(" → ").slice(1).join(" → ")});
+    btn.textContent="Sent ✓"; const c=btn.closest(".need"); if(c) c.style.opacity=".55";
+  }catch(e){btn.disabled=false; btn.textContent=orig; copy(btn,text)}
+}
 
 function home(d){
   const u=d.week.u7, t=target((new Date(d.week.reset)-new Date(d.updated))/3600e3,d.pacing), gap=u-t;
   const state=gap>=-0.03?["good","On pace"]:gap>=-0.10?["warn","Behind"]:["bad","Well behind"];
   const needs=d.needs.length?d.needs.map((n,i)=>`<div class="card need"><div class="t">${i+1}. ${n.url?`<a href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.title)} ↗</a>`:esc(n.title)}</div><div class="muted">${esc(n.detail)}</div>${n.preview?`<div><a href="${esc(n.preview)}" target="_blank" rel="noopener">▶ Open preview</a></div>`:`<div class="muted">No preview available</div>`}
-     <div class="reply">${n.options.map(o=>`<button class="code" data-copy="${esc((i+1)+" → "+o)}">${esc(o)}${o===n.recommend?" ★":""}</button>`).join("")}</div></div>`).join("")
+     <div class="reply">${n.options.map(o=>`<button class="code" data-copy="${esc((i+1)+" → "+o)}" data-title="${esc(n.title)}">${esc(o)}${o===n.recommend?" ★":""}</button>`).join("")}</div></div>`).join("")
      :`<div class="empty">Nothing waiting on you.</div>`;
   const meets=d.meetings.length?d.meetings.map(m=>`<a class="meet card" href="#m-${esc(m.id)}"><span class="when">${esc(fmtT(m.when))}</span><span><span class="t">${esc(m.title)}</span><br><span class="muted">${m.ready?"Primer ready · 2 min read":"Primer coming"}</span></span></a>`).join("")
      :`<div class="empty">No 1:1s in the next 48 hours.</div>`;
@@ -144,7 +157,7 @@ function home(d){
      ${gaugeChart(d)}</section>
    <section class="panel" aria-labelledby="n"><h2 id="n">Needs you · ${d.needs.length}</h2>
      <div class="cards">${needs}</div>
-     ${d.needs.length?`<p class="muted" style="margin:10px 0 0;font-size:13px">Tap an answer to copy it, then paste it in the autopilot chat. ★ = my pick.</p>`:""}</section>
+     ${d.needs.length?`<p class="muted" style="margin:10px 0 0;font-size:13px">Tap an answer to send it straight to the autopilot (the first tap asks you to allow the Claude Code Remote connector; if sending fails it copies instead). ★ = my pick.</p>`:""}</section>
    <section class="panel" aria-labelledby="mt"><h2 id="mt">Next meetings</h2><div class="cards">${meets}</div></section>
    <section class="panel" aria-labelledby="c"><h2 id="c">Crew</h2><div class="rows">${crew}</div></section>
    <section class="panel" aria-labelledby="s"><h2 id="s">Burn by project · sessions started this week</h2><div class="rows">${spend}</div>
@@ -176,7 +189,7 @@ function render(){
   document.getElementById("updated").textContent="Updated "+fmtT(DATA.updated)+" PT";
   const h=location.hash.slice(1);
   v.innerHTML=h.startsWith("m-")?primer(DATA.meetings.find(m=>"m-"+m.id===h)):home(DATA);
-  v.querySelectorAll("[data-copy]").forEach(b=>b.addEventListener("click",()=>copy(b,b.dataset.copy)));
+  v.querySelectorAll("[data-copy]").forEach(b=>b.addEventListener("click",()=>b.dataset.title?answer(b,b.dataset.copy,b.dataset.title):copy(b,b.dataset.copy)));
   if(h.startsWith("m-")) window.scrollTo(0,0);
 }
 addEventListener("hashchange",render);

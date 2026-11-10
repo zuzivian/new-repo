@@ -65,6 +65,7 @@ out = {
     "spend": spend_rows,
     "meetings": meetings,
     "pro": state.get("pro", {"note": "Not connected yet."}),
+    "supervisor": state.get("supervisor"),
 }
 with open(os.path.join(HERE, "data.json"), "w") as fh:
     json.dump(out, fh, indent=1)
