@@ -17,6 +17,8 @@ goes to a **Sonnet subagent**. The supervisor only restarts the timer, passes
 on Nat's answers, and posts the short summary. It never reads full transcripts,
 calendars or large JSON into its own context.
 
+**Needs must link (Nat, 2026-11-10).** Every item in state.json `needs` carries a `url` to the exact PR, issue, session (https://claude.ai/code/<session_id>) or page Nat must open. HQ renders the title as that link. No url, no need.
+
 ## Steps
 
 1. **Load config.** Read `autopilot/config.json` and `autopilot/WORKER.md` from
