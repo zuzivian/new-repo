@@ -124,22 +124,23 @@ Be cheap. Don't read project code yourself. Don't do project work yourself.
    - Still needs Nat: CI, deploy or infra changes; merges to main; new pages or
      personal copy; private repos; anything destructive. Ask once, then move on.
 
-5d. **Reach Nat where he'll see it.**
-   1. **Supervisor thread digest** (5b): always.
-   2. **Email:** `outlook_send_mail` from his Stanford account to
-      natwong@stanford.edu. Subject `[Autopilot] <n> decisions waiting`. The body
-      is the numbered digest, closing with "Reply in the autopilot session".
-      Send only when there's a new item, or one more than 12 hours old. At most
-      2 per day, and only in a free window (below).
-   3. **PushNotification:** in a free window, for anything urgent, such as a
-      session blocked on him for more than 2 hours. It's skipped automatically
-      when he's at the terminal.
-   4. **Notion ✅ Tasks:** add a task "Reply to autopilot (n items)" once the
-      Notion connector is available. It was down on 2026-11-10.
-   **Free window:** 7:30am–10pm PT, and Google Calendar shows no non-transparent
-   event from 15 minutes before now to 30 minutes after it. Never ping him during
-   class or a meeting. Use event times only; never copy event titles into an
-   email, digest or file.
+5d. **Reach Nat where he'll see it, with no approval needed.** (Nat,
+   2026-11-10: email needed his approval each time and stalled the run, so
+   don't use it.)
+   1. **Supervisor thread digest** (5b): always. End the turn with the numbered
+      list, so the Claude app shows the session as needing his input.
+   2. **PushNotification**, best effort: one line, in a free window, only for
+      something new that's urgent, e.g. a session blocked on him for more than 2
+      hours, or decisions holding up the fast phase. At most 2 a day. It's skipped
+      automatically when he's at the terminal.
+   3. **Don't send email, and don't create calendar events or Notion tasks.**
+      Each needs a per-call approval and would stall unattended runs. Never
+      leave a tool call waiting on approval: if a call would prompt, skip it
+      and use the digest.
+   **Free window:** 7:30am-10pm PT, and Google Calendar shows no non-transparent
+   event from 15 minutes before now to 30 minutes after it. Re-check the
+   calendar right before any ping, even after a restart. Use event times only;
+   never copy event titles anywhere.
 
 6. **Tag yourself and report.** `set_session_tags` on your own session with
    `["autopilot-runner"]`. Finish with one short paragraph: u7, u5, hours to reset

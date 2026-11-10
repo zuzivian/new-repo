@@ -30,7 +30,7 @@ and `max_workers_slow_phase` (2).
 supervisor collects them in its own thread as one numbered list. Each item comes
 with a recommended answer. The list covers sessions blocked on him for more than
 2 hours, Autopilot PRs he hasn't touched in more than 24 hours, and proposed new
-tasks for idle projects. He replies there, e.g. "1 → new branch, 4 → yes", and
+tasks for idle projects. Pings: the digest in the thread, plus a best-effort phone push. No email or calendar writes, because those need approval each time. He replies there, e.g. "1 → new branch, 4 → yes", and
 the supervisor relays each answer to its session or starts the approved work.
 
 If usage is more than 3 points behind target, it starts up to 3 **worker**
