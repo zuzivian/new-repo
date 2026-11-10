@@ -3,7 +3,8 @@
   "timezone": "America/Los_Angeles",
   "pacing": {
     "weekly_target": 0.92,
-    "ramp_start_hours_before_reset": 72,
+    "ramp_start_hours_before_reset": 96,
+    "slow_phase_target": 0.15,
     "final_sweep_hours": 24,
     "min_gap": 0.03,
     "five_hour_ceiling": 0.7,
@@ -11,7 +12,8 @@
     "worker_cost_5h": 0.025,
     "max_workers": 6,
     "max_workers_when_user_active": 1,
-    "calibration_note": "2026-11-07: 3 short workers + 1 orchestrator moved seven_day 0.24->0.25 and five_hour 0.04->0.11 in ~40 min."
+    "calibration_note": "2026-11-07: 3 short workers + 1 orchestrator moved seven_day 0.24->0.25 and five_hour 0.04->0.11 in ~40 min.",
+    "max_workers_slow_phase": 2
   },
   "workers": {
     "model": null,

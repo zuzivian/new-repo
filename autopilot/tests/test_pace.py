@@ -14,18 +14,22 @@ def run(u7, u5, hours_left, **kw):
 
 
 class Pace(unittest.TestCase):
-    def test_curve_backloaded_from_wednesday(self):
-        # Sat-Wed (more than 72 h left): no target, Nat's budget is untouched.
+    def test_curve_slow_until_tuesday_then_fast(self):
+        # Slow phase: 0 at reset, 15% by Tue 3pm (96 h left).
         self.assertAlmostEqual(target_utilisation(168, DEFAULTS), 0.0)
-        self.assertAlmostEqual(target_utilisation(84, DEFAULTS), 0.0)
-        self.assertAlmostEqual(target_utilisation(72, DEFAULTS), 0.0)
-        # Thu 3pm (48 h left): one third of the ramp done.
-        self.assertAlmostEqual(target_utilisation(48, DEFAULTS), 0.92 / 3)
+        self.assertAlmostEqual(target_utilisation(132, DEFAULTS), 0.075)
+        self.assertAlmostEqual(target_utilisation(96, DEFAULTS), 0.15)
+        # Fast phase: Thu 3pm (48 h left) is halfway from 15% to 92%.
+        self.assertAlmostEqual(target_utilisation(48, DEFAULTS), 0.535)
         # Final 24 h: all-out.
         self.assertAlmostEqual(target_utilisation(10, DEFAULTS), 0.92)
 
-    def test_early_week_never_dispatches(self):
-        self.assertEqual(run(0.0, 0.0, 120)["workers"], 0)
+    def test_slow_phase_is_gentle(self):
+        # Within 3 pts of a 10% target: nothing. Far behind: at most 2 workers.
+        self.assertEqual(run(0.08, 0.0, 120)["workers"], 0)
+        self.assertEqual(run(0.0, 0.0, 120)["workers"], 2)
+        # Fast phase lifts the cap back to max_workers.
+        self.assertEqual(run(0.0, 0.0, 72)["workers"], DEFAULTS["max_workers"])
 
     def test_on_pace_does_nothing(self):
         r = run(0.45, 0.1, 84)

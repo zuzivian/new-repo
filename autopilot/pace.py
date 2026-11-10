@@ -25,7 +25,8 @@ WEEK_HOURS = 168.0
 
 DEFAULTS = {
     "weekly_target": 0.92,       # aim to have used this much by reset
-    "ramp_start_hours_before_reset": 72,  # target is 0 before this (Wed 3pm)
+    "ramp_start_hours_before_reset": 96,  # fast phase starts here (Tue 3pm)
+    "slow_phase_target": 0.15,   # target reached by the end of the slow phase
     "final_sweep_hours": 24,     # in the last N hours, target = weekly_target
     "min_gap": 0.03,             # do nothing if within 3 pts of the curve
     "five_hour_ceiling": 0.70,   # never push the 5h window past this
@@ -33,6 +34,7 @@ DEFAULTS = {
     "worker_cost_5h": 0.025,     # est. 5h-window utilisation one worker uses
     "max_workers": 6,            # per run
     "max_workers_when_user_active": 1,
+    "max_workers_slow_phase": 2,  # gentle before the fast phase starts
 }
 
 
@@ -45,19 +47,23 @@ def load_pacing(config_path: str | None) -> dict:
 
 
 def target_utilisation(hours_left: float, cfg: dict) -> float:
-    """Back-loaded pacing curve.
+    """Two-speed pacing curve.
 
-    Target is 0 until `ramp_start_hours_before_reset` (default 72 h = Wed 3pm
-    for a Sat 3pm reset), so Sat-Wed stays free for Nat's own ideas. It then
-    rises linearly to weekly_target at reset; in the final sweep it jumps to
-    weekly_target so autopilot goes all-out on the last day.
+    Slow phase: from the reset until `ramp_start_hours_before_reset` (default
+    96 h = Tue 3pm for a Sat 3pm reset), the target rises gently to
+    `slow_phase_target`, leaving most of the budget for Nat's own ideas.
+    Fast phase: from there it rises linearly to weekly_target at reset. In the
+    final sweep it jumps to weekly_target so autopilot goes all-out.
     """
+    cap = cfg["weekly_target"]
     if hours_left <= cfg["final_sweep_hours"]:
-        return cfg["weekly_target"]
-    ramp = min(max(cfg["ramp_start_hours_before_reset"], 1.0), WEEK_HOURS)
+        return cap
+    ramp = min(max(cfg["ramp_start_hours_before_reset"], 1.0), WEEK_HOURS - 1.0)
+    slow = min(max(cfg["slow_phase_target"], 0.0), cap)
     if hours_left >= ramp:
-        return 0.0
-    return cfg["weekly_target"] * (1.0 - hours_left / ramp)
+        done = min(max((WEEK_HOURS - hours_left) / (WEEK_HOURS - ramp), 0.0), 1.0)
+        return slow * done
+    return slow + (cap - slow) * (1.0 - hours_left / ramp)
 
 
 def decide(u7: float, u5: float, reset7: float, now: float, cfg: dict,
@@ -81,6 +87,8 @@ def decide(u7: float, u5: float, reset7: float, now: float, cfg: dict,
     want = math.ceil(gap / cfg["worker_cost_7d"])
     room_5h = math.floor((cfg["five_hour_ceiling"] - u5) / cfg["worker_cost_5h"] + 1e-9)
     cap = cfg["max_workers_when_user_active"] if user_active else cfg["max_workers"]
+    if hours_left >= cfg["ramp_start_hours_before_reset"]:
+        cap = min(cap, cfg["max_workers_slow_phase"])
     n = max(0, min(want, room_5h, cap) - in_flight)
     reason = f"behind pace by {gap:.0%}"
     if n == 0:

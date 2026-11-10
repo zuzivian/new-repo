@@ -10,16 +10,21 @@ hours. The runner reads the account's real usage (cloud sessions record
 compares it with a pacing curve:
 
 ```
-target = 0                                        # Sat 3pm → Wed 3pm: the budget is Nat's
-target = 92% × (1 − hours_left / 72)              # Wed 3pm → Sat 3pm: linear ramp
-target = 92%                                      # in the last 24 h ("final sweep")
+slow phase  Sat 3pm → Tue 3pm: target rises gently 0 → 15%, max 2 workers
+fast phase  Tue 3pm → Sat 3pm: target rises linearly 15% → 92%, max 6 workers
+final sweep last 24 h:         target = 92% (all-out)
 ```
 
-The ramp starts 72 hours before reset (`ramp_start_hours_before_reset`). That
-keeps Saturday to Wednesday free for Nat's own big ideas. From Wednesday on,
-the target is still reachable: at most one 5-hour window, about 14% of the week,
-can be used every 5 hours, which is roughly 2× what the ramp needs. Starting on
-Thursday would be tight, and starting on Friday couldn't reach the target.
+| Time left | Sat 3pm | Sun 3pm | Mon 3pm | Tue 3pm | Wed 3pm | Thu 3pm | Fri 3pm |
+|---|---|---|---|---|---|---|---|
+| Target | 0% | 5% | 10% | 15% | 34% | 54% | 92% |
+
+Saturday to Tuesday runs slowly, so most of the budget stays free for Nat's own
+big ideas. From Tuesday it speeds up. The fast phase needs about 0.8% of the
+week per hour, against a ceiling of about 2.8% per hour (one 5-hour window, at
+about 14% of the week, every 5 hours), so it is reachable with room to spare.
+The knobs are `ramp_start_hours_before_reset` (96), `slow_phase_target` (0.15)
+and `max_workers_slow_phase` (2).
 
 **Decision digest.** Nat misses questions spread across many sessions, so the
 supervisor collects them in its own thread as one numbered list. Each item comes
