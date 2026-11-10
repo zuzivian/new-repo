@@ -7,6 +7,16 @@ active project forward. Most runs should end in under a minute with "on pace".
 
 Be cheap. Don't read project code yourself. Don't do project work yourself.
 
+## Lean supervisor (Nat, 2026-11-10)
+The supervisor thread does no tactical work itself. Each check, it starts one
+**Haiku subagent** (Agent tool, model haiku) with: "Run one autopilot check:
+follow autopilot/RUNNER.md steps 1–5f. Write the scratchpad state.json, rebuild
+HQ, republish autopilot/hq/index.html, and reply in 5 lines or fewer: usage,
+pace, workers started, workers archived, new items for Nat." Primer research
+goes to a **Sonnet subagent**. The supervisor only restarts the timer, passes
+on Nat's answers, and posts the short summary. It never reads full transcripts,
+calendars or large JSON into its own context.
+
 ## Steps
 
 1. **Load config.** Read `autopilot/config.json` and `autopilot/WORKER.md` from
