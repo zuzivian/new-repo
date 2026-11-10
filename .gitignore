@@ -43,3 +43,6 @@ tags
 
 # End of https://www.gitignore.io/api/osx,vim
 __pycache__/
+
+# Autopilot HQ data: private (meeting primers, people). Never commit.
+autopilot/hq/data.json

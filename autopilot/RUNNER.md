@@ -154,7 +154,23 @@ Be cheap. Don't read project code yourself. Don't do project work yourself.
    When he does, write it into `config.json`. When choosing workers (step 5),
    prefer projects in the tiers furthest under their share of the week's spend.
 
-6. **Tag yourself and report.** `set_session_tags` on your own session with
+5f. **Housekeeping and the HQ page** (Nat, 2026-11-10).
+   - Archive every autopilot worker session that has finished and whose PR is
+     merged, or that finished with `AUTOPILOT-NOTHING-TO-DO`. Keep finished workers
+     whose PR is still open, plus anything blocked on Nat. Never archive Nat's own
+     sessions.
+   - Each run, refresh the supervisor scratchpad `state.json`, run
+     `python3 autopilot/hq/build.py <scratch>`, and republish
+     `autopilot/hq/index.html` with `data.json`. The HQ page is the visual status
+     Nat reads.
+   - `data.json` and primers hold people data, and the repo is public: never
+     commit them.
+   - Primers: about 2 hours before each 1:1 or coffee chat on his calendar, write
+     its primer following his `crm-brief-me` skill. Notion is down, so build it
+     from Gmail, Calendar and Binny, marked "not from Notion". Add it to HQ.
+
+6. **Tag yourself and report.** Keep the chat report short: about 5 lines, and
+   link HQ for detail. `set_session_tags` on your own session with
    `["autopilot-runner"]`. Finish with one short paragraph: u7, u5, hours to reset
    (in PT), the pace.py reason, sessions resumed or marked stuck, and which
    workers you started (project + session id), or "nothing started". This text is what Nat sees in the notification.
