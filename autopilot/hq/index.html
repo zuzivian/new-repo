@@ -50,6 +50,12 @@ svg text{fill:var(--ink-2);font-family:var(--f-mono);font-size:10px}
 .legend-st{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--ink-2);margin-top:8px}
 .legend-st i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;background:var(--st)}
 .panel{overflow-wrap:anywhere}.cards>*,.rows>*,.row>*{min-width:0}.row .name{overflow:hidden;text-overflow:ellipsis}
+.sevbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.sev{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 8px;border-radius:999px;border:1px solid var(--sv);color:var(--sv)}
+.iss{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;padding:8px 0;border-top:1px solid var(--line)}
+.iss:first-of-type{border-top:0}
+.iss .dot{width:10px;height:10px;border-radius:50%;background:var(--sv);margin-top:5px}
+.iss .meta{font-size:12px;color:var(--ink-2)}
 .cards{display:grid;gap:10px}
 .card{border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:6px;min-width:0}
 .card.need{border-left:4px solid var(--accent);background:var(--accent-soft)}
@@ -134,6 +140,17 @@ function boardHtml(b){
   const legend=Object.keys(ST_COLOR).filter(k=>counts[k]).map(k=>`<span style="--st:${ST_COLOR[k]}"><i></i>${counts[k]} ${esc(k)}</span>`).join("");
   return `<div class="board">${tiles}</div><div class="legend-st">${legend}</div>`;
 }
+const SEV_COLOR={critical:"var(--bad)",high:"var(--warn)",medium:"var(--core)",low:"var(--maint)"};
+function issuesHtml(list){
+  if(!list||!list.length) return '<div class="empty">No open issues.</div>';
+  const c={}; list.forEach(i=>c[i.severity]=(c[i.severity]||0)+1);
+  const bar=Object.keys(SEV_COLOR).map(k=>`<span class="sev" style="--sv:${SEV_COLOR[k]}">${c[k]||0} ${k}</span>`).join("");
+  const rows=list.map(i=>`<div class="iss" style="--sv:${SEV_COLOR[i.severity]||"var(--maint)"}"><span class="dot" aria-label="${esc(i.severity)}"></span><div>
+    <div class="t">${i.url?`<a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.title)} ↗</a>`:esc(i.title)}</div>
+    <div class="muted">${esc(i.detail||"")}</div>
+    <div class="meta">${esc(i.severity)} · ${esc(i.area||"")}${i.owner?" · owner: "+esc(i.owner):""}${i.since?" · since "+esc(i.since):""}</div></div></div>`).join("");
+  return `<div class="sevbar">${bar}</div>${rows}`;
+}
 function costHtml(c){
   if(!c||(!c.providers.length&&!c.other.length)) return '<div class="empty">No usage collected yet.</div>';
   const fmtTok=t=>t>=1e6?(t/1e6).toFixed(1)+"M":t>=1e3?(t/1e3).toFixed(0)+"k":String(t);
@@ -184,6 +201,7 @@ function home(d){
      <div class="bar5"><i style="width:${Math.min(d.week.u5*100,100)}%"></i></div>
      ${gaugeChart(d)}</section>
    <section class="panel" aria-labelledby="pb"><h2 id="pb">Projects</h2>${boardHtml(d.board)}</section>
+   <section class="panel" aria-labelledby="is"><h2 id="is">Fleet issues · ${(d.issues||[]).length}</h2>${issuesHtml(d.issues)}</section>
    <section class="panel" aria-labelledby="n"><h2 id="n">Needs you · ${d.needs.length}</h2>
      <div class="cards">${needs}</div>
      ${d.needs.length?`<p class="muted" style="margin:10px 0 0;font-size:13px">Tap an answer to send it straight to the autopilot (the first tap asks you to allow the Claude Code Remote connector; if sending fails it copies instead). ★ = my pick.</p>`:""}</section>

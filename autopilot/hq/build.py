@@ -121,6 +121,7 @@ out = {
     "supervisor": state.get("supervisor"),
     "cost": cost,
     "board": projects_board,
+    "issues": sorted(state.get("issues", []), key=lambda i: ({"critical": 0, "high": 1, "medium": 2, "low": 3}.get(i.get("severity"), 4), i.get("since", ""))),
 }
 with open(os.path.join(HERE, "data.json"), "w") as fh:
     json.dump(out, fh, indent=1)

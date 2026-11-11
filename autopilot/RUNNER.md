@@ -38,6 +38,8 @@ natwong-dev) while Codex isn't paused. New issues must not overlap open PRs or `
 
 **Meeting briefs come from Claude Pro (Nat, 2026-11-10).** Notion is reachable only from the Pro account. Never build primers on this account. Once a day (and whenever Nat asks), queue an ops-bus `ext.task` for `runner: pro` to regenerate briefs for the next 5 days with Notion + web research (public professional info only), ring the doorbell, and read the result from ops-bus `briefs/primers.json`; copy it to the scratchpad primers.json and rebuild HQ.
 
+**Fleet issues (Nat, 2026-11-10).** state.json `issues` is the fleet's problem list, shown in HQ from critical to low. Each issue: severity (critical = fleet stopped or data/money/security risk; high = a project or runner fully blocked; medium = degraded or slow; low = cosmetic, flaky or nice-to-fix), area, title, detail, url, owner, since. Each check adds new ones (failed ops-bus requests, CODEX-BLOCKED/PAUSED, red CI on fleet PRs, stalled or autopilot-stuck sessions, network blocks), updates owners, and removes resolved ones.
+
 ## Steps
 
 1. **Load config.** Read `autopilot/config.json` and `autopilot/WORKER.md` from
