@@ -129,6 +129,10 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600}.pop .spark{width:100%;height:64px}
 .cards{display:grid;gap:10px}
+.nudge{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:-4px 0 14px;padding:10px 14px;border-radius:10px;background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)}
+.nudge .ar{color:var(--accent);font-weight:700}.nudge .muted{font-size:13px}.nudge button{margin-left:auto;min-height:32px}
+.stale{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin:0 0 12px;padding:8px 12px;border-radius:8px;border:1px solid var(--warn);color:var(--warn);font-size:14px}
+.stale.bad{border-color:var(--bad);color:var(--bad)}
 /* Alignment: is fleet effort going where the plan says? */
 .align .say{font-size:16px;line-height:1.4;margin:0 0 10px}.align .say b{font-family:var(--f-mono)}
 .stack{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--track)}.stack>i{display:block;height:100%}
@@ -431,20 +435,31 @@ function pillarRead(p,prog,d){
   const dl=[T[m]&&T[m].by,T[m+"_by"],T.by,T.deadline,T.fall_end].find(isDate);
   const now=new Date(d.updated||Date.now());
   if(target==null) return {m,label,target,cur,state:cur==null?"nf":"",pace:cur==null?(g.note?String(g.note):"Not reported yet"):(dl?"Goal by "+fmtD(asDay(dl)):""),dl,sec,funnel,cal};
-  let state="nf",pace=cur==null?(g.note?String(g.note):prog?"Not reported yet":"Waiting on the progress feed"):"";
+  let need=null,rate=null,state="nf",pace=cur==null?(g.note?String(g.note):prog?"Not reported yet":"Waiting on the progress feed"):"";
   if(cur!=null){
     if(cur>=target){state="good";pace=weekly?"Done for this week":"Target reached"}
     else if(weekly){ // Mon-Sun PT week
       const wd=(new Date(now.toLocaleString("en-US",PT)).getDay()+6)%7, frac=(wd+1)/7;
-      state=cur>=Math.floor(target*frac)?"good":"warn"; pace=`${target-cur} more by Sun`+(state==="good"?" · on track":" · behind");
+      state=cur>=Math.floor(target*frac)?"good":"warn"; need=target; rate=cur; pace=`${target-cur} more by Sun`+(state==="good"?" · on track":" · behind");
     } else if(dl){
-      const wk=Math.max((new Date(asDay(dl))-now)/(7*dayMs),.1), need=(target-cur)/wk;
-      const rate=num(g[base+"_this_week"])??num(g[m+"_this_week"]);
+      const wk=Math.max((new Date(asDay(dl))-now)/(7*dayMs),.1); need=(target-cur)/wk;
+      rate=num(g[base+"_this_week"])??num(g[m+"_this_week"]);
       state=rate==null?"":rate>=need?"good":"warn";
       pace=`needs ${need.toFixed(1)}/wk · ${wk.toFixed(1)} wk left`+(rate==null?"":` · ${rate} this wk`);
     } else {state="";pace=`${Math.round(cur/target*100)}% of target`}
   }
-  return {m,label,target,cur,state,pace:(cal?"Calendar blocks, not verified · ":"")+pace,dl,sec,funnel,cal};
+  const overdue=Object.keys(g).filter(k=>/^overdue_/.test(k)&&num(g[k])).map(k=>`${num(g[k])} ${k.replace(/^overdue_/,"overdue ").replace(/_/g," ")}`.replace("overdue keep in touch","overdue keep-in-touch"));
+  return {m,label,target,cur,state,pace:(cal?"Calendar blocks, not verified · ":"")+pace,dl,sec,funnel,cal,need,rate,weekly,overdue};
+}
+/* One nudge: goals.nudge if Sinny sets it, else the first behind pillar in priority order (data order). Counts only, never names. */
+function nudgeHtml(d){
+  const G=d.goals||{}; let n=G.nudge&&G.nudge.text?{text:G.nudge.text,detail:G.nudge.detail||"",url:G.nudge.url||"",i:-1}:null;
+  if(!n) (G.pillars||[]).some((p,i)=>{const r=pillarRead(p,G.progress,d);
+    if(r.state!=="warn"||r.need==null||r.rate==null) return false;
+    const k=Math.max(1,Math.ceil(r.weekly?r.need-r.rate:r.need-r.rate)), verb=/chat|meeting|call/i.test(r.label)?"Book":"Fit in";
+    n={text:`${verb} ${k} ${r.label}${r.weekly?" more by Sunday":" this week"}`,detail:[r.weekly?"":`${r.rate} so far`,...r.overdue].filter(Boolean).join(" · "),i};return true});
+  if(!n) return "";
+  return `<div class="nudge" role="note"><span class="ar" aria-hidden="true">→</span><b>${n.url?link(n.url,n.text):esc(n.text)}</b>${n.detail?`<span class="muted">${esc(n.detail)}</span>`:""}${n.i>=0?`<button type="button" class="code" data-goal="${n.i}">Why</button>`:""}</div>`;
 }
 const GS={good:"var(--good)",warn:"var(--warn)",bad:"var(--bad)",nf:"var(--line)","":"var(--core)"};
 function goalsHtml(d){
@@ -457,7 +472,7 @@ function goalsHtml(d){
       <span class="gm"${r.funnel?' style="white-space:normal"':""}>${esc(r.funnel||(r.m?r.label:(p.goal||"")))}</span>
       ${r.funnel?"":`<span class="gbar"><i style="width:${pct.toFixed(0)}%"></i></span>`}
       ${r.sec?`<span class="gm">${esc(r.sec)}</span>`:""}
-      <span class="gp">${esc(r.m?r.pace:"No metric set")}</span></button>`}).join("")}</section>`;
+      <span class="gp">${esc(r.m?r.pace:"No metric set")}</span></button>`}).join("")}</section>${nudgeHtml(d)}`;
 }
 function goalPop(i){
   const G=DATA.goals, p=G.pillars[i], r=pillarRead(p,G.progress,DATA), T=p.targets||{};
@@ -583,11 +598,18 @@ function primer(m){
     <p class="muted" style="font-size:12px">Sources: ${(m.sources||[]).map(esc).join(" · ")||"none"}</p></div>`;
 }
 
+/* Stale-data warning: the feed writes about every 15 minutes, so >30 min old means something upstream is stuck. */
+function staleHtml(d){
+  const t=new Date(d&&d.updated); if(isNaN(t)) return "";
+  const min=Math.round((Date.now()-t)/60000); if(min<=30) return "";
+  const age=min<120?min+" min":Math.round(min/60)+" h";
+  return `<div class="stale${min>180?" bad":""}" role="status"><b>Data is ${age} old.</b><span>The numbers below may be out of date; the feed normally updates every 15 min.</span></div>`;
+}
 function render(){
   const v=document.getElementById("view"); if(!DATA){v.innerHTML='<p class="empty">Loading the latest status…</p>';return}
   document.getElementById("updated").textContent="Updated "+fmtT(DATA.updated)+" PT";
   const h=location.hash.slice(1);
-  v.innerHTML=h.startsWith("m-")?primer(DATA.meetings.find(m=>"m-"+m.id===h)):home(DATA);
+  v.innerHTML=staleHtml(DATA)+(h.startsWith("m-")?primer(DATA.meetings.find(m=>"m-"+m.id===h)):home(DATA));
   v.querySelectorAll(".agent").forEach(el=>el.addEventListener("click",e=>{
     if(!matchMedia("(max-width:640px)").matches||e.target.closest("a")) return;
     const t=el.querySelector(".tip"); if(t) openPop(el.querySelector(".nm").firstChild.textContent.trim(), t.innerHTML);
@@ -617,7 +639,11 @@ function ideaPop(){
 }
 document.getElementById("idea").addEventListener("click",ideaPop);
 addEventListener("hashchange",render);
-fetch("data.json",{cache:"no-store"}).then(r=>r.json()).then(d=>{DATA=d;try{render()}catch(e){document.getElementById("view").innerHTML='<p class="empty">HQ hit a display error ('+esc(String(e&&e.message||e))+'). Ask the autopilot chat to fix it.</p>'}}).catch(()=>{document.getElementById("view").innerHTML='<p class="empty">Couldn\'t load status data. Ask the autopilot chat to republish HQ.</p>'});
+function load(){return fetch("data.json",{cache:"no-store"}).then(r=>r.json()).then(d=>{DATA=d;try{render()}catch(e){document.getElementById("view").innerHTML='<p class="empty">HQ hit a display error ('+esc(String(e&&e.message||e))+'). Ask the autopilot chat to fix it.</p>'}}).catch(()=>{if(DATA){try{render()}catch(_){}}else document.getElementById("view").innerHTML='<p class="empty">Couldn\'t load status data. Ask the autopilot chat to republish HQ.</p>'})}
+load();
+/* Refresh every 5 min while the tab is visible (not while a popup is open), and on return to the tab. */
+setInterval(()=>{const pop=document.getElementById("pop");if(document.visibilityState==="visible"&&!(pop&&pop.open))load()},5*60e3);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&DATA&&Date.now()-new Date(DATA.updated)>5*60e3)load()});
 render();
 /* External links: the artifact frame can block plain target=_blank clicks. Open them with window.open;
    if the frame refuses popups, copy the link and say so, so a tap never silently does nothing. */
