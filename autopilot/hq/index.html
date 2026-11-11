@@ -84,6 +84,24 @@ svg text{fill:var(--ink-2);font-family:var(--f-mono);font-size:10px}
   .reply button{min-height:44px;flex:1 1 40%}
   .need a,.iss a{display:inline-block;padding:4px 0}
 }
+button.tile,button.iss{font:inherit;color:inherit;background:none;text-align:left;cursor:pointer;width:100%}
+button.tile:hover,button.iss:hover{background:var(--track)}
+button.tile:focus-visible,button.iss:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.iss{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;border:0;border-top:1px solid var(--line);border-radius:0;padding:10px 2px;min-height:44px}
+button.iss:first-of-type{border-top:0}
+button.iss .dot{margin-top:0}
+.chev{color:var(--ink-2);font-size:20px;line-height:1}
+dialog.pop{border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--ink);padding:0;width:min(560px,calc(100% - 32px));max-height:min(80vh,720px)}
+dialog.pop::backdrop{background:rgba(5,10,20,.55)}
+.pop .hd{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px 16px 8px}
+.pop .hd h3{margin:0;font-size:18px;line-height:1.25}
+.pop .bd{padding:0 16px 16px;display:grid;gap:10px;overflow:auto}
+.pop .x{font:inherit;font-size:22px;line-height:1;background:none;border:0;color:var(--ink-2);cursor:pointer;min-width:44px;min-height:44px}
+.pop .kv{display:grid;grid-template-columns:max-content 1fr;gap:4px 12px;font-size:14px}
+.pop .kv dt{color:var(--ink-2)}.pop .kv dd{margin:0}
+.pop .lst{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+.pop .lst li{border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+@media (max-width:640px){dialog.pop{width:100%;max-width:100%;margin:auto 0 0;border-radius:16px 16px 0 0;max-height:85vh}}
 .cards{display:grid;gap:10px}
 .card{border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:6px;min-width:0}
 .card.need{border-left:4px solid var(--accent);background:var(--accent-soft)}
@@ -164,7 +182,7 @@ function boardHtml(b){
   const tiles=b.map(p=>{
     const bits=[]; if(p.running) bits.push(p.running+" running"); if(p.queued) bits.push(p.queued+" queued");
     if(p.codex) bits.push(p.codex+" Codex"); if(p.needs) bits.push(p.needs+" for you"); if(!bits.length&&p.done) bits.push(p.done+" done this week");
-    return `<div class="tile" style="--st:${ST_COLOR[p.status]}" title="${esc(p.project)}: ${esc(p.status)}"><span class="nm">${esc(p.project)}</span><span class="st">${esc(p.status)}</span><span class="ct">${esc(bits.join(" · ")||"—")}</span></div>`}).join("");
+    return `<button type="button" class="tile" data-proj="${esc(p.project)}" style="--st:${ST_COLOR[p.status]}" aria-label="${esc(p.project)}: ${esc(p.status)}. Show details"><span class="nm">${esc(p.project)}</span><span class="st">${esc(p.status)}</span><span class="ct">${esc(bits.join(" · ")||"—")}</span></button>`}).join("");
   const legend=Object.keys(ST_COLOR).filter(k=>counts[k]).map(k=>`<span style="--st:${ST_COLOR[k]}"><i></i>${counts[k]} ${esc(k)}</span>`).join("");
   return `<div class="board">${tiles}</div><div class="legend-st">${legend}</div>`;
 }
@@ -173,10 +191,7 @@ function issuesHtml(list){
   if(!list||!list.length) return '<div class="empty">No open issues.</div>';
   const c={}; list.forEach(i=>c[i.severity]=(c[i.severity]||0)+1);
   const bar=Object.keys(SEV_COLOR).map(k=>`<span class="sev" style="--sv:${SEV_COLOR[k]}">${c[k]||0} ${k}</span>`).join("");
-  const rows=list.map(i=>`<div class="iss" style="--sv:${SEV_COLOR[i.severity]||"var(--maint)"}"><span class="dot" aria-label="${esc(i.severity)}"></span><div>
-    <div class="t">${i.url?`<a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.title)} ↗</a>`:esc(i.title)}</div>
-    <div class="muted">${esc(i.detail||"")}</div>
-    <div class="meta">${esc(i.severity)} · ${esc(i.area||"")}${i.owner?" · owner: "+esc(i.owner):""}${i.since?" · since "+esc(i.since):""}</div></div></div>`).join("");
+  const rows=list.map((i,k)=>`<button type="button" class="iss" data-iss="${k}" style="--sv:${SEV_COLOR[i.severity]||"var(--maint)"}"><span class="dot" aria-hidden="true"></span><span class="t">${esc(i.title)}</span><span class="chev" aria-hidden="true">›</span></button>`).join("");
   return `<div class="sevbar">${bar}</div>${rows}`;
 }
 /* Cartoon avatars: round face in each agent's colour plus one prop that says what they do. */
@@ -201,6 +216,36 @@ function agentsHtml(list){
     const inner=`<div class="av">${avatar(a.key)}<span class="pip"></span></div><div style="min-width:0"><div class="nm">${esc(a.name)} <span class="sx">${esc(a.status)}</span></div><div class="rl">${esc(a.role)}</div><div class="dg">${esc(a.doing||"—")}</div></div>`;
     return a.url?`<a class="agent" role="listitem" data-s="${esc(a.status)}" style="--sc:${sc};color:inherit;text-decoration:none" href="${esc(a.url)}" target="_blank" rel="noopener" title="${esc(a.name)}: ${esc(a.doing||"")}">${inner}</a>`
                 :`<div class="agent" role="listitem" data-s="${esc(a.status)}" style="--sc:${sc}" title="${esc(a.name)}: ${esc(a.doing||"")}">${inner}</div>`}).join("")}</div>`;
+}
+function openPop(title,html){
+  let d=document.getElementById("pop");
+  if(!d){d=document.createElement("dialog");d.id="pop";d.className="pop";d.setAttribute("aria-labelledby","pop-t");
+    d.innerHTML='<div class="hd"><h3 id="pop-t"></h3><button type="button" class="x" aria-label="Close">×</button></div><div class="bd"></div>';
+    document.body.appendChild(d);d.querySelector(".x").addEventListener("click",()=>d.close());
+    d.addEventListener("click",e=>{if(e.target===d)d.close()});}
+  d.querySelector("#pop-t").textContent=title; d.querySelector(".bd").innerHTML=html;
+  if(d.showModal) d.showModal(); else d.setAttribute("open","");
+}
+const link=(u,t)=>u?`<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t||u)} ↗</a>`:"";
+function issuePop(i){
+  openPop(i.title,`<dl class="kv"><dt>Severity</dt><dd><span class="sev" style="--sv:${SEV_COLOR[i.severity]||"var(--maint)"}">${esc(i.severity)}</span></dd>
+    <dt>Area</dt><dd>${esc(i.area||"—")}</dd><dt>Owner</dt><dd>${esc(i.owner||"—")}</dd><dt>Since</dt><dd>${esc(i.since||"—")}</dd></dl>
+    <p style="margin:0">${esc(i.detail||"")}</p>${i.url?`<p style="margin:0">${link(i.url,"Open")}</p>`:""}`);
+}
+function projectPop(name){
+  const d=DATA, b=(d.board||[]).find(x=>x.project===name)||{project:name,status:"idle"};
+  const has=s=>String(s||"").toLowerCase().includes(name.toLowerCase());
+  const ws=(d.workers||[]).filter(w=>w.project===name||(name==="temasek-1360"&&String(w.project).startsWith("temasek")));
+  const ns=(d.needs||[]).filter(n=>has(n.title)||has(n.url));
+  const is=(d.issues||[]).filter(i=>i.area===name||has(i.title));
+  const sp=(d.spend||[]).find(s=>s.project===name);
+  const li=(arr,f)=>arr.length?`<ul class="lst">${arr.map(f).join("")}</ul>`:'<div class="muted">None.</div>';
+  openPop(name,`<dl class="kv"><dt>Status</dt><dd style="color:${ST_COLOR[b.status]||"inherit"};font-weight:600">${esc(b.status)}</dd>
+    <dt>Tier</dt><dd>${esc(b.tier||"—")}</dd><dt>Spend this week</dt><dd>${sp?"$"+sp.usd.toFixed(2):"—"}</dd>
+    <dt>Repo</dt><dd>${link("https://github.com/zuzivian/"+name,"github.com/zuzivian/"+name)}</dd></dl>
+    <div><b>Needs you</b>${li(ns,n=>`<li>${link(n.url,n.title)||esc(n.title)}${n.preview?` · ${link(n.preview,"preview")}`:""}<div class="muted">${esc(n.detail||"")}</div></li>`)}</div>
+    <div><b>Work</b>${li(ws,w=>`<li>${esc(w.task)} · <span class="muted">${esc(w.status)}</span>${w.session&&/^https?:/.test(w.session)?` · ${link(w.session,"open")}`:""}</li>`)}</div>
+    <div><b>Issues</b>${li(is,i=>`<li><span class="sev" style="--sv:${SEV_COLOR[i.severity]}">${esc(i.severity)}</span> ${esc(i.title)}</li>`)}</div>`);
 }
 function costHtml(c){
   if(!c||(!c.providers.length&&!c.other.length)) return '<div class="empty">No usage collected yet.</div>';
@@ -290,6 +335,8 @@ function render(){
   document.getElementById("updated").textContent="Updated "+fmtT(DATA.updated)+" PT";
   const h=location.hash.slice(1);
   v.innerHTML=h.startsWith("m-")?primer(DATA.meetings.find(m=>"m-"+m.id===h)):home(DATA);
+  v.querySelectorAll("[data-iss]").forEach(b=>b.addEventListener("click",()=>issuePop(DATA.issues[+b.dataset.iss])));
+  v.querySelectorAll("[data-proj]").forEach(b=>b.addEventListener("click",()=>projectPop(b.dataset.proj)));
   v.querySelectorAll("[data-copy]").forEach(b=>b.addEventListener("click",()=>b.dataset.title?answer(b,b.dataset.copy,b.dataset.title):copy(b,b.dataset.copy)));
   if(h.startsWith("m-")) window.scrollTo(0,0);
 }
