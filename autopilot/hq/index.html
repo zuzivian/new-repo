@@ -479,7 +479,7 @@ function nudgeHtml(d){
     const k=Math.max(1,Math.ceil(r.weekly?r.need-r.rate:r.need-r.rate)), verb=/chat|meeting|call/i.test(r.label)?"Book":"Fit in";
     n={text:`${verb} ${k} ${r.label}${r.weekly?" more by Sunday":" this week"}`,detail:[r.weekly?"":`${r.rate} so far`,...r.overdue].filter(Boolean).join(" · "),i};return true});
   if(!n) return "";
-  return `<div class="nudge" role="note"><span class="ar" aria-hidden="true">→</span><b>${n.url?link(n.url,n.text):esc(n.text)}</b>${n.detail?`<span class="muted">${esc(n.detail)}</span>`:""}${n.i>=0?`<button type="button" class="code" data-goal="${n.i}">Why</button>`:""}</div>`;
+  return `<div class="nudge" role="note"><span class="ar" aria-hidden="true">→</span><b>${n.url?link(n.url,n.text):esc(n.text)}</b>${n.detail?`<span class="muted">${esc(n.detail)}</span>`:""}${n.i>=0?`<button type="button" class="code" data-goal="${n.i}" aria-label="Why: open ${esc(pName((G.pillars||[])[n.i]||{}))} details">Why</button>`:""}</div>`;
 }
 const pName=p=>p.name||String(p.key||"").replace(/^./,c=>c.toUpperCase());
 const GS={good:"var(--good)",warn:"var(--warn)",bad:"var(--bad)",nf:"var(--line)","":"var(--core)"};
@@ -487,7 +487,9 @@ function goalsHtml(d){
   const G=d.goals; if(!G||!Array.isArray(G.pillars)||!G.pillars.length) return "";
   return `<section class="goals" aria-label="Goals">${G.pillars.map((p,i)=>{const r=pillarRead(p,G.progress,d);
     const nf=r.cur==null, pct=nf||r.target==null?0:Math.min(r.cur/r.target*100,100);
-    return `<button type="button" class="goal${nf?" nf":""}" data-goal="${i}" style="--gs:${GS[r.state]??GS[""]}">
+    const st={good:"on track",warn:"behind",bad:"well behind",nf:"no feed yet"}[r.state]||"";
+    const al=`${pName(p)}: ${nf?"no feed yet":r.target!=null?`${r.cur} of ${r.target} ${r.label}`:`${r.cur} ${r.label}`}${st&&!nf?", "+st:""}. ${r.m?r.pace:""}. Open details`;
+    return `<button type="button" class="goal${nf?" nf":""}" data-goal="${i}" style="--gs:${GS[r.state]??GS[""]}" aria-label="${esc(al)}">
       <span class="gk">${esc(pName(p))}</span>
       <span class="gv">${nf?"no feed yet":`${r.cur}<small>${r.target!=null?"/"+r.target:" "+esc(r.label)}</small>`}</span>
       <span class="gm"${r.funnel?' style="white-space:normal"':""}>${esc(r.funnel||(r.m?r.label:(p.goal||"")))}</span>
