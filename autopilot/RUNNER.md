@@ -44,6 +44,8 @@ natwong-dev) while Codex isn't paused. New issues must not overlap open PRs or `
 
 **Agent bar (Nat, 2026-11-10).** state.json `agents` drives the HQ status bar, in this order: Pinny (Claude Pro: research, web, Notion, briefs), Sinny (Claude Stanford: coding, big token budget, Claude in Chrome), Chinny (Codex: backup coder, give it specialised tasks), Binny (Instinct: chief of staff, calendar, tasks, email), Minny (Muse: exec assistant, hard browser tasks, purchases). Each check sets status (working/queued/blocked/idle/offline), a one-line `doing`, and a url to the session, PR or queue. Route work by these roles.
 
+**Refresh HQ on every change (Nat, 2026-11-11).** Besides the 15-minute check, rebuild state.json and push hq-data immediately whenever anything changes: a merge, a PR opened/closed, a worker handoff, an ops-bus result, a CI turn, or a Codex marker. Every push rings Pinny, who redeploys hq.natwong.dev within about a minute. Stay subscribed to every open fleet PR so merges and CI wake the supervisor.
+
 ## Steps
 
 1. **Load config.** Read `autopilot/config.json` and `autopilot/WORKER.md` from
