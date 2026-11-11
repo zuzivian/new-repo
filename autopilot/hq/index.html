@@ -474,8 +474,9 @@ function pillarRead(p,prog,d){
 /* Today: the 10-second read. Only facts the data actually carries; missing feeds are simply left out. */
 function todayHtml(d){
   const G=d.goals||{}, P=G.progress||{}, tk=P.tasks||{}, today=ptDay(Date.now()), bits=[];
-  const mt=(d.meetings||[]).filter(m=>isDate(m.when)&&ptDay(m.when)===today);
-  if(d.meetings) bits.push(mt.length?`<a href="#m-${esc(mt[0].id)}">${mt.length} meeting${mt.length===1?"":"s"}</a> today`:"no meetings today");
+  const mt=(d.meetings||[]).filter(m=>isDate(m.when)&&ptDay(m.when)===today&&new Date(m.when)>Date.now()-30*60e3).sort((x,y)=>new Date(x.when)-new Date(y.when));
+  const tm=t=>new Date(t).toLocaleTimeString("en-US",{...PT,hour:"numeric",minute:"2-digit"});
+  if(d.meetings) bits.push(mt.length?`<a href="#m-${esc(mt[0].id)}">${mt.length} more meeting${mt.length===1?"":"s"}</a> today (next ${esc(tm(mt[0].when))})`:"no more meetings today");
   const nn=(d.needs||[]).length; bits.push(nn?`<a href="#life" class="hot" data-goneeds>${nn} need${nn===1?"s":""} you</a>`:"nothing needs you");
   if(num(tk.due_this_week)!=null) bits.push(`${tk.due_this_week} tasks this week${num(tk.overdue)?` <span class="hot">(${tk.overdue} overdue)</span>`:""}`);
   const behind=(G.pillars||[]).map(p=>[p,pillarRead(p,G.progress,d)]).filter(([,r])=>r.state==="warn").map(([p,r])=>esc(r.label||p.name));
