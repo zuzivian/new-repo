@@ -129,6 +129,7 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600}.pop .spark{width:100%;height:64px}
 .cards{display:grid;gap:10px}
+@media (max-width:640px){.long{display:none}}
 .today{margin:-4px 0 12px;font-size:15px;color:var(--ink-2)}.today b{color:var(--ink);font-family:var(--f-display);letter-spacing:.06em;text-transform:uppercase;font-size:13px;margin-right:4px}
 .today a{color:inherit;text-decoration:underline;text-underline-offset:2px}.today .hot{color:var(--warn);font-weight:600}
 .tile .nx{font-size:12px;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:2px;text-align:left}
@@ -444,7 +445,10 @@ function pillarRead(p,prog,d){
   if(cur!=null){
     if(cur>=target){state="good";pace=weekly?"Done for this week":"Target reached"}
     else if(weekly){ // Mon-Sun PT week
-      const wd=(new Date(now.toLocaleString("en-US",PT)).getDay()+6)%7, frac=(wd+1)/7;
+      // Use the feed's own week (progress.week.start/end, Mon-Sun PT) when present; else compute Mon-Sun PT.
+      const W=prog&&prog.week, ws=W&&isDate(W.start)?W.start.slice(0,10):null, we=W&&isDate(W.end)?W.end.slice(0,10):null;
+      const dayN=x=>Date.UTC(+x.slice(0,4),+x.slice(5,7)-1,+x.slice(8,10))/dayMs, td=ptDay(now);
+      const frac=ws&&we?Math.min(Math.max((dayN(td)-dayN(ws)+1)/(dayN(we)-dayN(ws)+1),0),1):((new Date(now.toLocaleString("en-US",PT)).getDay()+6)%7+1)/7;
       state=cur>=Math.floor(target*frac)?"good":"warn"; need=target; rate=cur; pace=`${target-cur} more by Sun`+(state==="good"?" · on track":" · behind");
     } else if(dl){
       const wk=Math.max((new Date(asDay(dl))-now)/(7*dayMs),.1); need=(target-cur)/wk;
@@ -576,7 +580,7 @@ function home(d){
   return `${todayHtml(d)}${goalsHtml(d)}<div class="grid" style="margin-bottom:16px">
    <section class="panel" aria-labelledby="n"><h2 id="n">Needs you · ${d.needs.length}</h2>
      <div class="cards">${needs}</div>
-     ${d.needs.length?`<p class="muted" style="margin:10px 0 0;font-size:13px">Tap an answer to send it straight to the autopilot (the first tap asks you to allow the Claude Code Remote connector; if sending fails it copies instead). ★ = my pick.</p>`:""}</section>
+     ${d.needs.length?`<p class="muted" style="margin:10px 0 0;font-size:13px"><span class="long">Tap an answer to send it straight to the autopilot (without the Claude connector here, it opens a prefilled GitHub issue to submit; if a send fails, it copies the answer). </span>★ = my pick.</p>`:""}</section>
    ${weekHtml(d)}
   </div>${alignHtml(d)}
   <details class="fleet" id="fleet"><summary>${fleetSummary(d,u,state)}</summary>${agentsHtml(d.agents)}<div class="grid">
