@@ -129,6 +129,27 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600}.pop .spark{width:100%;height:64px}
 .cards{display:grid;gap:10px}
+/* Goals: one row of pillar tiles, the first thing on the page. */
+.goals{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
+@media (max-width:860px){.goals{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}}
+.goal{font:inherit;color:inherit;text-align:left;cursor:pointer;background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--gs);border-radius:10px;padding:10px 12px;display:grid;gap:4px;min-width:0;min-height:44px}
+.goal:hover{border-color:var(--accent);border-top-color:var(--gs)} .goal:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.goal .gk{font-family:var(--f-display);font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.goal .gv{font-family:var(--f-mono);font-size:22px;font-weight:600;line-height:1.1}.goal .gv small{font-size:13px;color:var(--ink-2);font-weight:400}
+.goal .gm{font-size:12px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.goal .gp{font-size:12px;font-weight:600;color:var(--gs)}
+.goal.nf .gv{font-size:15px;font-style:italic;font-family:var(--f-body);color:var(--ink-2);font-weight:500}
+.goal.nf .gp{color:var(--ink-2);font-weight:500}
+.gbar{height:6px;border-radius:3px;background:var(--track);overflow:hidden}.gbar>i{display:block;height:100%;background:var(--gs)}
+.goal.nf .gbar{background:repeating-linear-gradient(90deg,var(--track) 0 6px,transparent 6px 10px)}
+/* This week: one timeline of deadlines, meetings and top tasks. */
+.wk{display:grid;gap:2px;margin:0;padding:0;list-style:none}
+.wk li{display:grid;grid-template-columns:68px minmax(0,1fr) auto;gap:10px;align-items:baseline;padding:7px 0;border-top:1px solid var(--line)}
+.wk li:first-child{border-top:0}
+.wk .d{font-family:var(--f-mono);font-size:12px;color:var(--ink-2)}.wk .d.today{color:var(--accent);font-weight:600}
+.wk .k{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}
+.wk a{color:inherit;text-decoration:none}.wk a:hover{color:var(--accent)}
+.wk .od{color:var(--bad)}
 .card{border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:6px;min-width:0}
 .card.need{border-left:4px solid var(--accent);background:var(--accent-soft)}
 .card .t{font-weight:600}
@@ -368,20 +389,96 @@ async function answer(btn,text,title){
   }catch(e){btn.disabled=false; btn.textContent=orig; copy(btn,text)}
 }
 
+/* ---------- Goals (north star): pillar tiles + one 14-day timeline. Everything renders from data; nulls read "no feed yet", never 0. ---------- */
+const num=v=>typeof v==="number"&&isFinite(v)?v:null;
+const isDate=v=>typeof v==="string"&&/^\d{4}-\d{2}-\d{2}/.test(v)&&!isNaN(new Date(v));
+const dayMs=864e5, fmtD=iso=>new Date(iso).toLocaleDateString("en-US",{...PT,weekday:"short",month:"numeric",day:"numeric"});
+const ptDay=t=>new Date(t).toLocaleDateString("en-CA",PT); // YYYY-MM-DD in PT
+const asDay=v=>/^\d{4}-\d{2}-\d{2}$/.test(v)?v+"T12:00:00-08:00":v; // a bare date means that PT calendar day
+function pillarRead(p,prog,d){
+  const T=p.targets||{}, g=(prog&&prog[p.key])||{};
+  const tnum=v=>num(v)!=null?num(v):(v&&typeof v==="object"?num(v.target??v.value):null);
+  const keys=Object.keys(T).filter(k=>tnum(T[k])!=null);
+  const m=(typeof p.metric==="string"&&keys.includes(p.metric))?p.metric:(p.metric&&p.metric.key&&keys.includes(p.metric.key)?p.metric.key:keys[0]);
+  if(!m) return {m:null};
+  const target=tnum(T[m]), label=(p.metric&&p.metric.label)||m.replace(/_/g," ");
+  const weekly=/_per_week$/.test(m), base=m.replace(/_per_week$|_total$/,"");
+  let cur=num(g[m]); if(cur==null&&weekly) cur=num(g[base+"_this_week"]); if(cur==null&&!weekly) cur=num(g[base]);
+  const dl=[T[m]&&T[m].by,T[m+"_by"],T.by,T.deadline,T.fall_end].find(isDate);
+  const now=new Date(d.updated||Date.now());
+  let state="nf",pace=cur==null?(prog?"Not reported yet":"Waiting on the progress feed"):"";
+  if(cur!=null){
+    if(cur>=target){state="good";pace=weekly?"Done for this week":"Target reached"}
+    else if(weekly){ // Mon-Sun PT week
+      const wd=(new Date(now.toLocaleString("en-US",PT)).getDay()+6)%7, frac=(wd+1)/7;
+      state=cur>=Math.floor(target*frac)?"good":"warn"; pace=`${target-cur} more by Sun`+(state==="good"?" · on track":" · behind");
+    } else if(dl){
+      const wk=Math.max((new Date(asDay(dl))-now)/(7*dayMs),.1), need=(target-cur)/wk;
+      const rate=num(g[base+"_this_week"]);
+      state=rate==null?"":rate>=need?"good":"warn";
+      pace=`needs ${need.toFixed(1)}/wk · ${wk.toFixed(1)} wk left`+(rate==null?"":` · ${rate} this wk`);
+    } else {state="";pace=`${Math.round(cur/target*100)}% of target`}
+  }
+  return {m,label,target,cur,state,pace,dl};
+}
+const GS={good:"var(--good)",warn:"var(--warn)",bad:"var(--bad)",nf:"var(--line)","":"var(--core)"};
+function goalsHtml(d){
+  const G=d.goals; if(!G||!Array.isArray(G.pillars)||!G.pillars.length) return "";
+  return `<section class="goals" aria-label="Goals">${G.pillars.map((p,i)=>{const r=pillarRead(p,G.progress,d);
+    const nf=r.cur==null, pct=nf?0:Math.min(r.cur/r.target*100,100);
+    return `<button type="button" class="goal${nf?" nf":""}" data-goal="${i}" style="--gs:${GS[r.state]??GS[""]}">
+      <span class="gk">${esc(p.name||p.key)}</span>
+      <span class="gv">${nf?"no feed yet":`${r.cur}<small>/${r.target}</small>`}</span>
+      <span class="gm">${esc(r.m?r.label:(p.goal||""))}</span>
+      <span class="gbar"><i style="width:${pct.toFixed(0)}%"></i></span>
+      <span class="gp">${esc(r.m?r.pace:"No metric set")}</span></button>`}).join("")}</section>`;
+}
+function goalPop(i){
+  const G=DATA.goals, p=G.pillars[i], r=pillarRead(p,G.progress,DATA), T=p.targets||{};
+  const g=(G.progress&&G.progress[p.key])||null;
+  const tv=v=>v&&typeof v==="object"?(v.target??v.value)+(v.by?` by ${v.by}`:""):v;
+  openPop(p.name||p.key,`${p.goal?`<p style="margin:0">${esc(p.goal)}</p>`:""}
+    <dl class="kv">${Object.entries(T).map(([k,v])=>`<dt>${esc(k.replace(/_/g," "))}</dt><dd class="mono">${esc(tv(v))}</dd>`).join("")}</dl>
+    ${r.m?`<div><b>${esc(r.label)}</b>: ${r.cur==null?'<i class="muted">no feed yet</i>':esc(r.cur+" / "+r.target)} <div class="muted">${esc(r.pace)}</div></div>`:""}
+    ${g&&g.note?`<p class="muted" style="margin:0">${esc(g.note)}</p>`:""}
+    ${!G.progress?`<p class="muted" style="margin:0;font-size:13px">Progress numbers arrive once the Notion feed is connected.</p>`:""}`);
+}
+function weekHtml(d){
+  const G=d.goals||{}, P=G.progress||{}, now=new Date(d.updated||Date.now()), end=now.getTime()+14*dayMs, today=ptDay(now);
+  const items=[];
+  (G.dates||[]).forEach(x=>isDate(x.date)&&items.push({t:asDay(x.date),title:x.title,k:"date"}));
+  ((P.career&&P.career.next_deadlines)||[]).forEach(x=>isDate(x.date)&&items.push({t:asDay(x.date),title:x.title,k:"career"}));
+  (d.meetings||[]).forEach(m=>isDate(m.when)&&items.push({t:m.when,title:m.title,k:"meeting",href:"#m-"+m.id,time:true}));
+  const tk=P.tasks||{};
+  (tk.top||[]).forEach(x=>items.push({t:isDate(x.due)?asDay(x.due):null,title:x.title,k:"task"}));
+  const inWin=items.filter(x=>!x.t||(new Date(x.t)<=end&&(ptDay(x.t)>=today||x.k==="task")));
+  inWin.sort((a,b)=>(a.t?new Date(a.t):Infinity)-(b.t?new Date(b.t):Infinity));
+  const seen=new Set(), list=inWin.filter(x=>{const key=(x.t||"").slice(0,10)+"|"+x.title;if(seen.has(key))return false;seen.add(key);return true}).slice(0,12);
+  const sub=[num(tk.due_this_week)!=null?`${tk.due_this_week} tasks due`:"",num(tk.overdue)?`<span class="od">${tk.overdue} overdue</span>`:""].filter(Boolean).join(" · ");
+  const row=x=>{const od=x.t&&ptDay(x.t)<today, dd=x.t?(ptDay(x.t)===today?"Today":fmtD(x.t)):"—";
+    const ttl=x.href?`<a href="${esc(x.href)}">${esc(x.title)}</a>`:esc(x.title);
+    return `<li><span class="d${dd==="Today"?" today":""}${od?" od":""}">${esc(dd)}${x.time?`<br>${esc(new Date(x.t).toLocaleTimeString("en-US",{...PT,hour:"numeric",minute:"2-digit"}))}`:""}</span><span>${ttl}</span><span class="k">${x.k}</span></li>`};
+  return `<section class="panel" aria-labelledby="wk"><h2 id="wk">Next 14 days${sub?` · <span style="text-transform:none;letter-spacing:0;font-weight:500">${sub}</span>`:""}</h2>
+    ${list.length?`<ul class="wk">${list.map(row).join("")}</ul>`:`<div class="empty">Nothing dated in the next two weeks.</div>`}
+    ${!G.progress?`<p class="muted" style="margin:8px 0 0;font-size:12px">Tasks and career deadlines appear once the Notion feed lands.</p>`:""}</section>`;
+}
 function home(d){
   const u=d.week.u7, t=target((new Date(d.week.reset)-new Date(d.updated))/3600e3,d.pacing), gap=u-t;
   const state=gap>=-0.03?["good","On pace"]:gap>=-0.10?["warn","Behind"]:["bad","Well behind"];
   const needs=d.needs.length?d.needs.map((n,i)=>`<div class="card need"><div class="t">${i+1}. ${n.url?`<a href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.title)} ↗</a>`:esc(n.title)}</div><div class="muted">${esc(n.detail||n.note||"")}</div>${n.preview?`<div><a href="${esc(n.preview)}" target="_blank" rel="noopener">▶ Open preview</a></div>`:`<div class="muted">No preview available</div>`}
      <div class="reply">${(n.options||["Done","Later"]).map(o=>`<button class="code" data-copy="${esc((i+1)+" → "+o)}" data-title="${esc(n.title)}">${esc(o)}${o===n.recommend?" ★":""}</button>`).join("")}</div></div>`).join("")
      :`<div class="empty">Nothing waiting on you.</div>`;
-  const meets=d.meetings.length?d.meetings.map(m=>`<a class="meet card" href="#m-${esc(m.id)}"><span class="when">${esc(fmtT(m.when))}</span><span><span class="t">${esc(m.title)}</span><br><span class="muted">${m.ready?"Primer ready · 2 min read":"Primer coming"}</span></span></a>`).join("")
-     :`<div class="empty">No 1:1s in the next 48 hours.</div>`;
-  const crew=d.workers.length?d.workers.map(w=>`<div class="row"><span class="name">${esc(w.project)} <span class="muted">· ${esc(w.task)}</span></span><span class="pill ${w.state==="working"?"warn":w.state==="blocked"?"bad":"good"}">${esc(w.state)}</span></div>`).join(""):`<div class="empty">No workers running.</div>`;
+  const crew=d.workers.length?d.workers.map(w=>`<div class="row"><span class="name">${esc(w.project)} <span class="muted">· ${esc(w.task)}</span></span>${(()=>{const st=String(w.status||w.state||"").toLowerCase();return `<span class="pill ${st==="working"||st==="running"?"warn":st.includes("block")?"bad":st.startsWith("queued")?"":"good"}">${esc(w.status||w.state||"—")}</span>`})()}</div>`).join(""):`<div class="empty">No workers running.</div>`;
   const maxc=Math.max(...d.spend.map(s=>s.usd),1);
   const spend=d.spend.map(s=>`<div class="row"><span class="name">${esc(s.project)}</span><span class="mono muted">$${s.usd.toFixed(0)}</span></div><div class="hbar"><i style="width:${(s.usd/maxc*100).toFixed(1)}%;background:${TIER_COLOR[s.tier]||"var(--maint)"}"></i></div>`).join("");
   const tierTot={}; d.spend.forEach(s=>tierTot[s.tier]=(tierTot[s.tier]||0)+s.usd); const tsum=Object.values(tierTot).reduce((a,b)=>a+b,0)||1;
   const tiers=Object.entries(d.allocation).map(([k,v])=>`<div class="row"><span class="name"><i class="dot" style="background:${TIER_COLOR[k]}"></i>${TIER_LABEL[k]||k}</span><span class="mono">${Math.round((tierTot[k]||0)/tsum*100)}% <span class="muted">/ ${Math.round(v*100)}% plan</span></span></div>`).join("");
-  return `${agentsHtml(d.agents)}<div class="grid">
+  return `${goalsHtml(d)}<div class="grid" style="margin-bottom:16px">
+   <section class="panel" aria-labelledby="n"><h2 id="n">Needs you · ${d.needs.length}</h2>
+     <div class="cards">${needs}</div>
+     ${d.needs.length?`<p class="muted" style="margin:10px 0 0;font-size:13px">Tap an answer to send it straight to the autopilot (the first tap asks you to allow the Claude Code Remote connector; if sending fails it copies instead). ★ = my pick.</p>`:""}</section>
+   ${weekHtml(d)}
+  </div>${agentsHtml(d.agents)}<div class="grid">
    <section class="panel" aria-labelledby="g"><h2 id="g">Weekly fuel · Stanford account</h2>
      <div class="gauge-top"><div class="big mono">${Math.round(u*100)}%</div>
        <div class="stat"><span class="muted">Target now</span><b>${Math.round(t*100)}%</b></div>
@@ -392,10 +489,6 @@ function home(d){
      ${gaugeChart(d)}${proChart(d)}</section>
    <section class="panel" aria-labelledby="pb"><h2 id="pb">Projects</h2>${boardHtml(d.board)}</section>
    <section class="panel" aria-labelledby="is"><h2 id="is">Fleet issues · ${(d.issues||[]).length}</h2>${issuesHtml(d.issues)}</section>
-   <section class="panel" aria-labelledby="n"><h2 id="n">Needs you · ${d.needs.length}</h2>
-     <div class="cards">${needs}</div>
-     ${d.needs.length?`<p class="muted" style="margin:10px 0 0;font-size:13px">Tap an answer to send it straight to the autopilot (the first tap asks you to allow the Claude Code Remote connector; if sending fails it copies instead). ★ = my pick.</p>`:""}</section>
-   <section class="panel" aria-labelledby="mt"><h2 id="mt">Next meetings</h2><div class="cards">${meets}</div></section>
    <section class="panel" aria-labelledby="c"><h2 id="c">Crew</h2><div class="rows">${crew}</div></section>
    <section class="panel" aria-labelledby="c"><h2 id="c">API-equivalent cost · this week · $${(d.cost&&d.cost.total||0).toFixed(0)}</h2>
      ${costHtml(d.cost)}
@@ -432,6 +525,7 @@ function render(){
     const t=el.querySelector(".tip"); if(t) openPop(el.querySelector(".nm").firstChild.textContent.trim(), t.innerHTML);
   }));
   v.querySelectorAll("[data-iss]").forEach(b=>b.addEventListener("click",()=>issuePop(DATA.issues[+b.dataset.iss])));
+  v.querySelectorAll("[data-goal]").forEach(b=>b.addEventListener("click",()=>goalPop(+b.dataset.goal)));
   v.querySelectorAll("[data-proj]").forEach(b=>b.addEventListener("click",()=>projectPop(b.dataset.proj)));
   v.querySelectorAll("[data-copy]").forEach(b=>b.addEventListener("click",()=>b.dataset.title?answer(b,b.dataset.copy,b.dataset.title):copy(b,b.dataset.copy)));
   if(h.startsWith("m-")) window.scrollTo(0,0);
