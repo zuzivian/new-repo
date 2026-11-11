@@ -116,6 +116,18 @@ def _goals():
         g["progress"] = None
     return g
 
+# Last activity per project (latest push via the GitHub REST API; skipped when the repo isn't reachable) and
+# the supervisor's next step (state.next_steps).
+import subprocess as _sp
+_ns = state.get("next_steps", {})
+for b in board.values():
+    b["next_step"] = _ns.get(b["project"], "")
+    try:
+        out = _sp.run(["gh", "api", f"repos/zuzivian/{b['project']}", "--jq", ".pushed_at"],
+                      capture_output=True, text=True, timeout=15).stdout.strip()
+        b["last_activity"] = out if out.startswith("20") else None
+    except Exception:
+        b["last_activity"] = None
 projects_board = sorted(board.values(), key=lambda b: (ORDER[b["status"]], b["project"]))
 
 now = dt.datetime.now(dt.timezone.utc)
