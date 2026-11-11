@@ -40,6 +40,8 @@ natwong-dev) while Codex isn't paused. New issues must not overlap open PRs or `
 
 **Fleet issues (Nat, 2026-11-10).** state.json `issues` is the fleet's problem list, shown in HQ from critical to low. Each issue: severity (critical = fleet stopped or data/money/security risk; high = a project or runner fully blocked; medium = degraded or slow; low = cosmetic, flaky or nice-to-fix), area, title, detail, url, owner, since. Each check adds new ones (failed ops-bus requests, CODEX-BLOCKED/PAUSED, red CI on fleet PRs, stalled or autopilot-stuck sessions, network blocks), updates owners, and removes resolved ones.
 
+**HQ data goes to GitHub, not a redeploy (Nat, 2026-11-10).** After each check, copy autopilot/hq/data.json to zuzivian/ops-bus `hq-data/data.json` and push to main; the Vercel HQ reads it live via /api/data. Only change ops-bus `hq/index.html` (which triggers a Vercel build) when the page design changes. The claude.ai artifact copy is secondary: republish it only when Nat asks or the HTML changes.
+
 ## Steps
 
 1. **Load config.** Read `autopilot/config.json` and `autopilot/WORKER.md` from
