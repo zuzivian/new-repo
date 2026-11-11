@@ -129,6 +129,7 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600}.pop .spark{width:100%;height:64px}
 .cards{display:grid;gap:10px}
+.tile .nx{font-size:12px;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:2px;text-align:left}
 .nudge{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:-4px 0 14px;padding:10px 14px;border-radius:10px;background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)}
 .nudge .ar{color:var(--accent);font-weight:700}.nudge .muted{font-size:13px}.nudge button{margin-left:auto;min-height:32px}
 .stale{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin:0 0 12px;padding:8px 12px;border-radius:8px;border:1px solid var(--warn);color:var(--warn);font-size:14px}
@@ -265,13 +266,15 @@ function proChart(d){ // Pro account: cumulative new tokens over the same Sat-Sa
 }
 
 const ST_COLOR={"needs you":"var(--bad)","running":"var(--good)","queued":"var(--core)","paused":"var(--warn)","idle":"var(--maint)","off":"var(--line)"};
+function ago(iso){const t=new Date(iso);if(!iso||isNaN(t))return "";const m=Math.max(0,(Date.now()-t)/60000);
+  return m<60?Math.round(m)+"m ago":m<48*60?Math.round(m/60)+"h ago":Math.round(m/1440)+"d ago"}
 function boardHtml(b){
   if(!b||!b.length) return '<div class="empty">No projects.</div>';
   const counts={}; b.forEach(p=>counts[p.status]=(counts[p.status]||0)+1);
   const tiles=b.map(p=>{
     const bits=[]; if(p.running) bits.push(p.running+" running"); if(p.queued) bits.push(p.queued+" queued");
     if(p.codex) bits.push(p.codex+" Codex"); if(p.needs) bits.push(p.needs+" for you"); if(!bits.length&&p.done) bits.push(p.done+" done this week");
-    return `<button type="button" class="tile" data-proj="${esc(p.project)}" style="--st:${ST_COLOR[p.status]}" aria-label="${esc(p.project)}: ${esc(p.status)}. Show details"><span class="nm">${esc(p.project)}</span><span class="st">${esc(p.status)}</span><span class="ct">${esc(bits.join(" · ")||"—")}</span></button>`}).join("");
+    return `<button type="button" class="tile" data-proj="${esc(p.project)}" style="--st:${ST_COLOR[p.status]}" aria-label="${esc(p.project)}: ${esc(p.status)}. Show details"><span class="nm">${esc(p.project)}</span><span class="st">${esc(p.status)}</span><span class="ct">${esc(bits.join(" · ")||"—")}${p.last_activity&&ago(p.last_activity)?` · <span title="${esc(p.last_activity)}">pushed ${esc(ago(p.last_activity))}</span>`:""}</span>${p.next_step?`<span class="nx">Next: ${esc(p.next_step)}</span>`:""}</button>`}).join("");
   const legend=Object.keys(ST_COLOR).filter(k=>counts[k]).map(k=>`<span style="--st:${ST_COLOR[k]}"><i></i>${counts[k]} ${esc(k)}</span>`).join("");
   return `<div class="board">${tiles}</div><div class="legend-st">${legend}</div>`;
 }
@@ -361,7 +364,7 @@ function projectPop(name){
   const sp=(d.spend||[]).find(s=>s.project===name);
   const li=(arr,f)=>arr.length?`<ul class="lst">${arr.map(f).join("")}</ul>`:'<div class="muted">None.</div>';
   openPop(name,`<dl class="kv"><dt>Status</dt><dd style="color:${ST_COLOR[b.status]||"inherit"};font-weight:600">${esc(b.status)}</dd>
-    <dt>Tier</dt><dd>${esc(b.tier||"—")}</dd><dt>Spend this week</dt><dd>${sp?"$"+sp.usd.toFixed(2):"—"}</dd>
+    <dt>Tier</dt><dd>${esc(b.tier||"—")}</dd><dt>Last push</dt><dd>${b.last_activity?esc(ago(b.last_activity)+" · "+fmtT(b.last_activity)):'<span class="muted">not visible to the fleet</span>'}</dd>${b.next_step?`<dt>Next step</dt><dd>${esc(b.next_step)}</dd>`:""}<dt>Spend this week</dt><dd>${sp?"$"+sp.usd.toFixed(2):"—"}</dd>
     <dt>Repo</dt><dd>${link("https://github.com/zuzivian/"+name,"github.com/zuzivian/"+name)}</dd></dl>
     <div><b>Needs you</b>${li(ns,n=>`<li>${link(n.url,n.title)||esc(n.title)}${n.preview?` · ${link(n.preview,"preview")}`:""}<div class="muted">${esc(n.detail||"")}</div></li>`)}</div>
     <div><b>Work</b>${li(ws,w=>`<li>${esc(w.task)} · <span class="muted">${esc(w.status)}</span>${w.session&&/^https?:/.test(w.session)?` · ${link(w.session,"open")}`:""}</li>`)}</div>
@@ -487,17 +490,17 @@ function goalPop(i){
 function weekHtml(d){
   const G=d.goals||{}, P=G.progress||{}, now=new Date(d.updated||Date.now()), end=now.getTime()+14*dayMs, today=ptDay(now);
   const items=[];
-  (G.dates||[]).forEach(x=>isDate(x.date)&&items.push({t:asDay(x.date),title:x.title,k:"date"}));
-  ((P.career&&P.career.next_deadlines)||[]).forEach(x=>isDate(x.date)&&items.push({t:asDay(x.date),title:x.title,k:"career"}));
+  (G.dates||[]).forEach(x=>isDate(x.date)&&items.push({t:asDay(x.date),title:x.title,k:"date",url:x.url}));
+  ((P.career&&P.career.next_deadlines)||[]).forEach(x=>isDate(x.date)&&items.push({t:asDay(x.date),title:x.title,k:"career",url:x.url}));
   (d.meetings||[]).forEach(m=>isDate(m.when)&&items.push({t:m.when,title:m.title,k:"meeting",href:"#m-"+m.id,time:true}));
   const tk=P.tasks||{};
-  (tk.top||[]).forEach(x=>items.push({t:isDate(x.due)?asDay(x.due):null,title:x.title,k:"task"}));
+  (tk.top||[]).forEach(x=>items.push({t:isDate(x.due)?asDay(x.due):null,title:x.title,k:"task",url:x.url}));
   const inWin=items.filter(x=>!x.t||(new Date(x.t)<=end&&(ptDay(x.t)>=today||x.k==="task")));
   inWin.sort((a,b)=>(a.t?new Date(a.t):Infinity)-(b.t?new Date(b.t):Infinity));
   const seen=new Set(), list=inWin.filter(x=>{const key=(x.t||"").slice(0,10)+"|"+x.title;if(seen.has(key))return false;seen.add(key);return true}).slice(0,12);
   const sub=[num(tk.due_this_week)!=null?`${tk.due_this_week} tasks due`:"",num(tk.overdue)?`<span class="od">${tk.overdue} overdue</span>`:""].filter(Boolean).join(" · ");
   const row=x=>{const od=x.t&&ptDay(x.t)<today, dd=x.t?(ptDay(x.t)===today?"Today":fmtD(x.t)):"—";
-    const ttl=x.href?`<a href="${esc(x.href)}">${esc(x.title)}</a>`:esc(x.title);
+    const ttl=x.href?`<a href="${esc(x.href)}">${esc(x.title)}</a>`:(typeof x.url==="string"&&/^https:\/\//.test(x.url))?link(x.url,x.title):esc(x.title);
     return `<li><span class="d${dd==="Today"?" today":""}${od?" od":""}">${esc(dd)}${x.time?`<br>${esc(new Date(x.t).toLocaleTimeString("en-US",{...PT,hour:"numeric",minute:"2-digit"}))}`:""}</span><span>${ttl}</span><span class="k">${x.k}</span></li>`};
   return `<section class="panel" aria-labelledby="wk"><h2 id="wk">Next 14 days${sub?` · <span style="text-transform:none;letter-spacing:0;font-weight:500">${sub}</span>`:""}</h2>
     ${list.length?`<ul class="wk">${list.map(row).join("")}</ul>`:`<div class="empty">Nothing dated in the next two weeks.</div>`}
