@@ -227,4 +227,17 @@ function render(){
 addEventListener("hashchange",render);
 fetch("data.json",{cache:"no-store"}).then(r=>r.json()).then(d=>{DATA=d;try{render()}catch(e){document.getElementById("view").innerHTML='<p class="empty">HQ hit a display error ('+esc(String(e&&e.message||e))+'). Ask the autopilot chat to fix it.</p>'}}).catch(()=>{document.getElementById("view").innerHTML='<p class="empty">Couldn\'t load status data. Ask the autopilot chat to republish HQ.</p>'});
 render();
+/* External links: the artifact frame can block plain target=_blank clicks. Open them with window.open;
+   if the frame refuses popups, copy the link and say so, so a tap never silently does nothing. */
+function toast(msg){let t=document.getElementById("toast");if(!t){t=document.createElement("div");t.id="toast";
+  t.setAttribute("role","status");t.style.cssText="position:fixed;left:50%;bottom:16px;transform:translateX(-50%);max-width:calc(100% - 32px);background:var(--ink);color:var(--panel);padding:10px 14px;border-radius:8px;font-size:14px;z-index:9;overflow-wrap:anywhere";document.body.appendChild(t)}
+  t.textContent=msg;t.hidden=false;clearTimeout(t._h);t._h=setTimeout(()=>t.hidden=true,4000)}
+document.addEventListener("click",e=>{
+  const a=e.target.closest&&e.target.closest("a[href]"); if(!a) return;
+  const href=a.getAttribute("href"); if(!/^https?:/i.test(href)) return;
+  e.preventDefault();
+  let w=null; try{w=window.open(href,"_blank","noopener")}catch(_){}
+  if(w===null){ try{window.top.location.href=href;return}catch(_){}
+    try{navigator.clipboard.writeText(href).then(()=>toast("Link copied: paste it in a new tab"),()=>toast(href))}catch(_){toast(href)} }
+});
 </script>
