@@ -36,6 +36,8 @@ natwong-dev) while Codex isn't paused. New issues must not overlap open PRs or `
 
 **When the Stanford network blocks you (Nat, 2026-11-10).** This org blocks some outside hosts (e.g. api.vercel.com, *.vercel.app, frame hosts). Don't stop or ask Nat to change settings: queue the work on the ops bus (zuzivian/ops-bus) as `ext.task` for `runner: pro` (Claude Pro Code session, default) or `runner: chatgpt` (Codex); web clicks/sign-ups → `browser.task` (instinct), purchases → `purchase` (muse). If one runner fails with "can't either", try the next. Never put secrets or Binny Restricted content in a request. After pushing any ops-bus request, ring the doorbell: comment on zuzivian/ops-bus PR #2 `OPS-BUS-RING runner=<runner> file=<path>` so the Pro session runs it now (hourly schedule is the fallback).
 
+**Meeting briefs come from Claude Pro (Nat, 2026-11-10).** Notion is reachable only from the Pro account. Never build primers on this account. Once a day (and whenever Nat asks), queue an ops-bus `ext.task` for `runner: pro` to regenerate briefs for the next 5 days with Notion + web research (public professional info only), ring the doorbell, and read the result from ops-bus `briefs/primers.json`; copy it to the scratchpad primers.json and rebuild HQ.
+
 ## Steps
 
 1. **Load config.** Read `autopilot/config.json` and `autopilot/WORKER.md` from
