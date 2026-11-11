@@ -23,7 +23,7 @@
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
-.wrap{max-width:1080px;margin:0 auto;display:grid;gap:16px}
+.wrap{max-width:1080px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr);gap:16px}.wrap>*,#view{min-width:0}
 header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px}
 h1{font-family:var(--f-display);font-weight:700;font-size:30px;letter-spacing:.02em;margin:0}
 h2{font-family:var(--f-display);font-weight:600;font-size:15px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);margin:0 0 10px}
@@ -67,6 +67,23 @@ svg text{fill:var(--ink-2);font-family:var(--f-mono);font-size:10px}
 .agent .sx{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--sc)}
 @media (prefers-reduced-motion:no-preference){.agent[data-s="working"] .av svg{animation:bob 2.4s ease-in-out infinite}}
 @keyframes bob{50%{transform:translateY(-2px)}}
+/* Phone layout: what needs Nat first, agents as a swipeable strip, chart and cost further down. */
+@media (max-width:640px){
+  body{font-size:15px}
+  .agents{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:8px;padding-bottom:4px;margin:0 -16px 12px;padding-left:16px;padding-right:16px;scrollbar-width:none}
+  .agents::-webkit-scrollbar{display:none}
+  .agent{flex:0 0 72%;scroll-snap-align:start}
+  .grid{display:flex;flex-direction:column;gap:12px}
+  .grid>section[aria-labelledby="n"]{order:-5}
+  .grid>section[aria-labelledby="is"]{order:-4}
+  .grid>section[aria-labelledby="pb"]{order:-3}
+  .grid>section[aria-labelledby="mt"]{order:-2}
+  .grid>section[aria-labelledby="g"]{order:-1}
+  .board{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .reply{display:flex;flex-wrap:wrap;gap:8px}
+  .reply button{min-height:44px;flex:1 1 40%}
+  .need a,.iss a{display:inline-block;padding:4px 0}
+}
 .cards{display:grid;gap:10px}
 .card{border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:6px;min-width:0}
 .card.need{border-left:4px solid var(--accent);background:var(--accent-soft)}
