@@ -59,3 +59,8 @@ Nat is busy and won't answer quickly. Use these defaults instead of asking:
    (or `AUTOPILOT-NOTHING-TO-DO` if you stopped without pushing), followed by a
    two-line summary: what shipped, and what Nat should look at. The runner treats
    any idle worker without this line as stalled and resumes it.
+
+## Blocked by the network
+
+This org blocks some outside hosts (e.g. api.vercel.com, *.vercel.app, frame hosts). Don't stop or ask Nat to change settings: queue the work on the ops bus (zuzivian/ops-bus) as `ext.task` for `runner: pro` (Claude Pro Code session, default) or `runner: chatgpt` (Codex); web clicks/sign-ups → `browser.task` (instinct), purchases → `purchase` (muse). If one runner fails with "can't either", try the next. Never put secrets or Binny Restricted content in a request.
+
