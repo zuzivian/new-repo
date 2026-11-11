@@ -129,6 +129,24 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600}.pop .spark{width:100%;height:64px}
 .cards{display:grid;gap:10px}
+/* Alignment: is fleet effort going where the plan says? */
+.align .say{font-size:16px;line-height:1.4;margin:0 0 10px}.align .say b{font-family:var(--f-mono)}
+.stack{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--track)}.stack>i{display:block;height:100%}
+.stack.plan{height:6px;margin-top:4px;opacity:.55}
+.align .lab{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-2);margin-top:2px;letter-spacing:.04em;text-transform:uppercase}
+.build{display:grid;gap:6px;margin:8px 0 0;padding:0;list-style:none}
+.build li{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:center}
+.build .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Fleet internals live behind one fold. */
+details.fleet{margin-top:16px}
+details.fleet>summary{list-style:none;cursor:pointer;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 16px;min-height:44px}
+details.fleet>summary::-webkit-details-marker{display:none}
+details.fleet>summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+details.fleet>summary .h{font-family:var(--f-display);font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:14px}
+details.fleet>summary .chev{margin-left:auto;color:var(--ink-2);transition:transform .15s}
+details.fleet[open]>summary .chev{transform:rotate(90deg)}
+details.fleet[open]>summary{margin-bottom:14px}
+@media (prefers-reduced-motion:reduce){details.fleet>summary .chev{transition:none}}
 /* Goals: one row of pillar tiles, the first thing on the page. */
 .goals{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
 @media (max-width:860px){.goals{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}}
@@ -471,6 +489,45 @@ function weekHtml(d){
     ${!G.progress?`<p class="muted" style="margin:8px 0 0;font-size:12px">Tasks and career deadlines appear once the Notion feed lands.</p>`
       :P.career&&Array.isArray(P.career.next_deadlines)&&!P.career.next_deadlines.length?`<p class="muted" style="margin:8px 0 0;font-size:13px">No dated career deadlines in the next 3 weeks.</p>`:""}</section>`;
 }
+/* ---------- Fleet alignment: one sentence + actual-vs-plan bar, then what the career-core build is doing. ---------- */
+const TIER_ORDER=["career-core","career-surface","growth","maintenance"];
+function tierOfProject(d,name){const b=(d.board||[]).find(x=>x.project===name);if(b&&b.tier)return b.tier;const s=(d.spend||[]).find(x=>x.project===name);return s&&s.tier}
+function alignHtml(d){
+  const plan=d.allocation||{}, tot={}; (d.spend||[]).forEach(s=>{if(num(s.usd)!=null)tot[s.tier]=(tot[s.tier]||0)+s.usd});
+  const sum=Object.values(tot).reduce((a,b)=>a+b,0);
+  const tiers=[...TIER_ORDER,...Object.keys({...plan,...tot}).filter(k=>!TIER_ORDER.includes(k))].filter(k=>plan[k]!=null||tot[k]);
+  let say;
+  if(!sum) say=`<p class="say muted">No fleet spend recorded this week yet.</p>`;
+  else{
+    const a=(tot["career-core"]||0)/sum, pl=plan["career-core"];
+    const top=Object.entries(tot).sort((x,y)=>y[1]-x[1])[0], topProj=(d.spend||[]).filter(s=>s.tier===top[0]).sort((x,y)=>y.usd-x.usd)[0];
+    const gap=pl!=null?a-pl:0, col=pl==null?"inherit":gap>=-0.1?"var(--good)":gap>=-0.25?"var(--warn)":"var(--bad)";
+    say=`<p class="say">Career-core got <b style="color:${col}">${Math.round(a*100)}%</b> of fleet effort this week${pl!=null?` vs a <b>${Math.round(pl*100)}%</b> plan`:""}.`+
+      (pl!=null&&gap<-0.1&&top[0]!=="career-core"?` Most went to ${esc(TIER_LABEL[top[0]]||top[0])} (${Math.round(top[1]/sum*100)}%${topProj?`, mostly ${esc(topProj.project)}`:""}).`:pl!=null?" On plan.":"")+`</p>`;
+  }
+  const seg=(src,den)=>tiers.map(k=>{const v=(src[k]||0)/(den||1);return v>0?`<i style="width:${(v*100).toFixed(1)}%;background:${TIER_COLOR[k]||"var(--maint)"}" title="${esc((TIER_LABEL[k]||k)+" "+Math.round(v*100)+"%")}"></i>`:""}).join("");
+  const psum=Object.values(plan).reduce((a,b)=>a+(num(b)||0),0);
+  const legend=`<div class="legend">${tiers.map(k=>`<span><i class="dot" style="background:${TIER_COLOR[k]||"var(--maint)"}"></i>${esc(TIER_LABEL[k]||k)} ${sum?Math.round((tot[k]||0)/sum*100):0}%${plan[k]!=null?` <span class="muted">/ ${Math.round(plan[k]*100)}%</span>`:""}</span>`).join("")}</div>`;
+  // Career build: career-core workers, or any task starting "Career"
+  const ws=(d.workers||[]).filter(w=>w&&typeof w==="object"&&(tierOfProject(d,w.project)==="career-core"||/^career/i.test(w.task||"")));
+  const rank=w=>{const s=String(w.status||"").toLowerCase();return s==="working"||s==="running"?0:s.startsWith("queued")?1:s.startsWith("done")?3:2};
+  const live=ws.filter(w=>rank(w)<3).sort((a,b)=>rank(a)-rank(b)), done=ws.filter(w=>rank(w)===3).length;
+  const rowT=w=>{const t=w.project+" · "+w.task, u=w.url||(/^https?:/.test(w.session||"")?w.session:"");return u?link(u,t):esc(t)};
+  const build=`<ul class="build" aria-label="Career build">${live.length?live.slice(0,4).map(w=>{const r=rank(w);
+      return `<li><span class="pill ${r===0?"warn":r===1?"":"good"}">${esc(r===0?"building":String(w.status||"—"))}</span><span class="nm">${rowT(w)}</span></li>`}).join("")
+      :`<li><span class="pill bad">none</span><span class="nm muted">No career-core build running${plan["career-core"]!=null?" while the plan wants "+Math.round(plan["career-core"]*100)+"%":""}.</span></li>`}
+      ${done?`<li><span></span><span class="muted" style="font-size:13px">${done} career task${done===1?"":"s"} done this week</span></li>`:""}</ul>`;
+  return `<section class="panel align" aria-labelledby="al"><h2 id="al">Fleet effort vs plan</h2>${say}
+    <div class="stack" role="img" aria-label="Actual effort by tier">${seg(tot,sum)}</div><div class="lab"><span>this week</span></div>
+    <div class="stack plan" role="img" aria-label="Planned effort by tier">${seg(plan,psum)}</div><div class="lab"><span>plan</span></div>
+    ${legend}<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px"><b style="font-size:13px">Career build</b></div>${build}</section>`;
+}
+function fleetSummary(d,u,state){
+  const ws=(d.workers||[]).filter(w=>w&&typeof w==="object"), run=ws.filter(w=>/^(working|running)$/i.test(w.status||w.state||"")).length;
+  const iss=(d.issues||[]).length, hi=(d.issues||[]).filter(i=>i.severity==="critical"||i.severity==="high").length;
+  return `<span class="h">Fleet</span><span class="muted">${run} working</span><span class="muted">fuel ${Math.round(u*100)}% <span class="pill ${state[0]}" style="font-size:10px;padding:1px 7px">${state[1]}</span></span>`+
+    `<span class="${hi?"":"muted"}"${hi?' style="color:var(--bad)"':""}>${iss} issue${iss===1?"":"s"}${hi?` · ${hi} high`:""}</span>${d.cost&&num(d.cost.total)!=null?`<span class="muted">$${d.cost.total.toFixed(0)} API-eq</span>`:""}<span class="chev" aria-hidden="true">›</span>`;
+}
 function home(d){
   const u=d.week.u7, t=target((new Date(d.week.reset)-new Date(d.updated))/3600e3,d.pacing), gap=u-t;
   const state=gap>=-0.03?["good","On pace"]:gap>=-0.10?["warn","Behind"]:["bad","Well behind"];
@@ -480,14 +537,13 @@ function home(d){
   const crew=d.workers.length?d.workers.map(w=>`<div class="row"><span class="name">${esc(w.project)} <span class="muted">· ${esc(w.task)}</span></span>${(()=>{const st=String(w.status||w.state||"").toLowerCase();return `<span class="pill ${st==="working"||st==="running"?"warn":st.includes("block")?"bad":st.startsWith("queued")?"":"good"}">${esc(w.status||w.state||"—")}</span>`})()}</div>`).join(""):`<div class="empty">No workers running.</div>`;
   const maxc=Math.max(...d.spend.map(s=>s.usd),1);
   const spend=d.spend.map(s=>`<div class="row"><span class="name">${esc(s.project)}</span><span class="mono muted">$${s.usd.toFixed(0)}</span></div><div class="hbar"><i style="width:${(s.usd/maxc*100).toFixed(1)}%;background:${TIER_COLOR[s.tier]||"var(--maint)"}"></i></div>`).join("");
-  const tierTot={}; d.spend.forEach(s=>tierTot[s.tier]=(tierTot[s.tier]||0)+s.usd); const tsum=Object.values(tierTot).reduce((a,b)=>a+b,0)||1;
-  const tiers=Object.entries(d.allocation).map(([k,v])=>`<div class="row"><span class="name"><i class="dot" style="background:${TIER_COLOR[k]}"></i>${TIER_LABEL[k]||k}</span><span class="mono">${Math.round((tierTot[k]||0)/tsum*100)}% <span class="muted">/ ${Math.round(v*100)}% plan</span></span></div>`).join("");
   return `${goalsHtml(d)}<div class="grid" style="margin-bottom:16px">
    <section class="panel" aria-labelledby="n"><h2 id="n">Needs you · ${d.needs.length}</h2>
      <div class="cards">${needs}</div>
      ${d.needs.length?`<p class="muted" style="margin:10px 0 0;font-size:13px">Tap an answer to send it straight to the autopilot (the first tap asks you to allow the Claude Code Remote connector; if sending fails it copies instead). ★ = my pick.</p>`:""}</section>
    ${weekHtml(d)}
-  </div>${agentsHtml(d.agents)}<div class="grid">
+  </div>${alignHtml(d)}
+  <details class="fleet" id="fleet"><summary>${fleetSummary(d,u,state)}</summary>${agentsHtml(d.agents)}<div class="grid">
    <section class="panel" aria-labelledby="g"><h2 id="g">Weekly fuel · Stanford account</h2>
      <div class="gauge-top"><div class="big mono">${Math.round(u*100)}%</div>
        <div class="stat"><span class="muted">Target now</span><b>${Math.round(t*100)}%</b></div>
@@ -502,9 +558,8 @@ function home(d){
    <section class="panel" aria-labelledby="c"><h2 id="c">API-equivalent cost · this week · $${(d.cost&&d.cost.total||0).toFixed(0)}</h2>
      ${costHtml(d.cost)}
      <p class="muted" style="margin:10px 0 0;font-size:13px">What these tokens would cost at API list prices (Claude Code's own estimate per session). Plan usage, not a bill.</p></section>
-   <section class="panel" aria-labelledby="s"><h2 id="s">Burn by project · sessions started this week</h2><div class="rows">${spend}</div>
-     <div class="rows" style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">${tiers}</div></section>
-  </div>`;
+   <section class="panel" aria-labelledby="s"><h2 id="s">Burn by project · sessions started this week</h2><div class="rows">${spend}</div></section>
+  </div></details>`;
 }
 
 function primer(m){
@@ -534,6 +589,8 @@ function render(){
     const t=el.querySelector(".tip"); if(t) openPop(el.querySelector(".nm").firstChild.textContent.trim(), t.innerHTML);
   }));
   v.querySelectorAll("[data-iss]").forEach(b=>b.addEventListener("click",()=>issuePop(DATA.issues[+b.dataset.iss])));
+  const fl=document.getElementById("fleet");
+  if(fl){try{if(localStorage.getItem("hq.fleet")==="open")fl.open=true}catch(_){} fl.addEventListener("toggle",()=>{try{localStorage.setItem("hq.fleet",fl.open?"open":"closed")}catch(_){}})}
   v.querySelectorAll("[data-goal]").forEach(b=>b.addEventListener("click",()=>goalPop(+b.dataset.goal)));
   v.querySelectorAll("[data-proj]").forEach(b=>b.addEventListener("click",()=>projectPop(b.dataset.proj)));
   v.querySelectorAll("[data-copy]").forEach(b=>b.addEventListener("click",()=>b.dataset.title?answer(b,b.dataset.copy,b.dataset.title):copy(b,b.dataset.copy)));
