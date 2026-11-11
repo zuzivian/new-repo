@@ -56,6 +56,17 @@ svg text{fill:var(--ink-2);font-family:var(--f-mono);font-size:10px}
 .iss:first-of-type{border-top:0}
 .iss .dot{width:10px;height:10px;border-radius:50%;background:var(--sv);margin-top:5px}
 .iss .meta{font-size:12px;color:var(--ink-2)}
+.agents{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:14px}
+.agent{display:grid;grid-template-columns:44px 1fr;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 10px;min-width:0}
+.agent .av{position:relative;width:44px;height:44px}
+.agent .av svg{width:44px;height:44px;display:block}
+.agent .av .pip{position:absolute;right:-1px;bottom:-1px;width:12px;height:12px;border-radius:50%;background:var(--sc);border:2px solid var(--panel)}
+.agent .nm{font-weight:700;line-height:1.1}
+.agent .rl{font-size:11px;color:var(--ink-2);line-height:1.2}
+.agent .dg{font-size:12px;line-height:1.25;margin-top:2px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.agent .sx{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--sc)}
+@media (prefers-reduced-motion:no-preference){.agent[data-s="working"] .av svg{animation:bob 2.4s ease-in-out infinite}}
+@keyframes bob{50%{transform:translateY(-2px)}}
 .cards{display:grid;gap:10px}
 .card{border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:6px;min-width:0}
 .card.need{border-left:4px solid var(--accent);background:var(--accent-soft)}
@@ -151,6 +162,29 @@ function issuesHtml(list){
     <div class="meta">${esc(i.severity)} · ${esc(i.area||"")}${i.owner?" · owner: "+esc(i.owner):""}${i.since?" · since "+esc(i.since):""}</div></div></div>`).join("");
   return `<div class="sevbar">${bar}</div>${rows}`;
 }
+/* Cartoon avatars: round face in each agent's colour plus one prop that says what they do. */
+const AGENT_LOOK={
+  pinny:{c:"#7c5cff",prop:'<circle cx="35" cy="33" r="6" fill="none" stroke="#2a2340" stroke-width="2.5"/><path d="M39.5 37.5l4 4" stroke="#2a2340" stroke-width="3" stroke-linecap="round"/>'},
+  sinny:{c:"#e8743b",prop:'<rect x="27" y="30" width="16" height="10" rx="2" fill="#2a2340"/><path d="M31 33l-2 2 2 2M39 33l2 2-2 2" stroke="#ffd9c2" stroke-width="1.5" fill="none" stroke-linecap="round"/>'},
+  cinny:{c:"#10a37f",prop:'<circle cx="36" cy="35" r="5" fill="none" stroke="#1d3b33" stroke-width="3" stroke-dasharray="3 2"/><circle cx="36" cy="35" r="1.8" fill="#1d3b33"/>'},
+  binny:{c:"#2b8be6",prop:'<rect x="29" y="27" width="13" height="16" rx="2" fill="#fff" stroke="#173a5e" stroke-width="2"/><path d="M32 32h7M32 35.5h7M32 39h5" stroke="#173a5e" stroke-width="1.6" stroke-linecap="round"/>'},
+  minny:{c:"#e64f8f",prop:'<path d="M28 31h15l-1.5 12h-12z" fill="#fff" stroke="#5e1736" stroke-width="2" stroke-linejoin="round"/><path d="M32 31c0-4 7-4 7 0" fill="none" stroke="#5e1736" stroke-width="2"/>'},
+};
+function avatar(key){const L=AGENT_LOOK[key]||{c:"#8795a6",prop:""};
+  return `<svg viewBox="0 0 46 46" aria-hidden="true"><circle cx="20" cy="22" r="17" fill="${L.c}"/>
+  <ellipse cx="14" cy="9" rx="4" ry="5" fill="${L.c}"/><ellipse cx="26" cy="9" rx="4" ry="5" fill="${L.c}"/>
+  <circle cx="14" cy="20" r="3.2" fill="#fff"/><circle cx="25" cy="20" r="3.2" fill="#fff"/>
+  <circle cx="14.8" cy="20.6" r="1.6" fill="#1b1b2a"/><circle cx="25.8" cy="20.6" r="1.6" fill="#1b1b2a"/>
+  <path d="M15 27q4.5 4 9 0" stroke="#1b1b2a" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <circle cx="10.5" cy="26" r="2" fill="#fff" opacity=".35"/><circle cx="29" cy="26" r="2" fill="#fff" opacity=".35"/>${L.prop}</svg>`}
+const AGENT_STATUS={working:"var(--good)",queued:"var(--core)",blocked:"var(--bad)",idle:"var(--maint)",offline:"var(--line)"};
+function agentsHtml(list){
+  if(!list||!list.length) return "";
+  return `<div class="agents" role="list" aria-label="Agents">${list.map(a=>{const sc=AGENT_STATUS[a.status]||"var(--maint)";
+    const inner=`<div class="av">${avatar(a.key)}<span class="pip"></span></div><div style="min-width:0"><div class="nm">${esc(a.name)} <span class="sx">${esc(a.status)}</span></div><div class="rl">${esc(a.role)}</div><div class="dg">${esc(a.doing||"—")}</div></div>`;
+    return a.url?`<a class="agent" role="listitem" data-s="${esc(a.status)}" style="--sc:${sc};color:inherit;text-decoration:none" href="${esc(a.url)}" target="_blank" rel="noopener" title="${esc(a.name)}: ${esc(a.doing||"")}">${inner}</a>`
+                :`<div class="agent" role="listitem" data-s="${esc(a.status)}" style="--sc:${sc}" title="${esc(a.name)}: ${esc(a.doing||"")}">${inner}</div>`}).join("")}</div>`;
+}
 function costHtml(c){
   if(!c||(!c.providers.length&&!c.other.length)) return '<div class="empty">No usage collected yet.</div>';
   const fmtTok=t=>t>=1e6?(t/1e6).toFixed(1)+"M":t>=1e3?(t/1e3).toFixed(0)+"k":String(t);
@@ -191,7 +225,7 @@ function home(d){
   const spend=d.spend.map(s=>`<div class="row"><span class="name">${esc(s.project)}</span><span class="mono muted">$${s.usd.toFixed(0)}</span></div><div class="hbar"><i style="width:${(s.usd/maxc*100).toFixed(1)}%;background:${TIER_COLOR[s.tier]||"var(--maint)"}"></i></div>`).join("");
   const tierTot={}; d.spend.forEach(s=>tierTot[s.tier]=(tierTot[s.tier]||0)+s.usd); const tsum=Object.values(tierTot).reduce((a,b)=>a+b,0)||1;
   const tiers=Object.entries(d.allocation).map(([k,v])=>`<div class="row"><span class="name"><i class="dot" style="background:${TIER_COLOR[k]}"></i>${TIER_LABEL[k]||k}</span><span class="mono">${Math.round((tierTot[k]||0)/tsum*100)}% <span class="muted">/ ${Math.round(v*100)}% plan</span></span></div>`).join("");
-  return `<div class="grid">
+  return `${agentsHtml(d.agents)}<div class="grid">
    <section class="panel" aria-labelledby="g"><h2 id="g">Weekly fuel · Stanford account</h2>
      <div class="gauge-top"><div class="big mono">${Math.round(u*100)}%</div>
        <div class="stat"><span class="muted">Target now</span><b>${Math.round(t*100)}%</b></div>
