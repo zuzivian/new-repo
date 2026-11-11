@@ -431,11 +431,12 @@ function pillarRead(p,prog,d){
   const m=(mk&&(keys.includes(mk)||num(g[mk])!=null||!keys.length))?mk:keys[0];
   if(!m) return {m:null};
   const target=tnum(T[m]), label=(p.metric&&p.metric.label)||m.replace(/_/g," ");
-  const weekly=/_per_week$|_this_week$/.test(m)||(p.metric&&/^week/i.test(p.metric.period||""))||/^week/i.test(String(T[m+"_period"]||""))||(T[m]&&/^week/i.test(T[m].per||T[m].period||"")), base=m.replace(/_per_week$|_total$|_typed$|_logged$|_done$/,"");
+  const weekly=/_per_week$|_this_week$/.test(m)||(p.metric&&/^week/i.test(p.metric.period||""))||/^week/i.test(String(T[m+"_period"]||""))||(T[m]&&/^week/i.test(T[m].per||T[m].period||"")), base=m.replace(/_per_week$|_total$|_typed$|_logged$|_done$|_calendar$|_shipped$/,"");
   let cur=num(g[m]); if(cur==null&&weekly) cur=num(g[base+"_this_week"]); if(cur==null&&!weekly) cur=num(g[base]);
   let cal=false; if(cur==null&&num(g[base+"_scheduled_done"])!=null){cur=num(g[base+"_scheduled_done"]);cal=true}
   // second numeric target with a reported value, e.g. classmates logged
-  const k2=keys.find(k=>k!==m&&num(g[k])!=null), sec=k2?`${k2.replace(/_/g," ")} ${num(g[k2])}/${tnum(T[k2])}`.replace(/^(\w)/,c=>c.toUpperCase()):"";
+  const yk=keys.find(k=>k!==m&&/year/i.test(k)&&tnum(T[k])!=null);
+  const k2=yk?null:keys.find(k=>k!==m&&num(g[k])!=null), sec=yk&&cur!=null?`${cur} of ${tnum(T[yk])} for the year`:k2?`${k2.replace(/_/g," ")} ${num(g[k2])}/${tnum(T[k2])}`.replace(/^(\w)/,c=>c.toUpperCase()):"";
   // funnel (no numeric target): show the stages that are reported
   const FUN=["tracked","applied","interviewing","offers"], funnel=target==null&&FUN.some(k=>num(g[k])!=null)?FUN.filter(k=>num(g[k])!=null).map(k=>`${num(g[k])} ${k}`).join(" · "):"";
   const dl=[T[m]&&T[m].by,T[m+"_by"],T.by,T.deadline,T.fall_end].find(isDate);
@@ -443,7 +444,7 @@ function pillarRead(p,prog,d){
   if(target==null) return {m,label,target,cur,state:cur==null?"nf":"",pace:cur==null?(g.note?String(g.note):"Not reported yet"):(dl?"Goal by "+fmtD(asDay(dl)):""),dl,sec,funnel,cal};
   let need=null,rate=null,state="nf",pace=cur==null?(g.note?String(g.note):prog?"Not reported yet":"Waiting on the progress feed"):"";
   if(cur!=null){
-    if(cur>=target){state="good";pace=weekly?"Done for this week":"Target reached"}
+    if(cur>=target){state="good";pace=weekly?"Done for this week":"Target reached ✓"}
     else if(weekly){ // Mon-Sun PT week
       // Use the feed's own week (progress.week.start/end, Mon-Sun PT) when present; else compute Mon-Sun PT.
       const W=prog&&prog.week, ws=W&&isDate(W.start)?W.start.slice(0,10):null, we=W&&isDate(W.end)?W.end.slice(0,10):null;
@@ -452,12 +453,13 @@ function pillarRead(p,prog,d){
       state=cur>=Math.floor(target*frac)?"good":"warn"; need=target; rate=cur; pace=`${target-cur} more by Sun`+(state==="good"?" · on track":" · behind");
     } else if(dl){
       const wk=Math.max((new Date(asDay(dl))-now)/(7*dayMs),.1); need=(target-cur)/wk;
-      rate=num(g[base+"_this_week"])??num(g[m+"_this_week"]);
+      rate=num(g[m+"_this_week"])??num(g[base+"_this_week"]);
       state=rate==null?"":rate>=need?"good":"warn";
-      pace=`needs ${need.toFixed(1)}/wk · ${wk.toFixed(1)} wk left`+(rate==null?"":` · ${rate} this wk`);
+      pace=(state==="good"&&cur>=0.9*target?`Almost there · ${target-cur} to go`:`needs ${need.toFixed(1)}/wk · ${wk.toFixed(1)} wk left`)+(rate==null?"":` · ${rate} this wk`);
     } else {state="";pace=`${Math.round(cur/target*100)}% of target`}
   }
-  const overdue=Object.keys(g).filter(k=>/^overdue_/.test(k)&&num(g[k])).map(k=>`${num(g[k])} ${k.replace(/^overdue_/,"overdue ").replace(/_/g," ")}`.replace("overdue keep in touch","overdue keep-in-touch"));
+  const booked=Object.keys(g).filter(k=>/_booked$|_upcoming$/.test(k)&&num(g[k])).map(k=>`${num(g[k])} more booked`);
+  const overdue=booked.concat(Object.keys(g).filter(k=>/^overdue_/.test(k)&&num(g[k])).map(k=>`${num(g[k])} ${k.replace(/^overdue_/,"overdue ").replace(/_/g," ")}`.replace("overdue keep in touch","overdue keep-in-touch")));
   return {m,label,target,cur,state,pace:(cal?"Calendar blocks, not verified · ":"")+pace,dl,sec,funnel,cal,need,rate,weekly,overdue};
 }
 /* One nudge: goals.nudge if Sinny sets it, else the first behind pillar in priority order (data order). Counts only, never names. */
@@ -545,7 +547,7 @@ function goalPop(i){
     ${r.funnel?`<div><b>Funnel</b>: ${esc(r.funnel)}</div>`:""}
     ${sec.length?`<ul class="lst">${sec.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}
     <details><summary class="muted" style="cursor:pointer;font-size:13px">Targets</summary><dl class="kv" style="margin-top:6px">${Object.entries(T).map(([k,v])=>`<dt>${esc(k.replace(/_/g," "))}</dt><dd class="mono">${esc(tv(v))}</dd>`).join("")}</dl></details>
-    ${g&&g.note?`<p class="muted" style="margin:0;font-size:13px">${esc(g.note)}</p>`:""}
+    ${g?Object.keys(g).filter(k=>k==="note"||/_note$/.test(k)).filter(k=>typeof g[k]==="string"&&g[k]).map(k=>`<p class="muted" style="margin:0;font-size:13px">${esc(g[k])}</p>`).join(""):""}
     ${!G.progress?`<p class="muted" style="margin:0;font-size:13px">Progress numbers arrive once the Notion feed is connected.</p>`:""}`);
 }
 function weekHtml(d){
