@@ -107,6 +107,15 @@ for b in board.values():
     elif b["queued"] or b["codex"]: b["status"] = "queued"
     else: b["status"] = "idle"
 ORDER = {"needs you": 0, "running": 1, "queued": 2, "paused": 3, "idle": 4, "off": 5}
+
+def _goals():
+    g = dict(state.get("goals") or {})
+    try:
+        g["progress"] = json.load(open("/home/user/ops-bus/goals/progress.json"))
+    except Exception:
+        g["progress"] = None
+    return g
+
 projects_board = sorted(board.values(), key=lambda b: (ORDER[b["status"]], b["project"]))
 
 now = dt.datetime.now(dt.timezone.utc)
@@ -124,6 +133,8 @@ out = {
     "allocation": cfg.get("allocation", {}).get("tiers", {}),
     "needs": state.get("needs", []),
     # Live rows first; keep only the 6 most recent finished rows so the list doesn't grow forever.
+    # Nat's goals (targets from Binny gsb-year1-goals; live counts from Pinny's Notion feed in ops-bus goals/progress.json).
+    "goals": _goals(),
     "workers": [w for w in state.get("workers", []) if not str(w.get("status","")).startswith("done")]
                + [w for w in state.get("workers", []) if str(w.get("status","")).startswith("done")][:6],
     "spend": spend_rows,
