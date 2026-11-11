@@ -129,6 +129,14 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600}.pop .spark{width:100%;height:64px}
 .cards{display:grid;gap:10px}
+#n{scroll-margin-top:76px}
+.tabs{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:6px;margin:0 0 14px;padding:8px 0;background:var(--bg)}
+.tabs .tab{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);text-decoration:none;font-weight:600;font-size:15px}
+.tabs .tab.on{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.tabs .tab .tx{font-weight:400;font-size:12px;opacity:.75}
+.tabs .tab:focus-visible,.tabs .nb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tabs .nb{margin-left:auto;font:inherit;font-size:13px;font-weight:600;min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--accent);background:var(--accent-soft);color:var(--ink);cursor:pointer}
+@media (max-width:640px){.tabs{margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px}.tabs .tab{flex:1;justify-content:center;padding:0 10px}.tabs .tab .tx{display:none}}
 @media (max-width:640px){.long{display:none}}
 .today{margin:-4px 0 12px;font-size:15px;color:var(--ink-2)}.today b{color:var(--ink);font-family:var(--f-display);letter-spacing:.06em;text-transform:uppercase;font-size:13px;margin-right:4px}
 .today a{color:inherit;text-decoration:underline;text-underline-offset:2px}.today .hot{color:var(--warn);font-weight:600}
@@ -468,7 +476,7 @@ function todayHtml(d){
   const G=d.goals||{}, P=G.progress||{}, tk=P.tasks||{}, today=ptDay(Date.now()), bits=[];
   const mt=(d.meetings||[]).filter(m=>isDate(m.when)&&ptDay(m.when)===today);
   if(d.meetings) bits.push(mt.length?`<a href="#m-${esc(mt[0].id)}">${mt.length} meeting${mt.length===1?"":"s"}</a> today`:"no meetings today");
-  const nn=(d.needs||[]).length; bits.push(nn?`<a href="#n" class="hot">${nn} need${nn===1?"s":""} you</a>`:"nothing needs you");
+  const nn=(d.needs||[]).length; bits.push(nn?`<a href="#life" class="hot" data-goneeds>${nn} need${nn===1?"s":""} you</a>`:"nothing needs you");
   if(num(tk.due_this_week)!=null) bits.push(`${tk.due_this_week} tasks this week${num(tk.overdue)?` <span class="hot">(${tk.overdue} overdue)</span>`:""}`);
   const behind=(G.pillars||[]).map(p=>[p,pillarRead(p,G.progress,d)]).filter(([,r])=>r.state==="warn").map(([p,r])=>esc(r.label||p.name));
   if(G.pillars&&G.progress) bits.push(behind.length?`<span class="hot">behind on ${behind.join(", ")}</span>`:"goals on track");
@@ -573,7 +581,7 @@ function weekHtml(d){
 /* ---------- Fleet alignment: one sentence + actual-vs-plan bar, then what the career-core build is doing. ---------- */
 const TIER_ORDER=["career-core","career-surface","growth","maintenance"];
 function tierOfProject(d,name){const b=(d.board||[]).find(x=>x.project===name);if(b&&b.tier)return b.tier;const s=(d.spend||[]).find(x=>x.project===name);return s&&s.tier}
-function alignHtml(d){
+function alignHtml(d,part){
   const plan=d.allocation||{}, tot={}; (d.spend||[]).forEach(s=>{if(num(s.usd)!=null)tot[s.tier]=(tot[s.tier]||0)+s.usd});
   const sum=Object.values(tot).reduce((a,b)=>a+b,0);
   const tiers=[...TIER_ORDER,...Object.keys({...plan,...tot}).filter(k=>!TIER_ORDER.includes(k))].filter(k=>plan[k]!=null||tot[k]);
@@ -602,16 +610,26 @@ function alignHtml(d){
       return `<li><span class="pill ${r===0?"warn":r===1?"":"good"}">${esc(r===0?"building":String(w.status||"—"))}</span><span class="nm">${rowT(w)}</span></li>`}).join("")
       :`<li><span class="pill bad">none</span><span class="nm muted">No career-core build running${plan["career-core"]!=null?" while the plan wants "+Math.round(plan["career-core"]*100)+"%":""}.</span></li>`}
       ${done?`<li><span></span><span class="muted" style="font-size:13px">${done} career task${done===1?"":"s"} done this week</span></li>`:""}</ul>`;
+  if(part==="build") return `<section class="panel align" aria-labelledby="cb"><h2 id="cb">Career build</h2>${build}</section>`;
   return `<section class="panel align" aria-labelledby="al"><h2 id="al">Fleet effort vs plan</h2>${say}
     <div class="stack" role="img" aria-label="Actual effort by tier">${seg(tot,sum)}</div><div class="lab"><span>this week</span></div>
     <div class="stack plan" role="img" aria-label="Planned effort by tier">${seg(plan,psum)}</div><div class="lab"><span>plan</span></div>
-    ${legend}<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px"><b style="font-size:13px">Career build</b></div>${build}</section>`;
+    ${legend}</section>`;
 }
 function fleetSummary(d,u,state){
   const ws=(d.workers||[]).filter(w=>w&&typeof w==="object"), run=ws.filter(w=>/^(working|running)$/i.test(w.status||w.state||"")).length;
   const iss=(d.issues||[]).length, hi=(d.issues||[]).filter(i=>i.severity==="critical"||i.severity==="high").length;
   return `<span class="h">Fleet</span><span class="muted">${run} working</span><span class="muted">fuel ${Math.round(u*100)}% <span class="pill ${state[0]}" style="font-size:10px;padding:1px 7px">${state[1]}</span></span>`+
     `<span class="${hi?"":"muted"}"${hi?' style="color:var(--bad)"':""}>${iss} issue${iss===1?"":"s"}${hi?` · ${hi} high`:""}</span>${d.cost&&num(d.cost.total)!=null?`<span class="muted">$${d.cost.total.toFixed(0)} API-eq</span>`:""}<span class="chev" aria-hidden="true">›</span>`;
+}
+function curTab(){const h=location.hash.slice(1);
+  if(h==="life"||h==="fleet"){try{localStorage.setItem("hq.tab",h)}catch(_){} return h}
+  try{return localStorage.getItem("hq.tab")==="fleet"?"fleet":"life"}catch(_){return "life"}}
+function tabsHtml(d,tab,u,state){
+  const nn=(d.needs||[]).length, hi=(d.issues||[]).filter(i=>i.severity==="critical"||i.severity==="high").length;
+  const t=(k,l,extra)=>`<a role="tab" href="#${k}" class="tab${tab===k?" on":""}" aria-selected="${tab===k}">${l}${extra||""}</a>`;
+  return `<nav class="tabs" role="tablist" aria-label="HQ views">${t("life","Life")}${t("fleet","Fleet",`<span class="tx">${Math.round(u*100)}% fuel${hi?` · <b style="color:var(--bad)">${hi} high</b>`:""}</span>`)}
+    ${nn?`<button type="button" class="nb" data-goneeds>${nn} need${nn===1?"s":""} you</button>`:""}</nav>`;
 }
 function home(d){
   const u=d.week.u7, t=target((new Date(d.week.reset)-new Date(d.updated))/3600e3,d.pacing), gap=u-t;
@@ -622,13 +640,14 @@ function home(d){
   const crew=d.workers.length?d.workers.map(w=>`<div class="row"><span class="name">${esc(w.project)} <span class="muted">· ${esc(w.task)}</span></span>${(()=>{const st=String(w.status||w.state||"").toLowerCase();return `<span class="pill ${st==="working"||st==="running"?"warn":st.includes("block")?"bad":st.startsWith("queued")?"":"good"}">${esc(w.status||w.state||"—")}</span>`})()}</div>`).join(""):`<div class="empty">No workers running.</div>`;
   const maxc=Math.max(...d.spend.map(s=>s.usd),1);
   const spend=d.spend.map(s=>`<div class="row"><span class="name">${esc(s.project)}</span><span class="mono muted">$${s.usd.toFixed(0)}</span></div><div class="hbar"><i style="width:${(s.usd/maxc*100).toFixed(1)}%;background:${TIER_COLOR[s.tier]||"var(--maint)"}"></i></div>`).join("");
-  return `${todayHtml(d)}${goalsHtml(d)}<div class="grid" style="margin-bottom:16px">
+  const tab=curTab();
+  const life=`${todayHtml(d)}${goalsHtml(d)}<div class="grid" style="margin-bottom:16px">
    <section class="panel" aria-labelledby="n"><h2 id="n">Needs you · ${d.needs.length}</h2>
      <div class="cards">${needs}</div>
      ${d.needs.length?`<p class="muted" style="margin:10px 0 0;font-size:13px"><span class="long">Tap an answer to send it straight to the autopilot (without the Claude connector here, it opens a prefilled GitHub issue to submit; if a send fails, it copies the answer). </span>★ = my pick.</p>`:""}</section>
    ${weekHtml(d)}
-  </div>${alignHtml(d)}
-  <details class="fleet" id="fleet"><summary>${fleetSummary(d,u,state)}</summary>${agentsHtml(d.agents)}<div class="grid">
+  </div>${alignHtml(d,"build")}`;
+  const fleet=`${agentsHtml(d.agents)}${alignHtml(d)}<div class="grid" style="margin-top:16px">
    <section class="panel" aria-labelledby="g"><h2 id="g">Weekly fuel · Stanford account</h2>
      <div class="gauge-top"><div class="big mono">${Math.round(u*100)}%</div>
        <div class="stat"><span class="muted">Target now</span><b>${Math.round(t*100)}%</b></div>
@@ -644,7 +663,8 @@ function home(d){
      ${costHtml(d.cost)}
      <p class="muted" style="margin:10px 0 0;font-size:13px">What these tokens would cost at API list prices (Claude Code's own estimate per session). Plan usage, not a bill.</p></section>
    <section class="panel" aria-labelledby="s"><h2 id="s">Burn by project · sessions started this week</h2><div class="rows">${spend}</div></section>
-  </div></details>`;
+  </div>`;
+  return tabsHtml(d,tab,u,state)+(tab==="fleet"?fleet:life);
 }
 
 function primer(m){
@@ -681,8 +701,9 @@ function render(){
     const t=el.querySelector(".tip"); if(t) openPop(el.querySelector(".nm").firstChild.textContent.trim(), t.innerHTML);
   }));
   v.querySelectorAll("[data-iss]").forEach(b=>b.addEventListener("click",()=>issuePop(DATA.issues[+b.dataset.iss])));
-  const fl=document.getElementById("fleet");
-  if(fl){try{if(localStorage.getItem("hq.fleet")==="open")fl.open=true}catch(_){} fl.addEventListener("toggle",()=>{try{localStorage.setItem("hq.fleet",fl.open?"open":"closed")}catch(_){}})}
+  v.querySelectorAll("[data-goneeds]").forEach(b=>b.addEventListener("click",e=>{e.preventDefault();
+    const go=()=>{const n=document.getElementById("n");if(n)n.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth",block:"start"})};
+    if(curTab()!=="life"){location.hash="life";setTimeout(go,30)}else go()}));
   v.querySelectorAll("[data-goal]").forEach(b=>b.addEventListener("click",()=>goalPop(+b.dataset.goal)));
   v.querySelectorAll("[data-proj]").forEach(b=>b.addEventListener("click",()=>projectPop(b.dataset.proj)));
   v.querySelectorAll("[data-copy]").forEach(b=>b.addEventListener("click",()=>b.dataset.title?answer(b,b.dataset.copy,b.dataset.title):copy(b,b.dataset.copy)));
@@ -704,7 +725,7 @@ function ideaPop(){
   });
 }
 document.getElementById("idea").addEventListener("click",ideaPop);
-addEventListener("hashchange",render);
+addEventListener("hashchange",()=>{const h=location.hash.slice(1);render();if(h==="life"||h==="fleet")window.scrollTo(0,0)});
 function load(){return fetch("data.json",{cache:"no-store"}).then(r=>r.json()).then(d=>{DATA=d;try{render()}catch(e){document.getElementById("view").innerHTML='<p class="empty">HQ hit a display error ('+esc(String(e&&e.message||e))+'). Ask the autopilot chat to fix it.</p>'}}).catch(()=>{if(DATA){try{render()}catch(_){}}else document.getElementById("view").innerHTML='<p class="empty">Couldn\'t load status data. Ask the autopilot chat to republish HQ.</p>'})}
 load();
 /* Refresh every 5 min while the tab is visible (not while a popup is open), and on return to the tab. */
