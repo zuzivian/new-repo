@@ -21,6 +21,19 @@ calendars or large JSON into its own context.
 
 **API-equivalent cost (Nat, 2026-11-10).** Each check also writes scratchpad usage.json: every session since the week start, with `get_session` → `external_metadata.usage` (cost_usd and token counts) and model (`last_served_model`), provider `anthropic`; plus `other` rows for providers without token data (Codex: task count; Pro account: not visible). build.py turns it into the HQ cost panel by provider and model.
 
+**Codex pool (Nat, 2026-11-10).** Codex (ChatGPT plan) takes GitHub issues labelled `codex:queued` that carry an
+`@codex please implement this issue.` comment, and reports back with markers on the issue (protocol in each
+repo's AGENTS.md). Each check reads the newest marker per Codex issue:
+- `CODEX-DONE pr= preview=` → add a need for Nat with url = the PR and preview = the preview; worker row done.
+- `CODEX-BLOCKED needs=instinct|muse` → queue the `ask` as an ops-bus `browser.task` (instinct) or `purchase`
+  (muse); `needs=claude` → hand it to a Claude worker; `needs=nat` → a need with url = the issue.
+- `CODEX-PAUSED until=` → queue no new Codex issues before that time (it hit its usage limit).
+- `CODEX-SPLIT children=` → track the children as worker rows.
+- No marker 2h after the @codex comment → check Codex's reply (e.g. "create an environment") and route it as BLOCKED.
+Refill: keep about 3 open `codex:queued`/`codex:working` issues per Codex repo (ad-constellation, skyviu,
+natwong-dev) while Codex isn't paused. New issues must not overlap open PRs or `claude:working` issues; put
+`claude:working` on issues a Claude worker takes. Codex cost shows in HQ's cost panel as task counts (no token data).
+
 ## Steps
 
 1. **Load config.** Read `autopilot/config.json` and `autopilot/WORKER.md` from
