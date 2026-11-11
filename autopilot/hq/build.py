@@ -86,7 +86,16 @@ for w in state.get("workers", []):
     elif st.startswith("done") or st == "archived": b["done"] += 1
     elif "paused" in st: b["paused"] = True
 for n in state.get("needs", []):
-    t = (n.get("title", "") + " " + n.get("url", "")).lower()
+    # Prefer an explicit project field; fall back to the repo named in the URL (github.com/<owner>/<repo>), then the title.
+    import re as _re
+    proj = n.get("project")
+    if not proj:
+        m = _re.search(r"github\.com/[^/]+/([^/#?]+)", n.get("url", ""))
+        proj = m.group(1) if m else None
+        if proj == "new-repo" and n.get("title", "").startswith("HQ"): proj = "HQ"
+    if proj and _repo_of(proj) in board:
+        board[_repo_of(proj)]["needs"] += 1; continue
+    t = n.get("title", "").lower()
     for r, b in board.items():
         if r.lower() in t:
             b["needs"] += 1; break
@@ -114,7 +123,9 @@ out = {
     "pacing": cfg["pacing"],
     "allocation": cfg.get("allocation", {}).get("tiers", {}),
     "needs": state.get("needs", []),
-    "workers": state.get("workers", []),
+    # Live rows first; keep only the 6 most recent finished rows so the list doesn't grow forever.
+    "workers": [w for w in state.get("workers", []) if not str(w.get("status","")).startswith("done")]
+               + [w for w in state.get("workers", []) if str(w.get("status","")).startswith("done")][:6],
     "spend": spend_rows,
     "meetings": meetings,
     "pro": state.get("pro", {"note": "Not connected yet."}),
