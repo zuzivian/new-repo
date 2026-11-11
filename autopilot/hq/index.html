@@ -472,12 +472,15 @@ function todayHtml(d){
   if(G.pillars&&G.progress) bits.push(behind.length?`<span class="hot">behind on ${behind.join(", ")}</span>`:"goals on track");
   return `<p class="today"><b>Today</b> ${bits.join(" · ")}</p>`;
 }
+function nudgeFor(d,i){
+  const G=d.goals||{}, p=(G.pillars||[])[i]; if(!p) return null; const r=pillarRead(p,G.progress,d);
+  if(r.state!=="warn"||r.need==null||r.rate==null) return null;
+  const k=Math.max(1,Math.ceil(r.need-r.rate)), verb=/chat|meeting|call/i.test(r.label)?"Book":"Fit in";
+  return {text:`${verb} ${k} ${r.label}${r.weekly?" more by Sunday":" this week"}`,detail:[r.weekly?"":`${r.rate} so far`,...r.overdue].filter(Boolean).join(" · "),i};
+}
 function nudgeHtml(d){
   const G=d.goals||{}; let n=G.nudge&&G.nudge.text?{text:G.nudge.text,detail:G.nudge.detail||"",url:G.nudge.url||"",i:-1}:null;
-  if(!n) (G.pillars||[]).some((p,i)=>{const r=pillarRead(p,G.progress,d);
-    if(r.state!=="warn"||r.need==null||r.rate==null) return false;
-    const k=Math.max(1,Math.ceil(r.weekly?r.need-r.rate:r.need-r.rate)), verb=/chat|meeting|call/i.test(r.label)?"Book":"Fit in";
-    n={text:`${verb} ${k} ${r.label}${r.weekly?" more by Sunday":" this week"}`,detail:[r.weekly?"":`${r.rate} so far`,...r.overdue].filter(Boolean).join(" · "),i};return true});
+  if(!n) (G.pillars||[]).some((p,i)=>{n=nudgeFor(d,i);return !!n});
   if(!n) return "";
   return `<div class="nudge" role="note"><span class="ar" aria-hidden="true">→</span><b>${n.url?link(n.url,n.text):esc(n.text)}</b>${n.detail?`<span class="muted">${esc(n.detail)}</span>`:""}${n.i>=0?`<button type="button" class="code" data-goal="${n.i}" aria-label="Why: open ${esc(pName((G.pillars||[])[n.i]||{}))} details">Why</button>`:""}</div>`;
 }
@@ -497,14 +500,50 @@ function goalsHtml(d){
       ${r.sec?`<span class="gm">${esc(r.sec)}</span>`:""}
       <span class="gp">${esc(r.m?r.pace:"No metric set")}</span></button>`}).join("")}</section>${nudgeHtml(d)}`;
 }
+/* Pillar popup = "what to do next": where you are, the pace you need, a projection, the last weeks, related counts. */
+function histBars(H,key,opt){
+  const rows=(H||[]).filter(h=>h&&isDate(h.week_start)&&num(h[key])!=null).slice(-6);
+  if(rows.length<2) return "";
+  const vals=rows.map(h=>num(h[key])), cum=vals.every((v,i)=>!i||v>=vals[i-1])&&vals[vals.length-1]>vals[0]&&opt.cumulative!==false;
+  const W=260,H2=64,P=4,bw=(W-P*2)/rows.length, max=Math.max(1,...vals,opt.ref||0);
+  const y=v=>H2-14-(v/max)*(H2-28);
+  const bars=rows.map((h,i)=>{const v=vals[i],x=P+i*bw+3,yy=y(v);
+    return `<rect x="${x.toFixed(1)}" y="${yy.toFixed(1)}" width="${(bw-6).toFixed(1)}" height="${(H2-14-yy).toFixed(1)}" rx="2" fill="${opt.col}" opacity="${i===rows.length-1?1:.55}"><title>${esc(fmtD(asDay(h.week_start)))}: ${v}</title></rect>
+      <text x="${(x+(bw-6)/2).toFixed(1)}" y="${(yy-3).toFixed(1)}" text-anchor="middle" font-size="10" fill="var(--ink-2)">${v}</text>
+      <text x="${(x+(bw-6)/2).toFixed(1)}" y="${H2-2}" text-anchor="middle" font-size="9" fill="var(--ink-2)">${esc(new Date(asDay(h.week_start)).toLocaleDateString("en-US",{...PT,month:"numeric",day:"numeric"}))}</text>`}).join("");
+  const ref=opt.ref&&!cum?`<line x1="${P}" x2="${W-P}" y1="${y(opt.ref).toFixed(1)}" y2="${y(opt.ref).toFixed(1)}" stroke="var(--ink-2)" stroke-dasharray="3 3"/><text x="${W-P}" y="${(y(opt.ref)-3).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--ink-2)">${esc(opt.refLabel||"")}</text>`:"";
+  const avg=cum?null:vals.reduce((a,b)=>a+b,0)/vals.length;
+  return {svg:`<svg viewBox="0 0 ${W} ${H2}" style="width:100%;height:auto;max-height:90px" role="img" aria-label="${esc(opt.title+": "+vals.join(", "))}">${bars}${ref}</svg>`,avg,cum,vals};
+}
 function goalPop(i){
   const G=DATA.goals, p=G.pillars[i], r=pillarRead(p,G.progress,DATA), T=p.targets||{};
-  const g=(G.progress&&G.progress[p.key])||null;
+  const g=(G.progress&&G.progress[p.key])||null, H=G.progress&&G.progress.history;
   const tv=v=>v&&typeof v==="object"?(v.target??v.value)+(v.by?` by ${v.by}`:""):v;
+  const col=GS[r.state]&&r.state!=="nf"?GS[r.state]:"var(--core)";
+  // history metric: career history counts applications sent (incl. withdrawn/rejected), so label it that way
+  const hk=r.m, hTitle=p.key==="career"&&hk==="applied"?"applications sent":(r.label||hk);
+  const ref=r.weekly?r.target:(r.need!=null?r.need:null);
+  const hb=hk?histBars(H,hk,{col,title:hTitle,ref,refLabel:ref!=null?(r.weekly?"target "+ref:"need "+ref.toFixed(1)+"/wk"):""}):"";
+  // projection from the recent weekly average (deadline metrics only)
+  let proj="";
+  if(hb&&hb.avg!=null&&r.dl&&r.target!=null&&r.cur!=null&&!r.weekly){
+    const wk=Math.max((new Date(asDay(r.dl))-Date.now())/(7*dayMs),0), end=Math.round(r.cur+hb.avg*wk);
+    proj=`At your ${hb.vals.length}-week average of ${hb.avg.toFixed(1)}/wk you'd reach <b>${end}</b> of ${r.target} by ${esc(fmtD(asDay(r.dl)))}${end>=r.target?" ✓":` · <span style="color:var(--warn)">${r.target-end} short</span>`}.`;
+  }
+  const sec=(r.sec?[r.sec]:[]).concat(r.overdue||[]);
+  const k2=p.key==="relationships"&&H?histBars(H,"classmates_logged",{col:"var(--core)",title:"classmates logged"}):"";
+  const nd=nudgeFor(DATA,i);
   openPop(pName(p),`${p.goal?`<p style="margin:0">${esc(p.goal)}</p>`:""}
-    <dl class="kv">${Object.entries(T).map(([k,v])=>`<dt>${esc(k.replace(/_/g," "))}</dt><dd class="mono">${esc(tv(v))}</dd>`).join("")}</dl>
-    ${r.funnel?`<div><b>Funnel</b>: ${esc(r.funnel)}</div>`:""}${r.m?`<div><b>${esc(r.label)}</b>: ${r.cur==null?'<i class="muted">no feed yet</i>':esc(r.target!=null?r.cur+" / "+r.target:String(r.cur))} <div class="muted">${esc(r.pace)}</div></div>`:""}
-    ${g&&g.note?`<p class="muted" style="margin:0">${esc(g.note)}</p>`:""}
+    ${r.m?`<div class="tt"><span class="mono" style="font-size:22px;font-weight:600">${r.cur==null?"—":esc(r.target!=null?r.cur+" / "+r.target:String(r.cur))}</span><span class="muted" style="align-self:center">${esc(r.label)}</span></div>
+      <div style="color:${col};font-weight:600;font-size:14px">${esc(r.pace)}</div>`:""}
+    ${nd?`<div class="nudge" style="margin:0"><span class="ar" aria-hidden="true">→</span><b>${esc(nd.text)}</b>${nd.detail?`<span class="muted">${esc(nd.detail)}</span>`:""}</div>`:""}
+    ${proj?`<p style="margin:0;font-size:14px">${proj}</p>`:""}
+    ${hb?`<div><div class="muted" style="font-size:12px;margin-bottom:2px">${esc(hTitle)} · ${hb.cum?"running total":"per week"}, last ${hb.vals.length} weeks</div>${hb.svg}</div>`:""}
+    ${k2?`<div><div class="muted" style="font-size:12px;margin-bottom:2px">classmates logged · running total (+${k2.vals[k2.vals.length-1]-k2.vals[0]} in ${k2.vals.length} wks)</div>${k2.svg}</div>`:""}
+    ${r.funnel?`<div><b>Funnel</b>: ${esc(r.funnel)}</div>`:""}
+    ${sec.length?`<ul class="lst">${sec.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}
+    <details><summary class="muted" style="cursor:pointer;font-size:13px">Targets</summary><dl class="kv" style="margin-top:6px">${Object.entries(T).map(([k,v])=>`<dt>${esc(k.replace(/_/g," "))}</dt><dd class="mono">${esc(tv(v))}</dd>`).join("")}</dl></details>
+    ${g&&g.note?`<p class="muted" style="margin:0;font-size:13px">${esc(g.note)}</p>`:""}
     ${!G.progress?`<p class="muted" style="margin:0;font-size:13px">Progress numbers arrive once the Notion feed is connected.</p>`:""}`);
 }
 function weekHtml(d){
