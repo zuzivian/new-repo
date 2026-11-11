@@ -62,5 +62,5 @@ Nat is busy and won't answer quickly. Use these defaults instead of asking:
 
 ## Blocked by the network
 
-This org blocks some outside hosts (e.g. api.vercel.com, *.vercel.app, frame hosts). Don't stop or ask Nat to change settings: queue the work on the ops bus (zuzivian/ops-bus) as `ext.task` for `runner: pro` (Claude Pro Code session, default) or `runner: chatgpt` (Codex); web clicks/sign-ups → `browser.task` (instinct), purchases → `purchase` (muse). If one runner fails with "can't either", try the next. Never put secrets or Binny Restricted content in a request.
+This org blocks some outside hosts (e.g. api.vercel.com, *.vercel.app, frame hosts). Don't stop or ask Nat to change settings: queue the work on the ops bus (zuzivian/ops-bus) as `ext.task` for `runner: pro` (Claude Pro Code session, default) or `runner: chatgpt` (Codex); web clicks/sign-ups → `browser.task` (instinct), purchases → `purchase` (muse). If one runner fails with "can't either", try the next. Never put secrets or Binny Restricted content in a request. After pushing any ops-bus request, ring the doorbell: comment on zuzivian/ops-bus PR #2 `OPS-BUS-RING runner=<runner> file=<path>` so the Pro session runs it now (hourly schedule is the fallback).
 

@@ -34,7 +34,7 @@ Refill: keep about 3 open `codex:queued`/`codex:working` issues per Codex repo (
 natwong-dev) while Codex isn't paused. New issues must not overlap open PRs or `claude:working` issues; put
 `claude:working` on issues a Claude worker takes. Codex cost shows in HQ's cost panel as task counts (no token data).
 
-**When the Stanford network blocks you (Nat, 2026-11-10).** This org blocks some outside hosts (e.g. api.vercel.com, *.vercel.app, frame hosts). Don't stop or ask Nat to change settings: queue the work on the ops bus (zuzivian/ops-bus) as `ext.task` for `runner: pro` (Claude Pro Code session, default) or `runner: chatgpt` (Codex); web clicks/sign-ups → `browser.task` (instinct), purchases → `purchase` (muse). If one runner fails with "can't either", try the next. Never put secrets or Binny Restricted content in a request.
+**When the Stanford network blocks you (Nat, 2026-11-10).** This org blocks some outside hosts (e.g. api.vercel.com, *.vercel.app, frame hosts). Don't stop or ask Nat to change settings: queue the work on the ops bus (zuzivian/ops-bus) as `ext.task` for `runner: pro` (Claude Pro Code session, default) or `runner: chatgpt` (Codex); web clicks/sign-ups → `browser.task` (instinct), purchases → `purchase` (muse). If one runner fails with "can't either", try the next. Never put secrets or Binny Restricted content in a request. After pushing any ops-bus request, ring the doorbell: comment on zuzivian/ops-bus PR #2 `OPS-BUS-RING runner=<runner> file=<path>` so the Pro session runs it now (hourly schedule is the fallback).
 
 ## Steps
 
