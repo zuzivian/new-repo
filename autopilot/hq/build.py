@@ -66,6 +66,40 @@ spend_rows = sorted(
     ({"project": k, "usd": round(v, 2), "tier": tier_of.get(k, "maintenance")} for k, v in spend.items()),
     key=lambda r: -r["usd"])
 
+# Project board: one tile per repo with a status derived from workers, needs and config.
+def _repo_of(name):
+    return {"temasek-1360-server": "temasek-1360"}.get(name, name)
+board = {}
+for pcfg in cfg["projects"]:
+    r = _repo_of(pcfg["name"])
+    b = board.setdefault(r, {"project": r, "tier": pcfg.get("tier", "maintenance"), "enabled": False,
+                             "running": 0, "queued": 0, "codex": 0, "done": 0, "needs": 0, "paused": False})
+    b["enabled"] = b["enabled"] or bool(pcfg.get("enabled", True))
+for w in state.get("workers", []):
+    r = _repo_of(w.get("project", ""))
+    b = board.setdefault(r, {"project": r, "tier": "maintenance", "enabled": True, "running": 0, "queued": 0,
+                             "codex": 0, "done": 0, "needs": 0, "paused": False})
+    st = (w.get("status") or "").lower()
+    if "codex" in st: b["codex"] += 1
+    elif st.startswith("queued"): b["queued"] += 1
+    elif st in ("working", "running", "in progress"): b["running"] += 1
+    elif st.startswith("done") or st == "archived": b["done"] += 1
+    elif "paused" in st: b["paused"] = True
+for n in state.get("needs", []):
+    t = (n.get("title", "") + " " + n.get("url", "")).lower()
+    for r, b in board.items():
+        if r.lower() in t:
+            b["needs"] += 1; break
+for b in board.values():
+    if not b["enabled"]: b["status"] = "off"
+    elif b["needs"]: b["status"] = "needs you"
+    elif b["paused"]: b["status"] = "paused"
+    elif b["running"]: b["status"] = "running"
+    elif b["queued"] or b["codex"]: b["status"] = "queued"
+    else: b["status"] = "idle"
+ORDER = {"needs you": 0, "running": 1, "queued": 2, "paused": 3, "idle": 4, "off": 5}
+projects_board = sorted(board.values(), key=lambda b: (ORDER[b["status"]], b["project"]))
+
 now = dt.datetime.now(dt.timezone.utc)
 meetings = []
 for p in primers.get("primers", []):
@@ -86,6 +120,7 @@ out = {
     "pro": state.get("pro", {"note": "Not connected yet."}),
     "supervisor": state.get("supervisor"),
     "cost": cost,
+    "board": projects_board,
 }
 with open(os.path.join(HERE, "data.json"), "w") as fh:
     json.dump(out, fh, indent=1)

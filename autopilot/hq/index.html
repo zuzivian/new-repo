@@ -42,6 +42,14 @@ svg text{fill:var(--ink-2);font-family:var(--f-mono);font-size:10px}
 .chart{width:100%;height:auto;display:block;margin-top:12px}
 .bar5{height:8px;border-radius:4px;background:var(--track);overflow:hidden;margin-top:6px}
 .bar5>i{display:block;height:100%;background:var(--accent)}
+.board{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.tile{border:1px solid var(--line);border-left:4px solid var(--st);border-radius:8px;padding:8px 10px;display:grid;gap:2px;min-width:0}
+.tile .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tile .st{font-size:12px;color:var(--st);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.tile .ct{font-size:12px;color:var(--ink-2)}
+.legend-st{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--ink-2);margin-top:8px}
+.legend-st i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;background:var(--st)}
+.panel{overflow-wrap:anywhere}.cards>*,.rows>*,.row>*{min-width:0}.row .name{overflow:hidden;text-overflow:ellipsis}
 .cards{display:grid;gap:10px}
 .card{border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:6px;min-width:0}
 .card.need{border-left:4px solid var(--accent);background:var(--accent-soft)}
@@ -115,6 +123,17 @@ function gaugeChart(d){
   <div class="legend"><span><i class="dot" style="background:var(--core)"></i>Used</span><span><i class="dot" style="background:var(--ink-2)"></i>Target (dashed)</span><span><i class="dot" style="background:var(--accent)"></i>Now</span></div>`;
 }
 
+const ST_COLOR={"needs you":"var(--bad)","running":"var(--good)","queued":"var(--core)","paused":"var(--warn)","idle":"var(--maint)","off":"var(--line)"};
+function boardHtml(b){
+  if(!b||!b.length) return '<div class="empty">No projects.</div>';
+  const counts={}; b.forEach(p=>counts[p.status]=(counts[p.status]||0)+1);
+  const tiles=b.map(p=>{
+    const bits=[]; if(p.running) bits.push(p.running+" running"); if(p.queued) bits.push(p.queued+" queued");
+    if(p.codex) bits.push(p.codex+" Codex"); if(p.needs) bits.push(p.needs+" for you"); if(!bits.length&&p.done) bits.push(p.done+" done this week");
+    return `<div class="tile" style="--st:${ST_COLOR[p.status]}" title="${esc(p.project)}: ${esc(p.status)}"><span class="nm">${esc(p.project)}</span><span class="st">${esc(p.status)}</span><span class="ct">${esc(bits.join(" · ")||"—")}</span></div>`}).join("");
+  const legend=Object.keys(ST_COLOR).filter(k=>counts[k]).map(k=>`<span style="--st:${ST_COLOR[k]}"><i></i>${counts[k]} ${esc(k)}</span>`).join("");
+  return `<div class="board">${tiles}</div><div class="legend-st">${legend}</div>`;
+}
 function costHtml(c){
   if(!c||(!c.providers.length&&!c.other.length)) return '<div class="empty">No usage collected yet.</div>';
   const fmtTok=t=>t>=1e6?(t/1e6).toFixed(1)+"M":t>=1e3?(t/1e3).toFixed(0)+"k":String(t);
@@ -164,6 +183,7 @@ function home(d){
      <div class="muted" style="margin-top:10px">5-hour window · ${Math.round(d.week.u5*100)}% <span class="mono">(ceiling ${Math.round(d.pacing.five_hour_ceiling*100)}%)</span></div>
      <div class="bar5"><i style="width:${Math.min(d.week.u5*100,100)}%"></i></div>
      ${gaugeChart(d)}</section>
+   <section class="panel" aria-labelledby="pb"><h2 id="pb">Projects</h2>${boardHtml(d.board)}</section>
    <section class="panel" aria-labelledby="n"><h2 id="n">Needs you · ${d.needs.length}</h2>
      <div class="cards">${needs}</div>
      ${d.needs.length?`<p class="muted" style="margin:10px 0 0;font-size:13px">Tap an answer to send it straight to the autopilot (the first tap asks you to allow the Claude Code Remote connector; if sending fails it copies instead). ★ = my pick.</p>`:""}</section>
