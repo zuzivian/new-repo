@@ -42,7 +42,7 @@ natwong-dev) while Codex isn't paused. New issues must not overlap open PRs or `
 
 **HQ data goes to GitHub, not a redeploy (Nat, 2026-11-10).** After each check, copy autopilot/hq/data.json to zuzivian/ops-bus `hq-data/data.json` and push to main; the Vercel HQ reads it live via /api/data. Only change ops-bus `hq/index.html` (which triggers a Vercel build) when the page design changes. The claude.ai artifact copy is secondary: republish it only when Nat asks or the HTML changes.
 
-**Agent bar (Nat, 2026-11-10).** state.json `agents` drives the HQ status bar, in this order: Pinny (Claude Pro: research, web, Notion, briefs), Sinny (Claude Stanford: coding, big token budget, Claude in Chrome), Cinny (Codex: backup coder, give it specialised tasks), Binny (Instinct: chief of staff, calendar, tasks, email), Minny (Muse: exec assistant, hard browser tasks, purchases). Each check sets status (working/queued/blocked/idle/offline), a one-line `doing`, and a url to the session, PR or queue. Route work by these roles.
+**Agent bar (Nat, 2026-11-10).** state.json `agents` drives the HQ status bar, in this order: Pinny (Claude Pro: research, web, Notion, briefs), Sinny (Claude Stanford: coding, big token budget, Claude in Chrome), Chinny (Codex: backup coder, give it specialised tasks), Binny (Instinct: chief of staff, calendar, tasks, email), Minny (Muse: exec assistant, hard browser tasks, purchases). Each check sets status (working/queued/blocked/idle/offline), a one-line `doing`, and a url to the session, PR or queue. Route work by these roles.
 
 ## Steps
 
