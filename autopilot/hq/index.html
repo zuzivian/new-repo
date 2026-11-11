@@ -145,8 +145,8 @@ async function answer(btn,text,title){
 function home(d){
   const u=d.week.u7, t=target((new Date(d.week.reset)-new Date(d.updated))/3600e3,d.pacing), gap=u-t;
   const state=gap>=-0.03?["good","On pace"]:gap>=-0.10?["warn","Behind"]:["bad","Well behind"];
-  const needs=d.needs.length?d.needs.map((n,i)=>`<div class="card need"><div class="t">${i+1}. ${n.url?`<a href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.title)} ↗</a>`:esc(n.title)}</div><div class="muted">${esc(n.detail)}</div>${n.preview?`<div><a href="${esc(n.preview)}" target="_blank" rel="noopener">▶ Open preview</a></div>`:`<div class="muted">No preview available</div>`}
-     <div class="reply">${n.options.map(o=>`<button class="code" data-copy="${esc((i+1)+" → "+o)}" data-title="${esc(n.title)}">${esc(o)}${o===n.recommend?" ★":""}</button>`).join("")}</div></div>`).join("")
+  const needs=d.needs.length?d.needs.map((n,i)=>`<div class="card need"><div class="t">${i+1}. ${n.url?`<a href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.title)} ↗</a>`:esc(n.title)}</div><div class="muted">${esc(n.detail||n.note||"")}</div>${n.preview?`<div><a href="${esc(n.preview)}" target="_blank" rel="noopener">▶ Open preview</a></div>`:`<div class="muted">No preview available</div>`}
+     <div class="reply">${(n.options||["Done","Later"]).map(o=>`<button class="code" data-copy="${esc((i+1)+" → "+o)}" data-title="${esc(n.title)}">${esc(o)}${o===n.recommend?" ★":""}</button>`).join("")}</div></div>`).join("")
      :`<div class="empty">Nothing waiting on you.</div>`;
   const meets=d.meetings.length?d.meetings.map(m=>`<a class="meet card" href="#m-${esc(m.id)}"><span class="when">${esc(fmtT(m.when))}</span><span><span class="t">${esc(m.title)}</span><br><span class="muted">${m.ready?"Primer ready · 2 min read":"Primer coming"}</span></span></a>`).join("")
      :`<div class="empty">No 1:1s in the next 48 hours.</div>`;
@@ -205,6 +205,6 @@ function render(){
   if(h.startsWith("m-")) window.scrollTo(0,0);
 }
 addEventListener("hashchange",render);
-fetch("data.json",{cache:"no-store"}).then(r=>r.json()).then(d=>{DATA=d;render()}).catch(()=>{document.getElementById("view").innerHTML='<p class="empty">Couldn\'t load status data. Ask the autopilot chat to republish HQ.</p>'});
+fetch("data.json",{cache:"no-store"}).then(r=>r.json()).then(d=>{DATA=d;try{render()}catch(e){document.getElementById("view").innerHTML='<p class="empty">HQ hit a display error ('+esc(String(e&&e.message||e))+'). Ask the autopilot chat to fix it.</p>'}}).catch(()=>{document.getElementById("view").innerHTML='<p class="empty">Couldn\'t load status data. Ask the autopilot chat to republish HQ.</p>'});
 render();
 </script>
