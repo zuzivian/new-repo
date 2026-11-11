@@ -266,7 +266,13 @@ const CCR="Claude Code Remote";
 async function answer(btn,text,title){
   const sid=DATA&&DATA.supervisor;
   let mcp=null; try{mcp=await window.claude?.use?.("mcp")}catch(e){}
-  if(!sid||!mcp){copy(btn,text);return}
+  if(!sid||!mcp){
+    /* No Claude connector here (e.g. hq.natwong.dev): open a prefilled GitHub issue; submitting it wakes the supervisor. */
+    const t="HQ answer: "+title+" → "+text.split(" → ").slice(1).join(" → ");
+    const u="https://github.com/zuzivian/ops-bus/issues/new?title="+encodeURIComponent(t)+"&body="+encodeURIComponent("Tap Submit to send this to the autopilot supervisor.");
+    let w=null; try{w=window.open(u,"_blank","noopener")}catch(_){}
+    if(w===null){copy(btn,text)} else {btn.textContent="Opened ✓ tap Submit"}
+    return}
   const orig=btn.textContent; btn.disabled=true; btn.textContent="Sending…";
   try{
     await mcp.callTool(CCR,"send_message",{session_id:sid,message:"HQ answer from Nat: "+title+" → "+text.split(" → ").slice(1).join(" → ")});
