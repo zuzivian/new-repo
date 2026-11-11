@@ -202,6 +202,25 @@ function gaugeChart(d){
   <div class="legend"><span><i class="dot" style="background:var(--core)"></i>Used</span><span><i class="dot" style="background:var(--ink-2)"></i>Target (dashed)</span><span><i class="dot" style="background:var(--accent)"></i>Now</span></div>`;
 }
 
+function proChart(d){ // Pro account: cumulative new tokens over the same Sat-Sat week as the gauge above (plan % isn't visible for Pro)
+  const tl=d.cost&&d.cost.pro&&d.cost.pro.timeline; if(!tl||!tl.length) return "";
+  const W=640,H=130,L=34,R=10,T=10,B=22, reset=new Date(d.week.reset).getTime(), start=reset-168*3600e3, x=t=>L+(t-start)/(168*3600e3)*(W-L-R);
+  let cum=0,cr=0; const pts=[[start,0]]; tl.forEach(b=>{const t=new Date(b.t).getTime(); if(t<start||t>reset) return; pts.push([t,cum]); cum+=b.new; cr+=b.cache_read; pts.push([t,cum])});
+  if(pts.length<2) return "";
+  const now=Math.min(new Date(d.updated).getTime(),reset); pts.push([now,cum]);
+  const max=Math.max(cum,1), y=v=>T+(1-v/max)*(H-T-B), tok=n=>n>=1e6?(n/1e6).toFixed(1)+"M":n>=1e3?Math.round(n/1e3)+"k":String(n);
+  const days=["Sat","Sun","Mon","Tue","Wed","Thu","Fri","Sat"]; let grid="";
+  for(let i=0;i<=7;i++){const gx=x(start+i*86400e3); grid+=`<line x1="${gx}" x2="${gx}" y1="${T}" y2="${H-B}" stroke="var(--line)"/><text x="${gx}" y="${H-6}" text-anchor="middle">${days[i]}</text>`}
+  for(const f of [0,.5,1]) grid+=`<line x1="${L}" x2="${W-R}" y1="${y(max*f)}" y2="${y(max*f)}" stroke="var(--line)" stroke-dasharray="${f?2:0} 3"/><text x="${L-6}" y="${y(max*f)+3}" text-anchor="end">${tok(max*f)}</text>`;
+  const line=pts.map((p,i)=>(i?"L":"M")+x(p[0]).toFixed(1)+","+y(p[1]).toFixed(1)).join(""), last=pts[pts.length-1];
+  return `<h2 style="margin-top:16px">Pro account · tokens this week</h2>
+  <svg class="chart" style="margin-top:4px" viewBox="0 0 ${W} ${H}" role="img" aria-label="Pro account cumulative new tokens this week">${grid}
+  <path d="${line}L${x(last[0]).toFixed(1)},${y(0)}L${x(start)},${y(0)}Z" fill="var(--accent)" opacity=".15"/>
+  <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2.5"/><circle cx="${x(last[0])}" cy="${y(last[1])}" r="4" fill="var(--accent)"/></svg>
+  <div class="legend"><span><i class="dot" style="background:var(--accent)"></i>New tokens (input + output + cache write): ${tok(cum)}</span><span>Cache re-reads ${tok(cr)} not counted</span></div>
+  <div class="muted" style="font-size:13px">Pro plan % isn't visible from the Pro runner, so this is token volume, not share of the weekly limit.</div>`;
+}
+
 const ST_COLOR={"needs you":"var(--bad)","running":"var(--good)","queued":"var(--core)","paused":"var(--warn)","idle":"var(--maint)","off":"var(--line)"};
 function boardHtml(b){
   if(!b||!b.length) return '<div class="empty">No projects.</div>';
@@ -306,13 +325,23 @@ function projectPop(name){
     <div><b>Issues</b>${li(is,i=>`<li><span class="sev" style="--sv:${SEV_COLOR[i.severity]}">${esc(i.severity)}</span> ${esc(i.title)}</li>`)}</div>`);
 }
 function costHtml(c){
-  if(!c||(!c.providers.length&&!c.other.length)) return '<div class="empty">No usage collected yet.</div>';
+  if(!c||(!c.providers.length&&!c.other.length&&!c.pro)) return '<div class="empty">No usage collected yet.</div>';
   const fmtTok=t=>t>=1e6?(t/1e6).toFixed(1)+"M":t>=1e3?(t/1e3).toFixed(0)+"k":String(t);
   const max=Math.max(1,...c.providers.flatMap(p=>p.models.map(m=>m.usd)));
   const prov=c.providers.map(p=>`<div class="row"><span class="name"><b>${esc(p.provider)}</b></span><span class="mono">$${p.usd.toFixed(2)}</span></div>`+
     p.models.map(m=>`<div class="row"><span class="name" style="padding-left:12px">${esc(m.model)} <span class="muted">· ${m.sessions} sessions · ${fmtTok(m.tokens)} tok</span></span><span class="mono muted">$${m.usd.toFixed(2)}</span></div><div class="hbar"><i style="width:${(m.usd/max*100).toFixed(1)}%;background:var(--core)"></i></div>`).join("")).join("");
   const oth=c.other.map(o=>`<div class="row"><span class="name"><b>${esc(o.provider)}</b> <span class="muted">· ${esc(o.label||"")}</span></span><span class="mono muted">${o.usd!=null?"$"+Number(o.usd).toFixed(2):"n/a"}</span></div><div class="muted" style="font-size:13px;padding-left:12px">${esc(o.note||"")}</div>`).join("");
-  return `<div class="rows">${prov}${oth}</div>`;
+  let pro="";
+  if(c.pro&&c.pro.models&&c.pro.models.length){
+    const seg=[["output","Output","var(--accent)"],["input","Input","var(--core)"],["cache_write","Cache write","var(--surface)"],["cache_read","Cache read","var(--maint)"]];
+    pro=`<div class="row" style="margin-top:6px"><span class="name"><b>${esc(c.pro.account)}</b></span><span class="mono muted">${c.pro.sessions} session${c.pro.sessions===1?"":"s"}</span></div>`+
+      c.pro.models.map(m=>{const tot=seg.reduce((a,[k])=>a+m[k],0)||1;
+        const bar=seg.map(([k,l,col])=>m[k]?`<i style="display:inline-block;height:100%;width:${(m[k]/tot*100).toFixed(2)}%;min-width:2px;background:${col}" title="${l}: ${fmtTok(m[k])}"></i>`:"").join("");
+        return `<div class="row"><span class="name" style="padding-left:12px">${esc(m.model)} <span class="muted">· ${m.messages} msgs · ${fmtTok(tot)} tok</span></span></div><div class="hbar" style="display:flex">${bar}</div>`}).join("")+
+      `<div class="legend">${seg.map(([k,l,col])=>`<span><i class="dot" style="background:${col}"></i>${l} ${fmtTok(c.pro.models.reduce((a,m)=>a+m[k],0))}</span>`).join("")}</div>`+
+      `<div class="muted" style="font-size:13px;padding-left:12px">Tokens only, no USD. Bar = share of tokens by type (cache reads are re-read context, not new work).</div>`;
+  }
+  return `<div class="rows">${prov}${oth}${pro}</div>`;
 }
 function copy(btn,text){
   const done=()=>{const o=btn.textContent;btn.textContent="Copied";setTimeout(()=>btn.textContent=o,1200)};
@@ -360,7 +389,7 @@ function home(d){
        <span class="pill ${state[0]}">${state[1]}</span></div>
      ${typeof d.week.u5==="number"&&isFinite(d.week.u5)?`<div class="muted" style="margin-top:10px">5-hour window · ${Math.round(d.week.u5*100)}%${typeof d.pacing.five_hour_ceiling==="number"?` <span class="mono">(ceiling ${Math.round(d.pacing.five_hour_ceiling*100)}%)</span>`:""}</div>
      <div class="bar5"><i style="width:${Math.min(d.week.u5*100,100)}%"></i></div>`:`<div class="muted" style="margin-top:10px">5-hour window · <i>no reading yet</i></div>`}
-     ${gaugeChart(d)}</section>
+     ${gaugeChart(d)}${proChart(d)}</section>
    <section class="panel" aria-labelledby="pb"><h2 id="pb">Projects</h2>${boardHtml(d.board)}</section>
    <section class="panel" aria-labelledby="is"><h2 id="is">Fleet issues · ${(d.issues||[]).length}</h2>${issuesHtml(d.issues)}</section>
    <section class="panel" aria-labelledby="n"><h2 id="n">Needs you · ${d.needs.length}</h2>
