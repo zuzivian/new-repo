@@ -136,7 +136,7 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 .align .lab{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-2);margin-top:2px;letter-spacing:.04em;text-transform:uppercase}
 .build{display:grid;gap:6px;margin:8px 0 0;padding:0;list-style:none}
 .build li{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:center}
-.build .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.build .nm{min-width:0;overflow-wrap:anywhere}
 /* Fleet internals live behind one fold. */
 details.fleet{margin-top:16px}
 details.fleet>summary{list-style:none;cursor:pointer;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 16px;min-height:44px}
@@ -513,7 +513,11 @@ function alignHtml(d){
   const rank=w=>{const s=String(w.status||"").toLowerCase();return s==="working"||s==="running"?0:s.startsWith("queued")?1:s.startsWith("done")?3:2};
   const live=ws.filter(w=>rank(w)<3).sort((a,b)=>rank(a)-rank(b)), done=ws.filter(w=>rank(w)===3).length;
   const rowT=w=>{const t=w.project+" · "+w.task, u=w.url||(/^https?:/.test(w.session||"")?w.session:"");return u?link(u,t):esc(t)};
-  const build=`<ul class="build" aria-label="Career build">${live.length?live.slice(0,4).map(w=>{const r=rank(w);
+  const CB=(d.goals&&Array.isArray(d.goals.career_build))?d.goals.career_build.filter(x=>x&&x.title):null;
+  const cbPill=st=>{const s=String(st||"").toLowerCase();return s.startsWith("blocked")?["bad","blocked"]:s==="working"?["warn","building"]:s==="review"?["warn","review"]:s==="done"?["good","done"]:["","queued"]};
+  const build=CB&&CB.length?`<ul class="build" aria-label="Career build">${CB.map(x=>{const [c,l]=cbPill(x.status);const why=/^blocked:\s*/i.test(x.status||"")?String(x.status).replace(/^blocked:\s*/i,""):"";
+      return `<li><span class="pill ${c}">${esc(l)}</span><span class="nm">${x.step?`<b class="mono">${esc(x.step)}</b> `:""}${x.url?link(x.url,x.title):esc(x.title)}${why?` <span class="muted">· ${esc(why)}</span>`:""}</span></li>`}).join("")}</ul>`
+    :`<ul class="build" aria-label="Career build">${live.length?live.slice(0,4).map(w=>{const r=rank(w);
       return `<li><span class="pill ${r===0?"warn":r===1?"":"good"}">${esc(r===0?"building":String(w.status||"—"))}</span><span class="nm">${rowT(w)}</span></li>`}).join("")
       :`<li><span class="pill bad">none</span><span class="nm muted">No career-core build running${plan["career-core"]!=null?" while the plan wants "+Math.round(plan["career-core"]*100)+"%":""}.</span></li>`}
       ${done?`<li><span></span><span class="muted" style="font-size:13px">${done} career task${done===1?"":"s"} done this week</span></li>`:""}</ul>`;
