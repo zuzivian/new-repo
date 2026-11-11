@@ -114,6 +114,10 @@ def _goals():
         g["progress"] = json.load(open("/home/user/ops-bus/goals/progress.json"))
     except Exception:
         g["progress"] = None
+    # Supervisor-measured values (e.g. calendar coffee-chat count, build slices) merged into progress by pillar.
+    for pillar, vals in (g.pop("overrides", None) or {}).items():
+        if g["progress"] is None: g["progress"] = {}
+        g["progress"].setdefault(pillar, {}).update(vals)
     return g
 
 # Last activity per project (latest push via the GitHub REST API; skipped when the repo isn't reachable) and
