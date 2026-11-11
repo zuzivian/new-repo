@@ -133,6 +133,21 @@
       "weight": 1,
       "brief": "Private repo. Off until Nat opts in.",
       "tier": "maintenance"
+    },
+    {
+      "name": "digitizing-government",
+      "tier": "career-core",
+      "enabled": true
+    },
+    {
+      "name": "jbooks",
+      "tier": "career-core",
+      "enabled": true
+    },
+    {
+      "name": "HQ",
+      "tier": "maintenance",
+      "enabled": true
     }
   ],
   "allocation": {
