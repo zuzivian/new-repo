@@ -403,7 +403,7 @@ function pillarRead(p,prog,d){
   const m=(mk&&(keys.includes(mk)||num(g[mk])!=null||!keys.length))?mk:keys[0];
   if(!m) return {m:null};
   const target=tnum(T[m]), label=(p.metric&&p.metric.label)||m.replace(/_/g," ");
-  const weekly=/_per_week$/.test(m), base=m.replace(/_per_week$|_total$|_typed$|_logged$|_done$/,"");
+  const weekly=/_per_week$|_this_week$/.test(m)||(p.metric&&/^week/i.test(p.metric.period||""))||/^week/i.test(String(T[m+"_period"]||""))||(T[m]&&/^week/i.test(T[m].per||T[m].period||"")), base=m.replace(/_per_week$|_total$|_typed$|_logged$|_done$/,"");
   let cur=num(g[m]); if(cur==null&&weekly) cur=num(g[base+"_this_week"]); if(cur==null&&!weekly) cur=num(g[base]);
   let cal=false; if(cur==null&&num(g[base+"_scheduled_done"])!=null){cur=num(g[base+"_scheduled_done"]);cal=true}
   // second numeric target with a reported value, e.g. classmates logged
