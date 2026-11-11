@@ -102,6 +102,22 @@ dialog.pop::backdrop{background:rgba(5,10,20,.55)}
 .pop .lst{display:grid;gap:6px;margin:0;padding:0;list-style:none}
 .pop .lst li{border:1px solid var(--line);border-radius:8px;padding:8px 10px}
 @media (max-width:640px){dialog.pop{width:100%;max-width:100%;margin:auto 0 0;border-radius:16px 16px 0 0;max-height:85vh}}
+.agent{position:relative;grid-template-columns:52px 1fr}
+.agent .av{width:52px;height:52px}
+.agent .av .ring{position:absolute;inset:0;width:52px;height:52px}
+.agent .av .face{position:absolute;left:6px;top:6px;width:40px;height:40px}
+.agent .av .face svg{width:40px;height:40px}
+.agent .av .pc{position:absolute;left:50%;bottom:-7px;transform:translateX(-50%);font-size:10px;line-height:1;padding:2px 4px;border-radius:6px;background:var(--panel);border:1px solid var(--line);color:var(--ink-2)}
+.agent .av .pip{right:0;top:0;bottom:auto}
+.agent:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.agent .tip{position:absolute;z-index:6;left:8px;top:calc(100% + 6px);width:220px;max-width:calc(100vw - 32px);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:grid;gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.18);opacity:0;visibility:hidden;transform:translateY(-4px);transition:opacity .15s,transform .15s,visibility .15s}
+.agent .tip::before{content:"";position:absolute;left:22px;top:-6px;width:10px;height:10px;background:var(--panel);border-left:1px solid var(--line);border-top:1px solid var(--line);transform:rotate(45deg)}
+.agent:hover .tip,.agent:focus-within .tip{opacity:1;visibility:visible;transform:none}
+.agent .tip .tt{display:flex;justify-content:space-between;gap:8px}
+.agent .tip .spark{width:100%;height:44px}
+@media (prefers-reduced-motion:reduce){.agent .tip{transition:none}}
+@media (max-width:640px){.agent .tip{display:none}}
+.tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600}.pop .spark{width:100%;height:64px}
 .cards{display:grid;gap:10px}
 .card{border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:6px;min-width:0}
 .card.need{border-left:4px solid var(--accent);background:var(--accent-soft)}
@@ -210,12 +226,37 @@ function avatar(key){const L=AGENT_LOOK[key]||{c:"#8795a6",prop:""};
   <path d="M15 27q4.5 4 9 0" stroke="#1b1b2a" stroke-width="2" fill="none" stroke-linecap="round"/>
   <circle cx="10.5" cy="26" r="2" fill="#fff" opacity=".35"/><circle cx="29" cy="26" r="2" fill="#fff" opacity=".35"/>${L.prop}</svg>`}
 const AGENT_STATUS={working:"var(--good)",queued:"var(--core)",blocked:"var(--bad)",idle:"var(--maint)",offline:"var(--line)"};
+/* Agent card: avatar inside a utilization ring (share of that agent's plan used this week).
+   Hover, focus or tap shows a small bubble with the usage trend. No feed = dashed grey ring. */
+AGENT_LOOK.chinny=AGENT_LOOK.cinny;
+function ringSvg(u,col){
+  const r=21,c=2*Math.PI*r;
+  if(u==null) return `<svg class="ring" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="${r}" fill="none" stroke="var(--line)" stroke-width="3" stroke-dasharray="2 4"/></svg>`;
+  const v=Math.max(0,Math.min(1,u)), hot=v>=.9?"var(--bad)":v>=.7?"var(--warn)":col;
+  return `<svg class="ring" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="${r}" fill="none" stroke="var(--track)" stroke-width="3"/>
+    <circle cx="24" cy="24" r="${r}" fill="none" stroke="${hot}" stroke-width="3" stroke-linecap="round" stroke-dasharray="${(v*c).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 24 24)"/></svg>`;
+}
+function spark(series,col){
+  if(!series||series.length<2) return "";
+  const W=180,H=44,P=3,xs=series.map(s=>new Date(s.t).getTime()),x0=Math.min(...xs),x1=Math.max(...xs)||x0+1;
+  const ymax=Math.max(.05,...series.map(s=>s.u));
+  const pts=series.map((s,i)=>[P+(xs[i]-x0)/((x1-x0)||1)*(W-2*P),H-P-(s.u/ymax)*(H-2*P)]);
+  const d=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join("");
+  const last=pts[pts.length-1];
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" role="img" aria-label="Usage trend"><path d="${d} L${last[0].toFixed(1)} ${H-P} L${P} ${H-P}Z" fill="${col}" opacity=".14"/><path d="${d}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round"/><circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3" fill="${col}"/></svg>`;
+}
 function agentsHtml(list){
   if(!list||!list.length) return "";
-  return `<div class="agents" role="list" aria-label="Agents">${list.map(a=>{const sc=AGENT_STATUS[a.status]||"var(--maint)";
-    const inner=`<div class="av">${avatar(a.key)}<span class="pip"></span></div><div style="min-width:0"><div class="nm">${esc(a.name)} <span class="sx">${esc(a.status)}</span></div><div class="rl">${esc(a.role)}</div><div class="dg">${esc(a.doing||"—")}</div></div>`;
-    return a.url?`<a class="agent" role="listitem" data-s="${esc(a.status)}" style="--sc:${sc};color:inherit;text-decoration:none" href="${esc(a.url)}" target="_blank" rel="noopener" title="${esc(a.name)}: ${esc(a.doing||"")}">${inner}</a>`
-                :`<div class="agent" role="listitem" data-s="${esc(a.status)}" style="--sc:${sc}" title="${esc(a.name)}: ${esc(a.doing||"")}">${inner}</div>`}).join("")}</div>`;
+  return `<div class="agents" role="list" aria-label="Agents">${list.map((a,k)=>{const sc=AGENT_STATUS[a.status]||"var(--maint)";
+    const col=(AGENT_LOOK[a.key]||{c:"#8795a6"}).c, u=(typeof a.util==="number")?a.util:null;
+    const pct=u==null?"—":Math.round(u*100)+"%";
+    const tip=`<div class="tip" role="tooltip" id="tip-${k}"><div class="tt"><b>${esc(a.name)}</b><span class="mono">${pct}</span></div>
+      <div class="muted" style="font-size:12px">${esc(a.util_label||(u==null?"No usage feed for this agent yet":"Share of plan used this week"))}</div>
+      ${spark(a.series,col)}${a.usage_note?`<div style="font-size:12px">${esc(a.usage_note)}</div>`:""}
+      ${a.url?`<a href="${esc(a.url)}" target="_blank" rel="noopener" style="font-size:12px">Open ↗</a>`:""}</div>`;
+    return `<div class="agent" role="listitem" tabindex="0" data-s="${esc(a.status)}" style="--sc:${sc}" aria-describedby="tip-${k}">
+      <div class="av">${ringSvg(u,col)}<div class="face">${avatar(a.key)}</div><span class="pip"></span><span class="pc mono">${pct}</span></div>
+      <div style="min-width:0"><div class="nm">${esc(a.name)} <span class="sx">${esc(a.status)}</span></div><div class="rl">${esc(a.role)}</div><div class="dg">${esc(a.doing||"—")}</div></div>${tip}</div>`}).join("")}</div>`;
 }
 function openPop(title,html){
   let d=document.getElementById("pop");
@@ -314,8 +355,6 @@ function home(d){
      <p class="muted" style="margin:10px 0 0;font-size:13px">What these tokens would cost at API list prices (Claude Code's own estimate per session). Plan usage, not a bill.</p></section>
    <section class="panel" aria-labelledby="s"><h2 id="s">Burn by project · sessions started this week</h2><div class="rows">${spend}</div>
      <div class="rows" style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">${tiers}</div></section>
-   <section class="panel" aria-labelledby="p"><h2 id="p">Pro account</h2>
-     <p class="muted" style="margin:0">${esc(d.pro.note)}</p></section>
   </div>`;
 }
 
@@ -341,6 +380,10 @@ function render(){
   document.getElementById("updated").textContent="Updated "+fmtT(DATA.updated)+" PT";
   const h=location.hash.slice(1);
   v.innerHTML=h.startsWith("m-")?primer(DATA.meetings.find(m=>"m-"+m.id===h)):home(DATA);
+  v.querySelectorAll(".agent").forEach(el=>el.addEventListener("click",e=>{
+    if(!matchMedia("(max-width:640px)").matches||e.target.closest("a")) return;
+    const t=el.querySelector(".tip"); if(t) openPop(el.querySelector(".nm").firstChild.textContent.trim(), t.innerHTML);
+  }));
   v.querySelectorAll("[data-iss]").forEach(b=>b.addEventListener("click",()=>issuePop(DATA.issues[+b.dataset.iss])));
   v.querySelectorAll("[data-proj]").forEach(b=>b.addEventListener("click",()=>projectPop(b.dataset.proj)));
   v.querySelectorAll("[data-copy]").forEach(b=>b.addEventListener("click",()=>b.dataset.title?answer(b,b.dataset.copy,b.dataset.title):copy(b,b.dataset.copy)));
