@@ -510,10 +510,11 @@ function histBars(H,key,opt){
   const bars=rows.map((h,i)=>{const v=vals[i],x=P+i*bw+3,yy=y(v);
     return `<rect x="${x.toFixed(1)}" y="${yy.toFixed(1)}" width="${(bw-6).toFixed(1)}" height="${(H2-14-yy).toFixed(1)}" rx="2" fill="${opt.col}" opacity="${i===rows.length-1?1:.55}"><title>${esc(fmtD(asDay(h.week_start)))}: ${v}</title></rect>
       <text x="${(x+(bw-6)/2).toFixed(1)}" y="${(yy-3).toFixed(1)}" text-anchor="middle" font-size="10" fill="var(--ink-2)">${v}</text>
-      <text x="${(x+(bw-6)/2).toFixed(1)}" y="${H2-2}" text-anchor="middle" font-size="9" fill="var(--ink-2)">${esc(new Date(asDay(h.week_start)).toLocaleDateString("en-US",{...PT,month:"numeric",day:"numeric"}))}</text>`}).join("");
+      <text x="${(x+(bw-6)/2).toFixed(1)}" y="${H2-2}" text-anchor="middle" font-size="9" fill="var(--ink-2)">${opt.curWeek&&i===rows.length-1&&h.week_start.slice(0,10)===opt.curWeek?"this wk":esc(new Date(asDay(h.week_start)).toLocaleDateString("en-US",{...PT,month:"numeric",day:"numeric"}))}</text>`}).join("");
   const ref=opt.ref&&!cum?`<line x1="${P}" x2="${W-P}" y1="${y(opt.ref).toFixed(1)}" y2="${y(opt.ref).toFixed(1)}" stroke="var(--ink-2)" stroke-dasharray="3 3"/><text x="${W-P}" y="${(y(opt.ref)-3).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--ink-2)">${esc(opt.refLabel||"")}</text>`:"";
-  const avg=cum?null:vals.reduce((a,b)=>a+b,0)/vals.length;
-  return {svg:`<svg viewBox="0 0 ${W} ${H2}" style="width:100%;height:auto;max-height:90px" role="img" aria-label="${esc(opt.title+": "+vals.join(", "))}">${bars}${ref}</svg>`,avg,cum,vals};
+  const cw=opt.curWeek&&rows[rows.length-1].week_start.slice(0,10)===opt.curWeek, full=cw?vals.slice(0,-1):vals;
+  const avg=cum||!full.length?null:full.reduce((a,b)=>a+b,0)/full.length;
+  return {nfull:full.length,cw,svg:`<svg viewBox="0 0 ${W} ${H2}" style="width:100%;height:auto;max-height:90px" role="img" aria-label="${esc(opt.title+": "+vals.join(", "))}">${bars}${ref}</svg>`,avg,cum,vals};
 }
 function goalPop(i){
   const G=DATA.goals, p=G.pillars[i], r=pillarRead(p,G.progress,DATA), T=p.targets||{};
@@ -523,22 +524,23 @@ function goalPop(i){
   // history metric: career history counts applications sent (incl. withdrawn/rejected), so label it that way
   const hk=r.m, hTitle=p.key==="career"&&hk==="applied"?"applications sent":(r.label||hk);
   const ref=r.weekly?r.target:(r.need!=null?r.need:null);
-  const hb=hk?histBars(H,hk,{col,title:hTitle,ref,refLabel:ref!=null?(r.weekly?"target "+ref:"need "+ref.toFixed(1)+"/wk"):""}):"";
+  const PW=G.progress&&G.progress.week&&isDate(G.progress.week.start)?G.progress.week.start.slice(0,10):null;
+  const hb=hk?histBars(H,hk,{col,title:hTitle,ref,curWeek:PW,refLabel:ref!=null?(r.weekly?"target "+ref:"need "+ref.toFixed(1)+"/wk"):""}):"";
   // projection from the recent weekly average (deadline metrics only)
   let proj="";
   if(hb&&hb.avg!=null&&r.dl&&r.target!=null&&r.cur!=null&&!r.weekly){
     const wk=Math.max((new Date(asDay(r.dl))-Date.now())/(7*dayMs),0), end=Math.round(r.cur+hb.avg*wk);
-    proj=`At your ${hb.vals.length}-week average of ${hb.avg.toFixed(1)}/wk you'd reach <b>${end}</b> of ${r.target} by ${esc(fmtD(asDay(r.dl)))}${end>=r.target?" ✓":` · <span style="color:var(--warn)">${r.target-end} short</span>`}.`;
+    proj=`At your ${hb.nfull}-week average of ${hb.avg.toFixed(1)}/wk you'd reach <b>${end}</b> of ${r.target} by ${esc(fmtD(asDay(r.dl)))}${end>=r.target?" ✓":` · <span style="color:var(--warn)">${r.target-end} short</span>`}.`;
   }
   const sec=(r.sec?[r.sec]:[]).concat(r.overdue||[]);
-  const k2=p.key==="relationships"&&H?histBars(H,"classmates_logged",{col:"var(--core)",title:"classmates logged"}):"";
+  const k2=p.key==="relationships"&&H?histBars(H,"classmates_logged",{col:"var(--core)",title:"classmates logged",curWeek:PW}):"";
   const nd=nudgeFor(DATA,i);
   openPop(pName(p),`${p.goal?`<p style="margin:0">${esc(p.goal)}</p>`:""}
     ${r.m?`<div class="tt"><span class="mono" style="font-size:22px;font-weight:600">${r.cur==null?"—":esc(r.target!=null?r.cur+" / "+r.target:String(r.cur))}</span><span class="muted" style="align-self:center">${esc(r.label)}</span></div>
       <div style="color:${col};font-weight:600;font-size:14px">${esc(r.pace)}</div>`:""}
     ${nd?`<div class="nudge" style="margin:0"><span class="ar" aria-hidden="true">→</span><b>${esc(nd.text)}</b>${nd.detail?`<span class="muted">${esc(nd.detail)}</span>`:""}</div>`:""}
     ${proj?`<p style="margin:0;font-size:14px">${proj}</p>`:""}
-    ${hb?`<div><div class="muted" style="font-size:12px;margin-bottom:2px">${esc(hTitle)} · ${hb.cum?"running total":"per week"}, last ${hb.vals.length} weeks</div>${hb.svg}</div>`:""}
+    ${hb?`<div><div class="muted" style="font-size:12px;margin-bottom:2px">${esc(hTitle)} · ${hb.cum?"running total":"per week"}, last ${hb.vals.length} weeks${hb.cw?" (this week so far)":""}</div>${hb.svg}</div>`:""}
     ${k2?`<div><div class="muted" style="font-size:12px;margin-bottom:2px">classmates logged · running total (+${k2.vals[k2.vals.length-1]-k2.vals[0]} in ${k2.vals.length} wks)</div>${k2.svg}</div>`:""}
     ${r.funnel?`<div><b>Funnel</b>: ${esc(r.funnel)}</div>`:""}
     ${sec.length?`<ul class="lst">${sec.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}
