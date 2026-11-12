@@ -5,7 +5,8 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 | # | Finding | Status | Round |
 |---|---------|--------|-------|
 | 58 | Keep-in-touch chip not openable; coffee-chat tile didn't say which count (Pinny #6, #2) | done: list from keep_in_touch, sorted by due, flags touched-since; "Other counts: Notion typed · all touchpoints" | R58 |
-| 59 | Digigov tile; Needs sorted by due; Focus = ranked blocker (Pinny #1, #4, #5) | needs data (pillar + progress.digigov; needs[].due/est_min; goals.nudge) | R58 |
+| 59 | Digigov tile; Focus = ranked blocker (Pinny #1, #4) | needs data (pillar + progress.digigov; goals.nudge) | R58 |
+| 60 | Needs in file order, no time cost (Pinny #5) | done R59: sorted by due when any need has one; "(5 min, today)" after the title; waits on due/est_min data | R58 |
 | 57 | Eligible PM/TPM roles live (Fleet Ops data) shown on Career tile and sheet; tile merges it with "N to apply" so 6 vs 7 postings don't conflict | done | R56 |
 | 28 | Career metric is warm target companies (Nat): tile headline, contacts line; warm paths in the sheet once career_warm lands | done | R29 |
 | 49 | "What a tap does" hint sat below the last Needs card | done: hint above card 1 | R53 |

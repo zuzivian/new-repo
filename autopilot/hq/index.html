@@ -981,7 +981,7 @@ function home(d){
     const dh=detailHtml(n.detail||n.note||""), prList=dh.includes("/pull/")&&/github\.com\/[^/]+\/[^/]+\/pull\//.test(n.url||"");
     const openL=n.url&&!prList?`<a class="openlink" href="${esc(needUrl(n.url))}" target="_blank" rel="noopener">${esc(openOpt||(cls?"Open plan":"Open"))} ↗</a>`:"";
     const prev=n.preview?`<a class="openlink" href="${esc(n.preview)}" target="_blank" rel="noopener">▶ Preview</a>`:"";
-    return `<div class="card need${cls?" "+cls:""}">${cls?`<div class="wp-k">Week plan · your call</div>`:""}<div class="t">${cls?"":i+1+". "}${esc(n.title)}${n.from?` <span class="pill" style="font-size:10px;padding:1px 7px;vertical-align:middle">${esc(n.from)}</span>`:""}</div>${(()=>{const c=n.consequence||n.risk||(/no more approval|standing (approval|authority)|auto-?merge|without asking|permission|always allow/i.test(String(n.title)+" "+String(n.detail||""))?"Changes standing authority for the fleet. Read the details before Done.":"");return c?`<div class="conseq">⚠ ${esc(c)}</div>`:""})()}${dh}
+    return `<div class="card need${cls?" "+cls:""}">${cls?`<div class="wp-k">Week plan · your call</div>`:""}<div class="t">${cls?"":i+1+". "}${esc(n.title)}${(()=>{const m=num(n.est_min), dd=isDate(n.due)?(ptDay(asDay(n.due))<ptDay(Date.now())?"overdue":ptDay(asDay(n.due))===ptDay(Date.now())?"today":"by "+fmtD(asDay(n.due)).replace(/^\w+, /,"")):""; const t=[m!=null?m+" min":"",dd].filter(Boolean).join(", "); return t?` <span class="muted" style="font-weight:400;font-size:13px">(${t})</span>`:""})()}${n.from?` <span class="pill" style="font-size:10px;padding:1px 7px;vertical-align:middle">${esc(n.from)}</span>`:""}</div>${(()=>{const c=n.consequence||n.risk||(/no more approval|standing (approval|authority)|auto-?merge|without asking|permission|always allow/i.test(String(n.title)+" "+String(n.detail||""))?"Changes standing authority for the fleet. Read the details before Done.":"");return c?`<div class="conseq">⚠ ${esc(c)}</div>`:""})()}${dh}
      ${openL||prev?`<div class="reply">${openL}${prev}</div>`:""}
      ${ans.length?`<div class="reply" aria-label="Answers"><span class="muted" style="font-size:12px">Answer:</span>${ans.map(o=>`<button class="code" data-copy="${esc((i+1)+" → "+o)}" data-title="${esc(n.title)}">${esc(o)}${o===n.recommend?" ★":""}</button>`).join("")}</div>`:""}</div>`};
   const dow=new Date(new Date().toLocaleString("en-US",PT)).getDay(), wpI=dow===0||dow===1?d.needs.findIndex(n=>n.project==="weekly-review"):-1;
@@ -1166,7 +1166,7 @@ function natNeeds(d){if(!d||!Array.isArray(d.needs)) return d; const seen=new Se
   // one card per thing: an action row wins over the fleet issue that tracks the same thing
   // (linked by x.issue, or sharing a distinctive ref: an ALL_CAPS name, "PR #N", or a file name like X.md)
   const refs=t=>new Set((String(t||"").match(/\b[A-Z][A-Z0-9]*_[A-Z0-9_]+\b|PR #\d+|\b[\w-]+\.(?:md|json|yml|py|js)\b/g)||[]).map(x=>x.toLowerCase()));
-  const acts=(d.nat_actions||[]).filter(x=>x&&x.title).map(x=>({project:x.project||"fleet",title:x.title,detail:x.detail||"",url:x.url,issue:x.issue,options:x.options||[],consequence:x.consequence||x.risk||"",state:x.state||x.status||"",from:"Your action"}));
+  const acts=(d.nat_actions||[]).filter(x=>x&&x.title).map(x=>({project:x.project||"fleet",title:x.title,detail:x.detail||"",url:x.url,issue:x.issue,options:x.options||[],consequence:x.consequence||x.risk||"",state:x.state||x.status||"",due:x.due,est_min:x.est_min,from:"Your action"}));
   const dup=i=>acts.some(a=>(a.issue&&a.issue===i.url)||[...refs(i.title+" "+(i.detail||""))].some(r=>refs(a.title+" "+a.detail+" "+(a.url||"")).has(r)));
   const iss=(d.issues||[]).filter(own).filter(i=>!dup(i)).map(i=>({project:"fleet",title:i.title,detail:i.detail||"",url:i.url,options:[],from:"Fleet issue"}));
   const FP=fpOf(d), stall=[];
@@ -1176,7 +1176,8 @@ function natNeeds(d){if(!d||!Array.isArray(d.needs)) return d; const seen=new Se
   d.needs=d.needs.concat(add);
   // already done by Nat, now being checked by an agent: not his to do, so out of every count
   const V=n=>/^(verifying|waiting|done_pending)$/i.test(String(n.state||n.status||""))||/\b(fleet ops|supervisor) is verifying\b|reported this done/i.test(String(n.detail||""));
-  d.needs_waiting=d.needs.filter(V); d.needs=d.needs.filter(n=>!V(n)); return d}
+  d.needs_waiting=d.needs.filter(V); d.needs=d.needs.filter(n=>!V(n));
+  if(d.needs.some(n=>isDate(n.due))) d.needs=d.needs.map((n,i)=>[n,i]).sort((a,b)=>(isDate(a[0].due)?ptDay(asDay(a[0].due)):"9").localeCompare(isDate(b[0].due)?ptDay(asDay(b[0].due)):"9")||a[1]-b[1]).map(x=>x[0]); return d}
 function load(){return fetch("data.json",{cache:"no-store"}).then(r=>r.json()).then(d=>{DATA=natNeeds(ghMirror(d));try{render()}catch(e){document.getElementById("view").innerHTML='<p class="empty">HQ hit a display error ('+esc(String(e&&e.message||e))+'). Ask the autopilot chat to fix it.</p>'}}).catch(()=>{if(DATA){try{render()}catch(_){}}else document.getElementById("view").innerHTML='<p class="empty">Couldn\'t load status data. Ask the autopilot chat to republish HQ.</p>'})}
 load().then(()=>{if(DATA&&typeof DATA.one_click==="boolean"){ONE=DATA.one_click;if(ONE)try{render()}catch(_){}}else probeOne()});
 /* Refresh every 5 min while the tab is visible (not while a popup is open), and on return to the tab. */
