@@ -932,7 +932,7 @@ function tierOfProject(d,name){const b=(d.board||[]).find(x=>x.project===name);i
 function alignHtml(d,part){
   const plan={}; Object.entries(d.allocation||{}).forEach(([k,v])=>{const n=num(v); if(n!=null) plan[k]=n>1?n/100:n});
   const byPillar=plan.career!=null&&plan["career-core"]==null, T2P={"career-core":"career","career-surface":"career",maintenance:"fleet_hq"};
-  const tot={}; (d.spend||[]).forEach(s=>{if(num(s.usd)!=null){const k=byPillar?(T2P[s.tier]||s.tier):s.tier; tot[k]=(tot[k]||0)+s.usd}});
+  const tot={}; (d.spend||[]).forEach(s=>{if(num(s.usd)!=null){const k=byPillar?(s.pillar||T2P[s.tier]||s.tier):s.tier; tot[k]=(tot[k]||0)+s.usd}});
   const sum=Object.values(tot).reduce((a,b)=>a+b,0);
   const ORD=byPillar?["career","digigov","growth","relationships","fleet_hq"]:TIER_ORDER, CK=byPillar?"career":"career-core";
   const tiers=[...ORD,...Object.keys({...plan,...tot}).filter(k=>!ORD.includes(k))].filter(k=>plan[k]!=null||tot[k]);
@@ -940,10 +940,10 @@ function alignHtml(d,part){
   if(!sum) say=`<p class="say muted">No fleet spend recorded this week yet.</p>`;
   else{
     const a=(tot[CK]||0)/sum, pl=plan[CK];
-    const top=Object.entries(tot).sort((x,y)=>y[1]-x[1])[0], topProj=(d.spend||[]).filter(s=>(byPillar?(T2P[s.tier]||s.tier):s.tier)===top[0]).sort((x,y)=>y.usd-x.usd)[0];
+    const top=Object.entries(tot).sort((x,y)=>y[1]-x[1])[0], topProj=(d.spend||[]).filter(s=>(byPillar?(s.pillar||T2P[s.tier]||s.tier):s.tier)===top[0]).sort((x,y)=>y.usd-x.usd)[0];
     const gap=pl!=null?a-pl:0, col=pl==null?"inherit":gap>=-0.1?"var(--good)":gap>=-0.25?"var(--warn)":"var(--bad)";
-    say=`<p class="say">${byPillar?"Career":"Career-core"} got <b style="color:${col}">${Math.round(a*100)}%</b> of fleet effort this week${pl!=null?` vs a <b>${Math.round(pl*100)}%</b> plan`:""}.`+
-      (pl!=null&&gap<-0.1&&top[0]!==CK?` Most went to ${esc(TIER_LABEL[top[0]]||top[0])} (${Math.round(top[1]/sum*100)}%${topProj?`, mostly ${esc(topProj.project)}`:""}).`:pl!=null?" On plan.":"")+`</p>`;
+    say=`<p class="say">${byPillar?"Career":"Career-core"} got <b style="color:${col}">${Math.round(a*100)}%</b> of ${byPillar?"Sinny-session spend":"fleet effort"} this week${pl!=null?` vs a <b>${Math.round(pl*100)}%</b> plan`:""}.`+
+      (pl!=null&&gap<-0.1&&top[0]!==CK?` Most went to ${esc(TIER_LABEL[top[0]]||top[0])} (${Math.round(top[1]/sum*100)}%${topProj?`, mostly ${esc(topProj.project)}`:""}).`:pl!=null?" On plan.":"")+`</p>`+(byPillar?`<p class="muted" style="margin:0;font-size:12px">Spend covers Sinny sessions only; Pinny and Binny research runs free and isn't counted, so career and digigov read low.</p>`:"");
   }
   const seg=(src,den)=>tiers.map(k=>{const v=(src[k]||0)/(den||1);return v>0?`<i style="width:${(v*100).toFixed(1)}%;background:${TIER_COLOR[k]||"var(--maint)"}" title="${esc((TIER_LABEL[k]||k)+" "+Math.round(v*100)+"%")}"></i>`:""}).join("");
   const psum=Object.values(plan).reduce((a,b)=>a+(num(b)||0),0);
