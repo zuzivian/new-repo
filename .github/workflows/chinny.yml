@@ -1,0 +1,133 @@
+# Chinny runner for new-repo (HQ self-improvement loop). Same as the other repos' Chinny, plus: an issue body line
+# "Base: <branch>" picks the branch to work on and open the PR into (default: the HQ branch below).
+# Chinny runner: runs the Codex CLI on GitHub's runners with Nat's Stanford ChatGPT login, instead of Codex
+# cloud (whose environments the Stanford workspace doesn't allow). Same handoff protocol as AGENTS.md.
+#
+# Trigger: add label `codex:queued` to an issue, or comment `@chinny` on an issue (owner/collaborators only).
+# Secret:  CODEX_AUTH_JSON = contents of ~/.codex/auth.json after `codex login` (Stanford workspace).
+# Sandbox: Codex runs with --sandbox workspace-write (writes only inside the checkout, no network; exec never prompts).
+# Note:    PRs opened with the default GITHUB_TOKEN don't start other workflows, so repo CI won't run on them
+#          until someone pushes to the branch; the Vercel preview still builds.
+name: Chinny (Codex CLI)
+on:
+  issues:
+    types: [labeled]
+  issue_comment:
+    types: [created]
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+concurrency:
+  group: chinny-${{ github.event.issue.number }}
+  cancel-in-progress: false
+jobs:
+  run:
+    if: >-
+      !github.event.issue.pull_request && (
+        (github.event_name == 'issues' && github.event.label.name == 'codex:queued') ||
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@chinny') &&
+         contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association))
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
+      N: ${{ github.event.issue.number }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: Pick the base branch
+        id: base
+        run: |
+          b=$(gh issue view "$N" --json body -q .body | sed -n 's/^Base:[[:space:]]*\([A-Za-z0-9._/-]*\).*/\1/p' | head -1)
+          echo "ref=${b:-claude/token-usage-auto-allocation-1hmsvv}" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0, ref: "${{ steps.base.outputs.ref }}" }
+      - name: Skip if Claude has it or it's already done
+        id: gate
+        run: |
+          labels=$(gh issue view "$N" --json labels -q '.labels[].name' | tr '\n' ' ')
+          echo "labels: $labels"
+          case " $labels " in *" claude:working "*|*" codex:working "*|*" codex:done "*)
+            echo "skip=1" >> "$GITHUB_OUTPUT";; esac
+      - name: Claim
+        if: steps.gate.outputs.skip != '1'
+        run: |
+          gh issue edit "$N" --add-label codex:working --remove-label codex:queued || true
+          gh issue comment "$N" --body "CODEX-CLAIMED branch=codex/$N-cli (Chinny via Codex CLI on GitHub Actions)"
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.skip != '1'
+        with: { node-version: 22 }
+      - name: Install Codex CLI and sign in
+        if: steps.gate.outputs.skip != '1'
+        env: { CODEX_AUTH_JSON: "${{ secrets.CODEX_AUTH_JSON }}" }
+        run: |
+          [ -n "$CODEX_AUTH_JSON" ] || { echo "::error::Add repo secret CODEX_AUTH_JSON"; exit 1; }
+          npm i -g @openai/codex
+          mkdir -p ~/.codex && printf '%s' "$CODEX_AUTH_JSON" > ~/.codex/auth.json && chmod 600 ~/.codex/auth.json
+          codex --version
+      - name: Install project dependencies (Codex's sandbox has no network)
+        if: steps.gate.outputs.skip != '1'
+        run: |
+          if [ -f package-lock.json ]; then npm ci --no-audit --no-fund || true; elif [ -f package.json ]; then npm install --no-audit --no-fund || true; fi
+          if [ -f package.json ] && grep -q '"playwright' package.json; then npx playwright install --with-deps chromium || true; fi
+          if [ -f requirements.txt ]; then pip install -r requirements.txt || true; fi
+      - name: Let Codex's sandbox start (Ubuntu 24.04 blocks unprivileged user namespaces, which bwrap needs)
+        if: steps.gate.outputs.skip != '1'
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+      - name: Run Codex
+        id: codex
+        if: steps.gate.outputs.skip != '1'
+        run: |
+          gh issue view "$N" --json title,body -q '"# Issue #'"$N"': " + .title + "\n\n" + .body' > /tmp/issue.md
+          cat > /tmp/prompt.md <<'EOF'
+          You are Chinny, the backup coding agent in Nat's autopilot fleet, running non-interactively in a
+          GitHub Actions checkout of this repo. Implement the issue below in the working tree.
+          - Read AGENTS.md first and follow it (project rules, checks to run). Keep the change small and scoped.
+          - Run the checks AGENTS.md names. Do NOT commit, push, or open PRs; the workflow does that.
+          - Never add secrets. Don't touch .github/ or files unrelated to the issue.
+          - Finish with exactly one final line, either
+            CHECKS: <what you ran and pass/fail>
+            or BLOCKED: <one-line reason> | NEEDS: <nat|claude|muse|instinct> | ASK: <exact thing needed>
+          EOF
+          cat /tmp/issue.md >> /tmp/prompt.md
+          set +e
+          codex exec --sandbox workspace-write "$(cat /tmp/prompt.md)" 2>&1 | tee /tmp/codex.log
+          echo "rc=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+      - name: Hand back
+        if: steps.gate.outputs.skip != '1' && always()
+        run: |
+          log=/tmp/codex.log; touch "$log"
+          tokens=$(grep -A1 -iE '^tokens used' "$log" | tail -1 | tr -dc '0-9')
+          [ -n "$tokens" ] && gh issue comment "$N" --body "CODEX-USAGE tokens=$tokens run=${{ github.run_id }} repo=$REPO" || true
+          last_checks=$(grep -E '^(CHECKS|BLOCKED):' "$log" | tail -1)
+          done_label() { gh issue edit "$N" --add-label "$1" --remove-label codex:working || true; }
+          if grep -qiE "^(ERROR|error).*(usage limit|rate.?limit|quota)|you've hit your usage limit|exceeded your (usage|quota)" "$log"; then
+            gh issue comment "$N" --body "CODEX-PAUSED until=$(TZ=America/Los_Angeles date -d '+5 hours' -Iminutes) (Codex CLI hit a usage limit)"
+            gh issue edit "$N" --add-label codex:queued --remove-label codex:working || true; exit 0
+          fi
+          if grep -qiE 'not logged in|unauthorized|401|login' "$log" && [ "${{ steps.codex.outputs.rc }}" != "0" ]; then
+            gh issue comment "$N" --body "CODEX-BLOCKED reason=Codex CLI login failed or expired needs=nat ask=Re-run codex login (Stanford workspace) and update the CODEX_AUTH_JSON secret"
+            done_label codex:blocked; exit 0
+          fi
+          rc="${{ steps.codex.outputs.rc }}"
+          if [ -n "$rc" ] && [ "$rc" != "0" ]; then
+            why=$(grep -vE '^\s*$' "$log" | grep -iE 'error|unexpected|failed|denied' | tail -1 | cut -c1-180)
+            gh issue comment "$N" --body "CODEX-BLOCKED reason=Codex CLI exited rc=$rc: ${why:-see the workflow log} needs=claude ask=Fix the Chinny workflow or take this issue"
+            done_label codex:blocked; exit 0
+          fi
+          case "$last_checks" in BLOCKED:*)
+            r=$(echo "$last_checks" | sed -E 's/^BLOCKED: *//')
+            gh issue comment "$N" --body "CODEX-BLOCKED reason=$r"; done_label codex:blocked; git checkout -- . ; exit 0;; esac
+          if git diff --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+            gh issue comment "$N" --body "CODEX-BLOCKED reason=Codex made no changes needs=claude ask=Take this issue"
+            done_label codex:blocked; exit 0
+          fi
+          br="codex/$N-cli"
+          git config user.name "chinny (codex cli)"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$br"; git add -A; git reset -q .github || true
+          git commit -qm "Codex: $(gh issue view "$N" --json title -q .title) (#$N)" && git push -q -u origin "$br"
+          body=$(printf 'Preview: see the Vercel bot comment below (or none if this repo has no previews)\n\nCloses #%s\n\nVerified by Chinny: %s\n\n_Opened by the Chinny workflow (Codex CLI on GitHub Actions)._' "$N" "${last_checks:-not reported}")
+          pr=$(gh pr create --draft --title "Codex: $(gh issue view "$N" --json title -q .title)" --body "$body" --head "$br" --base "${{ steps.base.outputs.ref }}")
+          gh issue comment "$N" --body "CODEX-DONE pr=$pr preview=see PR checks=${last_checks:-not reported}"
+          done_label codex:done
