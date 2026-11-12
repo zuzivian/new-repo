@@ -19,6 +19,8 @@ There's also a fallback for when the merge box is awkward on a phone. Commenting
 - every check is green;
 - the head commit hasn't changed since the checks ran.
 
+It also requires a **successful `sinny-gate` check run on the PR's current head commit**. The label alone isn't enough: a push made with `GITHUB_TOKEN` (for example by a runner) starts no `pull_request` workflow, so the label could outlive the review.
+
 It uses the run's built-in `GITHUB_TOKEN`. A merge made that way doesn't start other Actions workflows on the default branch. That's fine for Vercel's Git-based deploys, but not for a deploy that runs in Actions.
 
 ## Setup per repo (natwong-dev, skyviu, ad-constellation): Nat, about 3 min each
@@ -26,6 +28,9 @@ It uses the run's built-in `GITHUB_TOKEN`. A merge made that way doesn't start o
 2. Create the label: `gh label create "sinny:reviewed" --color 2da44e --description "Reviewed by Sinny; ready for Nat"`.
 3. Go to Settings → Branches → the default branch's rule, turn on **Require status checks to pass**, and add `sinny-gate` plus the existing CI checks. Also turn on **Require branches to be up to date**.
 4. Go to Settings → General → Pull Requests and allow squash merging.
+
+## Sinny's own merges
+Once `sinny-gate` is a required check, every merge needs it green, Sinny's API merges included. Sinny adds `sinny:reviewed` before merging, which runs the gate on the current head.
 
 ## HQ data (Fleet Ops)
 `data.merge_queue[]`: `{repo, number, title, url, reviewed: bool, checks: "green"|"pending"|"failing", draft: bool, since}`.

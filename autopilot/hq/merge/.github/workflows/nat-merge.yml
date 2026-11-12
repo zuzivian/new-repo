@@ -1,7 +1,7 @@
 # "/merge" comment on a PR squash-merges it, only when ALL hold:
 #   - the commenter is the repo owner (zuzivian), not a bot or collaborator
 #   - the PR is open, not a draft, and carries `sinny:reviewed`
-#   - every check on the head commit has passed
+#   - every check on the head commit has passed, including a successful sinny-gate run on that exact SHA
 #   - the head commit is unchanged since the checks ran (--match-head-commit)
 # Uses the built-in GITHUB_TOKEN only; no stored token anywhere.
 # Note: a merge made with GITHUB_TOKEN does not start other Actions workflows on the
@@ -40,7 +40,13 @@ jobs:
           jq -e '.labels|map(.name)|index("sinny:reviewed")' <<<"$j" >/dev/null || { echo "Missing sinny:reviewed."; exit 1; }
           # all checks finished and green (exit 0); pending = 8, failing = 1
           gh pr checks "$PR" --repo "$GITHUB_REPOSITORY" || { echo "Checks are not all green."; exit 1; }
-          echo "sha=$(jq -r .headRefOid <<<"$j")" >> "$GITHUB_OUTPUT"
+          sha=$(jq -r .headRefOid <<<"$j")
+          # The label alone is not enough: a push made with GITHUB_TOKEN fires no pull_request
+          # workflow, so the label can outlive the review. Require sinny-gate to have PASSED on this exact head.
+          gate=$(gh api "repos/$GITHUB_REPOSITORY/commits/$sha/check-runs?check_name=sinny-gate&filter=latest" \
+            --jq '[.check_runs[] | select(.status=="completed")] | sort_by(.completed_at) | last | .conclusion // "none"')
+          [ "$gate" = "success" ] || { echo "sinny-gate has not passed on head $sha (latest: $gate)."; exit 1; }
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
       - name: Squash-merge
         run: gh pr merge "$PR" --repo "$GITHUB_REPOSITORY" --squash --delete-branch --match-head-commit "${{ steps.chk.outputs.sha }}"
       - name: Say why it did not merge

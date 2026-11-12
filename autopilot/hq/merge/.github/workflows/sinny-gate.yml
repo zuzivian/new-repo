@@ -20,8 +20,8 @@ jobs:
           gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label "sinny:reviewed"
           echo "New commits after review: label removed, re-review needed." >> "$GITHUB_STEP_SUMMARY"
           exit 1
+      # Always runs (unless step 1 already failed): a push to an unlabelled PR must fail too.
       - name: Require the review label
-        if: github.event.action != 'synchronize'
         env:
           LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         run: |
