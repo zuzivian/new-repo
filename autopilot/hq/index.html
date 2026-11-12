@@ -137,6 +137,14 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600;white-space:nowrap}.pop .spark{width:100%;height:64px}.spark.wk7{height:auto!important;max-height:110px}
 .cards{display:grid;gap:10px}
+.decs{margin-bottom:16px;border-left:4px solid var(--core)}.decl{margin:0;padding:0;list-style:none;display:grid;gap:10px}
+.dec{display:grid;gap:2px;border-top:1px solid var(--line);padding-top:8px}.dec:first-child{border-top:0;padding-top:0}
+.dec-d{font-weight:600}.dec-w{font-size:13px}.dec-m{font-size:12px}.dec-act{display:flex;gap:8px;flex-wrap:wrap}.decnone{margin:0 0 12px;font-size:13px}
+.overnight{margin-bottom:16px;border-left:4px solid var(--accent);background:color-mix(in srgb,var(--accent) 6%,var(--panel))}
+.ovh{margin:0 0 8px;padding-left:18px;display:grid;gap:4px}.ovg{display:grid;gap:4px;font-size:14px}.ovg summary{cursor:pointer;min-height:36px;display:flex;align-items:center;font-weight:600}.ovg summary::after{content:"▸";margin-left:6px;color:var(--ink-2)}.ovg details[open] summary::after{content:"▾"}.lst2{margin:4px 0 0;padding-left:18px;display:grid;gap:4px}.ova{font-size:13px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}.chip{font:inherit;font-size:13px;min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}.chip.on{background:var(--ink);color:var(--panel);border-color:var(--ink)}.chip.on .muted{color:inherit;opacity:.7}
+.rlist{margin:0;padding:0;list-style:none;display:grid;gap:2px}.rlist li{display:grid;gap:2px;padding:8px 0;border-top:1px solid var(--line);min-width:0}.rlist li:first-child{border-top:0}.rlist a{color:var(--ink);text-decoration:none;font-weight:600;overflow-wrap:anywhere}.rlist .muted{font-size:12px}
+.rlist li.later{display:none}.rlist.all li.later{display:grid}
 .agent .pace.stalled{color:var(--bad);font-weight:600}
 .gp-w{display:grid;gap:4px;font-size:14px;padding:6px 0;border-top:1px solid var(--line)}.ct.gp>.gp-w{border-top:0;padding-top:0}
 .gp-k{font-family:var(--f-display);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);margin-right:4px}
@@ -642,6 +650,62 @@ function goalsHtml(d){
       ${r.sec?`<span class="gm">${esc(r.sec)}</span>`:""}${(r.pend||[]).map(x=>`<span class="gm">${esc(x)}</span>`).join("")}
       <span class="gp">${esc(r.m?r.pace:"No metric set")}</span></button>`}).join("")}</section>`;
 }
+/* ---------- Decisions the orchestrator made for Nat (data.decisions, newest first) ---------- */
+// "New" = made after Nat's previous visit; the visit time is saved when the page is hidden, so refreshes don't clear it.
+let SEEN_BEFORE=null; try{SEEN_BEFORE=localStorage.getItem("hq.lastVisit")}catch(_){}
+// a glance under 10 s doesn't count as a visit, so new decisions survive a quick app switch
+let VIS_AT=document.visibilityState==="visible"?Date.now():null;
+const markVisit=()=>{if(VIS_AT&&Date.now()-VIS_AT>=10e3){try{localStorage.setItem("hq.lastVisit",new Date().toISOString())}catch(_){}} VIS_AT=null};
+addEventListener("pagehide",markVisit);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")markVisit(); else VIS_AT=Date.now()});
+const decs=d=>(Array.isArray(d&&d.decisions)?d.decisions:[]).filter(x=>x&&x.decision).slice().sort((a,b)=>String(b.at||"").localeCompare(String(a.at||"")));
+const decT=x=>isDate(x.at)?fmtT(x.at)+" PT":"";
+function decRow(x,i,full){return `<li class="dec"><div class="dec-d">${esc(x.decision)}</div>${x.why?`<div class="muted dec-w">${esc(x.why)}</div>`:""}
+  <div class="dec-m"><span class="muted">${esc(decT(x))}</span>${/^https:\/\//.test(x.link||"")?` · ${link(x.link,"Details")}`:""} · <button type="button" class="linkbtn" data-reverse="${i}">Reverse?</button></div></li>`}
+function decHtml(d,where){const D=decs(d); if(!D.length) return "";
+  if(where==="fleet") return `<section class="panel" aria-labelledby="dcf"><h2 id="dcf">Decided for you · ${D.length}</h2><ul class="decl">${D.slice(0,6).map((x,i)=>decRow(x,i)).join("")}</ul>${D.length>6?`<button type="button" class="more" data-decall>See all ${D.length}</button>`:""}</section>`;
+  const fresh=SEEN_BEFORE?D.filter(x=>isDate(x.at)&&new Date(x.at)>new Date(SEEN_BEFORE)):D;
+  if(!fresh.length) return `<p class="muted decnone">No new decisions since your last visit · <button type="button" class="linkbtn" data-decall>see all ${D.length}</button></p>`;
+  return `<section class="panel decs" aria-labelledby="dc"><h2 id="dc">Decided for you${SEEN_BEFORE?` · ${fresh.length} new`:""}</h2><ul class="decl">${fresh.slice(0,3).map(x=>decRow(x,D.indexOf(x))).join("")}</ul>
+    <div class="dec-act"><button type="button" class="more" data-decall>See all ${D.length}</button><button type="button" class="more" data-decok>Got it</button></div></section>`}
+function decAllPop(){const D=decs(DATA); openPop("Decided for you",`<p class="muted" style="margin:0;font-size:13px">Calls the orchestrator made on your behalf, newest first. Tap Reverse? to ask for one to be undone.</p><ul class="decl">${D.map((x,i)=>decRow(x,i,1)).join("")}</ul>`);
+  document.querySelectorAll("#pop [data-reverse]").forEach(b=>b.addEventListener("click",()=>reversePop(+b.dataset.reverse)))}
+function reversePop(i){const x=decs(DATA)[i]; if(!x) return; const t=("HQ idea: Reverse: "+x.decision).slice(0,230);
+  openPop("Reverse this decision?",`<p style="margin:0"><b>${esc(x.decision)}</b></p>${x.why?`<p class="muted" style="margin:0;font-size:13px">Why it was made: ${esc(x.why)}</p>`:""}
+    <label for="rv-t" class="muted" style="font-size:13px">Anything to add? (optional)</label><textarea id="rv-t" maxlength="300" placeholder="e.g. keep it for career, undo for the rest"></textarea>
+    <div class="act"><button type="button" class="pri" id="rv-go">${ONE?"Ask to reverse":"Open issue on GitHub"}</button></div>
+    <p class="muted" style="margin:0;font-size:12px">Files "${esc(t)}" in ops-bus; the supervisor acts on it next round.</p>`);
+  document.getElementById("rv-go").addEventListener("click",()=>{const note=document.getElementById("rv-t").value.trim(), body=(note?note+"\n\n":"")+`Decision made ${x.at||""}: ${x.decision}${x.why?"\nWhy: "+x.why:""}\n\n(from HQ "Decided for you")`;
+    const go=document.getElementById("rv-go");
+    if(ONE&&!go.dataset.fallback){go.disabled=true;go.textContent="Sending…";fileIssue(t,body).then(j=>{document.getElementById("pop").close();toast("Sent ✓"+(j&&j.number?" (#"+j.number+")":""))})
+      .catch(()=>{go.disabled=false;go.dataset.fallback="1";go.textContent="Finish on GitHub ↗";toast("Send failed. Tap again to finish on GitHub")});return}
+    const u=ISSUE_NEW+"?title="+encodeURIComponent(t)+"&body="+encodeURIComponent(body);
+    if(openExt(u)){document.getElementById("pop").close();toast("Opened ✓ tap Submit on GitHub")}else{try{navigator.clipboard.writeText(u)}catch(_){} toast("Couldn't open GitHub. Copied the issue link")}})}
+/* ---------- Overnight brief (data.overnight), shown on Life until 11:00 PT the morning after ---------- */
+function overnightHtml(d){const O=d&&d.overnight; if(!O) return "";
+  const hr=+new Date().toLocaleString("en-US",{...PT,hour:"numeric",hour12:false}), since=isDate(O.since)?new Date(O.since):null;
+  if(!(hr>=4&&hr<11)||(since&&Date.now()-since>30*3600e3)) return "";
+  const H=(O.highlights||[]).filter(Boolean).slice(0,3), M=(O.merged_prs||[]).filter(Boolean), R=(O.research_done||[]).filter(x=>x&&(x.title||typeof x==="string"));
+  const A=O.agents&&typeof O.agents==="object"?Object.entries(O.agents).filter(([,v])=>num(v)!=null||(v&&num(v.done)!=null)):[];
+  const pr=x=>typeof x==="string"?(/^https:\/\//.test(x)?link(x,x.replace(/^https:\/\/github\.com\/[^/]+\//,"").replace("/pull/"," #")):esc(x)):(/^https:\/\//.test(x.url||"")?link(x.url,x.title||x.url):esc(x.title||""));
+  const rs=x=>typeof x==="string"?esc(x):(/^https:\/\//.test(x.link||x.url||"")?link(x.link||x.url,x.title):esc(x.title));
+  if(!H.length&&!M.length&&!R.length&&!A.length) return "";
+  return `<section class="panel overnight" aria-labelledby="ov"><h2 id="ov">Overnight${since?` · since ${esc(fmtT(O.since))} PT`:""}</h2>
+    ${H.length?`<ul class="ovh">${H.map(x=>`<li>${esc(typeof x==="string"?x:x.text||"")}</li>`).join("")}</ul>`:""}
+    <div class="ovg">${M.length?`<details><summary>${M.length} PR${M.length===1?"":"s"} merged</summary><ul class="lst2">${M.map(x=>`<li>${pr(x)}</li>`).join("")}</ul></details>`:""}
+    ${R.length?`<details><summary>${R.length} research file${R.length===1?"":"s"}</summary><ul class="lst2">${R.map(x=>`<li>${rs(x)}</li>`).join("")}</ul></details>`:""}
+    ${A.length?`<div class="muted ova">${A.map(([k,v])=>`${esc(k.replace(/^./,c=>c.toUpperCase()))} ${num(v)??num(v.done)}`).join(" · ")} tasks done</div>`:""}</div></section>`}
+/* ---------- Research library (data.research) ---------- */
+let RFILT=null; try{RFILT=localStorage.getItem("hq.rfilt")}catch(_){}
+function researchHtml(d){const R=(Array.isArray(d&&d.research)?d.research:[]).filter(x=>x&&x.title).slice().sort((a,b)=>String(b.at||"").localeCompare(String(a.at||"")));
+  if(!R.length) return "";
+  const areas=[...new Set(R.map(x=>String(x.area||"other").toLowerCase()))], f=areas.includes(RFILT)?RFILT:null, L=f?R.filter(x=>String(x.area||"other").toLowerCase()===f):R;
+  const url=x=>/^https:\/\//.test(x.url||x.path||"")?(x.url||x.path):x.path?"https://github.com/zuzivian/ops-bus/blob/main/"+String(x.path).replace(/^\.?\//,""):"";
+  const chip=(k,l,n)=>`<button type="button" class="chip${(k||null)===f?" on":""}" data-rf="${esc(k||"")}" aria-pressed="${(k||null)===f}">${esc(l)} <span class="muted">${n}</span></button>`;
+  return `<section class="panel" aria-labelledby="rl"><h2 id="rl">Research library · ${R.length}</h2>
+    <div class="chips" role="group" aria-label="Filter by area">${chip("","All",R.length)}${areas.map(a=>chip(a,a.replace(/^./,c=>c.toUpperCase()),R.filter(x=>String(x.area||"other").toLowerCase()===a).length)).join("")}</div>
+    <ul class="rlist" id="rlist">${L.map((x,i)=>`<li${i>=8?' class="later"':""}>${url(x)?`<a href="${esc(url(x))}" target="_blank" rel="noopener">${esc(x.title)} ↗</a>`:esc(x.title)}<span class="muted">${esc([x.area&&!f?x.area:"",x.by,isDate(x.at)?fmtD(x.at).replace(/^\w+, /,""):""].filter(Boolean).join(" · "))}</span></li>`).join("")}</ul>
+    ${L.length>8?`<button type="button" class="more" data-rmore>Show all ${L.length}</button>`:""}</section>`}
 /* Growth plan (goals.growth_plan): week-by-week Exponent plan. Current week = latest start <= today (PT). */
 function gpNow(d){const P=d&&d.goals&&d.goals.growth_plan; if(!P||!Array.isArray(P.weeks)||!P.weeks.length) return null;
   const W=P.weeks.filter(w=>w&&/^\d{4}-\d{2}-\d{2}/.test(w.start||"")).sort((a,b)=>a.start.localeCompare(b.start)); if(!W.length) return null;
@@ -856,12 +920,12 @@ function home(d){
   const maxc=Math.max(...d.spend.map(s=>s.usd),1);
   const spend=d.spend.map(s=>`<div class="row"><span class="name">${esc(s.project)}</span><span class="mono muted">$${s.usd.toFixed(0)}</span></div><div class="hbar"><i style="width:${(s.usd/maxc*100).toFixed(1)}%;background:${TIER_COLOR[s.tier]||"var(--maint)"}"></i></div>`).join("");
   const tab=curTab();
-  const life=`${wplan}${todayHtml(d)}
+  const life=`${overnightHtml(d)}${decHtml(d)}${wplan}${todayHtml(d)}
    ${rest.length?`<section class="panel" aria-labelledby="n" style="margin-bottom:16px"><h2 id="n">Needs you · ${rest.length}</h2>
      <div class="cards">${needs}</div>
      ${d.needs.length?`<p class="muted" style="margin:10px 0 0;font-size:13px"><span class="long">${ONE?"Tap an answer to send it to the autopilot in one tap. ":"Tap an answer to open a prefilled GitHub issue; Submit there sends it to the autopilot. "}</span><span class="short">${ONE?"One tap sends. ":"Opens GitHub → tap Submit. "}</span>★ = my pick.</p><p class="muted keyhint">Keys: <kbd>j</kbd>/<kbd>k</kbd> pick a need · <kbd>1</kbd>–<kbd>9</kbd> choose an answer, <kbd>Enter</kbd> sends · <kbd>?</kbd> all shortcuts</p>`:""}</section>`:""}
-   ${goalsHtml(d)}<div style="margin-bottom:16px">${weekHtml(d)}</div>${alignHtml(d,"build")}`;
-  const fleet=()=>`${agentsHtml(d.agents,fpOf(d))}${alignHtml(d)}<div class="grid" style="margin-top:16px">
+   ${goalsHtml(d)}<div style="margin-bottom:16px">${weekHtml(d)}</div>${researchHtml(d)}${alignHtml(d,"build")}`;
+  const fleet=()=>`${agentsHtml(d.agents,fpOf(d))}${decHtml(d,"fleet")?`<div style="margin:16px 0">${decHtml(d,"fleet")}</div>`:""}${alignHtml(d)}<div class="grid" style="margin-top:16px">
    <section class="panel" aria-labelledby="g"><h2 id="g">Weekly fuel · Stanford account</h2>
      <div class="gauge-top"><div class="big mono">${Math.round(u*100)}%<span class="muted" style="font-size:14px;font-weight:600;margin-left:6px">used</span></div>
        <div class="stat"><span class="muted">Target now</span><b>${t==null?"—":Math.round(t*100)+"%"}</b></div>
@@ -923,6 +987,11 @@ function render(){
   v.querySelectorAll("[data-goneeds]").forEach(b=>b.addEventListener("click",e=>{e.preventDefault();
     const go=()=>{const n=document.getElementById("n");if(n)n.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth",block:"start"})};
     if(curTab()!=="life"){location.hash="life";setTimeout(go,30)}else go()}));
+  v.querySelectorAll("[data-decall]").forEach(b=>b.addEventListener("click",decAllPop));
+  v.querySelectorAll("[data-reverse]").forEach(b=>b.addEventListener("click",()=>reversePop(+b.dataset.reverse)));
+  v.querySelectorAll("[data-decok]").forEach(b=>b.addEventListener("click",()=>{SEEN_BEFORE=new Date().toISOString();try{localStorage.setItem("hq.lastVisit",SEEN_BEFORE)}catch(_){} render()}));
+  v.querySelectorAll("[data-rf]").forEach(b=>b.addEventListener("click",()=>{RFILT=b.dataset.rf||null;try{RFILT?localStorage.setItem("hq.rfilt",RFILT):localStorage.removeItem("hq.rfilt")}catch(_){} const y=scrollY;render();scrollTo(0,y)}));
+  v.querySelectorAll("[data-rmore]").forEach(b=>b.addEventListener("click",()=>{const l=document.getElementById("rlist");if(l)l.classList.add("all");b.remove()}));
   v.querySelectorAll("[data-overdue]").forEach(b=>b.addEventListener("click",overduePop));
   v.querySelectorAll("[data-more]").forEach(b=>b.addEventListener("click",()=>{const l=document.getElementById("wkl");if(l)l.classList.add("all");b.remove()}));
   v.querySelectorAll("[data-goal]").forEach(b=>b.addEventListener("click",()=>goalPop(+b.dataset.goal)));
