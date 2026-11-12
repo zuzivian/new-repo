@@ -675,7 +675,8 @@ function goalsHtml(d){
       ${r.warm?`<span class="gm ctsum">${[r.warm.ident!=null?`${r.warm.ident} named contact${r.warm.ident===1?"":"s"}`:"",`${r.warm.open} to open`].filter(Boolean).join(" · ")}</span>`:""}
       ${r.warm||(nf&&((G.progress||{})[p.key]||{}).status_label&&!r.funnel)?"":`<span class="gm"${r.funnel?' style="white-space:normal"':""}>${r.funnel&&r.mail?'<span class="src">Notion</span> ':""}${esc(r.funnel||(r.m?r.label:(p.goal||"")))}</span>`}
       ${p.key==="growth"&&gpTile(d)?`<span class="gm ctsum">${esc(gpTile(d))}</span>`:""}
-      ${p.key==="career"&&ctSummary(d)?`<span class="gm${r.warm?"":" ctsum"}">${esc(ctSummary(d))}</span>`:""}
+      ${p.key==="career"&&liveRoles(G)?`<span class="gm ctsum">${esc(liveRoles(G)+(ctSummary(d)?" · "+ctSummary(d).split(" · ").pop():""))}</span>`:""}
+      ${p.key==="career"&&!liveRoles(G)&&ctSummary(d)?`<span class="gm${r.warm?"":" ctsum"}">${esc(ctSummary(d))}</span>`:""}
       ${r.mail&&!r.warm?`<span class="gm" style="white-space:normal">${r.mail.gap>0?`<span class="flag">≈${r.mail.gap} not in tracker</span> · `:""}<span class="src">Gmail scan</span> ${esc(r.mail.txt)}</span>`:""}
       ${r.funnel?"":`<span class="gbar"><i style="width:${pct.toFixed(0)}%"></i></span>`}
       ${r.sec?`<span class="gm">${esc(r.sec)}</span>`:""}${(r.pend||[]).map(x=>`<span class="gm">${esc(x)}</span>`).join("")}
@@ -788,6 +789,7 @@ const yes=v=>v===true||/^(true|y|yes|1)$/i.test(String(v==null?"":v).trim());
 const cell=v=>String(v==null?"":v).replace(/\[([^\]]+)\]\([^)]*\)/g,"$1").replace(/\*\*|__|`/g,"").replace(/https?:\/\/\S+/g,"").replace(/\s*\[(pattern|est\.?)\]/gi,"").replace(/\s+/g," ").replace(/[\s;:,(]+$/,"").trim();
 const ctNo=r=>String(r.eligible||"").toLowerCase()==="no";
 const ctRows=d=>{const C=d&&d.career_targets; return C&&Array.isArray(C.rows)?C.rows.filter(r=>r&&r.company):null};
+function liveRoles(G){const c=((G||{}).progress||{}).career||{}, n=num(c.live_roles); return n==null?"":`${c.live_roles_label||"Eligible PM/TPM roles live"}: ${n}`}
 function ctSummary(d){const R=ctRows(d); if(!R||!R.length) return "";
   const open=R.filter(r=>yes(r.is_posted)&&!ctNo(r)), todo=open.filter(r=>!yes(r.applied)).length;
   return `${open.length} live posting${open.length===1?"":"s"} open to you · ${todo} to apply`}
@@ -857,6 +859,7 @@ function goalPop(i){
   const nd=nudgeFor(DATA,i);
   openPop(pName(p),`${p.goal?`<p style="margin:0">${esc(p.goal)}</p>`:""}
     ${p.previous&&(p.previous.result||p.previous.goal)?`<p class="muted" style="margin:0;font-size:13px">Previous: ${esc(p.previous.result||p.previous.goal)}${/done|✓/i.test(p.previous.result||"")?"":""}</p>`:""}
+    ${p.key==="career"&&liveRoles(G)?`<p><b>${esc(liveRoles(G))}</b>${((G.progress||{}).career||{}).live_roles_note?`<br><span class="muted" style="font-size:13px">${esc((String(G.progress.career.live_roles_note).match(/\d{4}-\d\d-\d\d:\s*([^.]+)\./)||[,""])[1])}</span>`:""}</p>`:""}
     ${p.key==="career"?ctHtml(DATA):""}${p.key==="growth"?gpHtml(DATA):""}
     ${(()=>{const RS=(DATA.research||[]).filter(x=>x&&x.title&&String(x.area||"").toLowerCase()===p.key).sort((a,b)=>String(b.at||"").localeCompare(String(a.at||"")));
       const u=x=>/^https:\/\//.test(x.url||"")?x.url:x.path?"https://github.com/zuzivian/ops-bus/blob/main/"+String(x.path).replace(/^\.?\//,""):"";
