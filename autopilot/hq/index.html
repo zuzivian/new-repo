@@ -636,6 +636,8 @@ function todayHtml(d){
   // focus: goals.nudge, else the first behind pillar (priority order) with its action
   let n=G.nudge&&G.nudge.text?{text:G.nudge.text,detail:G.nudge.detail||"",url:G.nudge.url||"",i:-1}:null;
   if(!n) (G.pillars||[]).some((p,i)=>{n=nudgeFor(d,i);return !!n});
+  if(!n) (G.pillars||[]).some((p,i)=>{const r=pillarRead(p,G.progress,d); if(r.need==null||r.weekly||r.state==="good"||!(r.need>0)) return false;
+    n={text:`${pName(p)}: aim for ${Math.max(1,Math.round(r.need))} more this week`,detail:`${r.label} · ${r.cur} of ${r.target} · ${r.need.toFixed(1)}/wk needed`,url:"",i}; return true});
   if(n) row("Focus",`<b>${n.url?link(n.url,n.text):esc(n.text)}</b>${n.detail?` <span class="muted">· ${esc(n.detail)}</span>`:""}${n.i>=0?` <button type="button" class="code" data-goal="${n.i}" aria-label="Why: open ${esc(pName((G.pillars||[])[n.i]||{}))} details">Why</button>`:""}`,"focus");
   else if(G.pillars&&G.progress) row("Focus",`<span class="muted">All goals on track</span>`);
   return rows.length?`<section class="tbrief" aria-label="Today">${rows.join("")}</section>`:"";
@@ -769,14 +771,14 @@ function ctHtml(d){const R=ctRows(d); if(!R||!R.length) return "";
   const apply=R.filter(r=>yes(r.is_posted)&&!yes(r.applied)&&!ctNo(r)), prog=R.filter(r=>yes(r.applied)&&!ctNo(r)),
     watch=R.filter(r=>!yes(r.is_posted)&&!yes(r.applied)&&!ctNo(r)), closed=R.filter(ctNo);
   const rej=r=>/reject|declin|withdr/i.test(String(r.status||""));
-  prog.sort((a,b)=>rej(a)-rej(b));
+  const shut=prog.filter(rej); prog.splice(0,prog.length,...prog.filter(r=>!rej(r)));
   const li=(r,extra)=>`<li${extra&&extra.dim?' class="dim"':""}>${co(r)}${roles(r)}${extra&&extra.body||""}</li>`;
   const A=apply.map(r=>{const e=cell(r.eligibility);
     return li(r,{body:e&&!/^not stated/i.test(e)?`<div class="ct-el clamp muted" title="${esc(e)}">Check eligibility: ${esc(e)}</div>`:`<div class="ct-el muted">Eligibility not stated</div>`})}).join("");
   const N=closed.map(r=>{const e=cell(r.eligibility); return li(r,{body:e?`<div class="ct-el clamp muted" title="${esc(e)}">${esc(e)}</div>`:""})}).join("");
   const Pg=prog.map(r=>li(r,{dim:rej(r),body:`<div class="ct-el muted">${esc(cell(r.status)||"applied")}</div>`})).join("");
   const W=watch.map(r=>li(r,{body:cell(r.window)?`<div class="ct-el muted">Typically opens: ${esc(cell(r.window))}</div>`:""})).join("");
-  const src=d.career_targets.source?`<p class="muted" style="margin:0;font-size:12px">From ${esc(String(d.career_targets.source).split("/").pop())} (${R.length} target companies).</p>`:"";
+  const src=d.career_targets.source?`<p class="muted" style="margin:0;font-size:12px">From ${esc(String(d.career_targets.source).split("/").pop())} (${R.length} companies researched).</p>`:"";
   // warm paths: data.career_warm[{company, state: warm|identified|none, contacts?, note?}]; matched by company name
   const CW=Array.isArray(d.career_warm)?d.career_warm.filter(x=>x&&x.company):null, key=x=>cell(x).toLowerCase().replace(/[^a-z0-9]/g,"");
   const wOf=r=>CW&&CW.find(x=>key(x.company)===key(r.company));
@@ -787,6 +789,7 @@ function ctHtml(d){const R=ctRows(d); if(!R||!R.length) return "";
     <h4>Apply this week · ${apply.length}</h4>${apply.length?`<ul class="ctl">${A}</ul>`:`<p class="muted" style="margin:0">Every live posting open to you has an application ✓</p>`}
     <details><summary>In progress · ${prog.length}</summary><ul class="ctl">${Pg}</ul></details>
     <details><summary>Watch (not posted yet) · ${watch.length}</summary><ul class="ctl">${W}</ul></details>
+    ${shut.length?`<details><summary>Closed · ${shut.length}</summary><ul class="ctl nopen">${shut.map(r=>li(r,{body:`<div class="ct-el muted">${esc(cell(r.status))}</div>`})).join("")}</ul></details>`:""}
     ${closed.length?`<details><summary>Not open to you · ${closed.length}</summary><ul class="ctl nopen">${N}</ul></details>`:""}${src}</div>`}
 /* Pillar popup = "what to do next": where you are, the pace you need, a projection, the last weeks, related counts. */
 function histBars(H,key,opt){
@@ -829,7 +832,10 @@ function goalPop(i){
   openPop(pName(p),`${p.goal?`<p style="margin:0">${esc(p.goal)}</p>`:""}
     ${p.previous&&(p.previous.result||p.previous.goal)?`<p class="muted" style="margin:0;font-size:13px">Previous: ${esc(p.previous.result||p.previous.goal)}${/done|✓/i.test(p.previous.result||"")?"":""}</p>`:""}
     ${p.key==="career"?ctHtml(DATA):""}${p.key==="growth"?gpHtml(DATA):""}
-    ${r.m?`<div class="tt"><span class="mono" style="font-size:22px;font-weight:600">${r.cur==null?"—":esc(r.target!=null?r.cur+" / "+r.target:String(r.cur))}</span><span class="muted" style="align-self:center">${esc(r.label)}</span></div>
+    ${(()=>{const RS=(DATA.research||[]).filter(x=>x&&x.title&&String(x.area||"").toLowerCase()===p.key).sort((a,b)=>String(b.at||"").localeCompare(String(a.at||"")));
+      const u=x=>/^https:\/\//.test(x.url||"")?x.url:x.path?"https://github.com/zuzivian/ops-bus/blob/main/"+String(x.path).replace(/^\.?\//,""):"";
+      return RS.length?`<div><b>Research for this goal · ${RS.length}</b><ul class="lst2">${RS.slice(0,6).map(x=>`<li>${u(x)?link(u(x),x.title):esc(x.title)}</li>`).join("")}</ul></div>`:""})()}
+    ${r.m?`<div class="tt"><span class="mono" style="font-size:22px;font-weight:600">${r.cur==null?esc(((G.progress||{})[p.key]||{}).status_label||"—"):esc(/_pct$/.test(r.m||"")?r.cur+"%":r.target!=null?r.cur+" / "+r.target:String(r.cur))}</span><span class="muted" style="align-self:center">${esc(r.label)}</span></div>
       <div style="color:${col};font-weight:600;font-size:14px">${esc(r.pace)}</div>`:""}
     ${nd?`<div class="nudge" style="margin:0"><span class="ar" aria-hidden="true">→</span><b>${esc(nd.text)}</b>${nd.detail?`<span class="muted">${esc(nd.detail)}</span>`:""}</div>`:""}
     ${proj?`<p style="margin:0;font-size:14px">${proj}</p>`:""}
@@ -841,7 +847,7 @@ function goalPop(i){
     ${r.mail?`<div><b>Inbox</b> <span class="muted">(Gmail scan${r.mail.at?", "+esc(fmtT(r.mail.at))+" PT":""})</span>: ${esc(r.mail.txt)}${r.mail.gap>0?`<div class="flag" style="margin-top:4px">≈${r.mail.gap} applications in email aren't in the Notion tracker yet</div>`:""}</div>`:""}
     ${sec.length?`<ul class="facts">${sec.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}
     <details><summary class="muted" style="cursor:pointer;font-size:13px">Targets</summary><dl class="kv" style="margin-top:6px">${Object.entries(T).map(([k,v])=>`<dt>${esc(k.replace(/_/g," "))}</dt><dd class="mono">${esc(tv(v))}</dd>`).join("")}</dl></details>
-    ${g?Object.keys(g).filter(k=>k==="note"||/_note$/.test(k)).filter(k=>typeof g[k]==="string"&&g[k]&&g[k]!==r.pace).map(k=>`<p class="muted" style="margin:0;font-size:13px">${esc(g[k])}</p>`).join(""):""}
+    ${g?Object.keys(g).filter(k=>k==="note"||/_note$/.test(k)).filter(k=>typeof g[k]==="string"&&g[k]&&g[k]!==r.pace&&!(k==="applied_total_note"&&p.key==="career")).map(k=>`<p class="muted" style="margin:0;font-size:13px">${esc(g[k])}</p>`).join(""):""}
     ${!G.progress?`<p class="muted" style="margin:0;font-size:13px">Progress numbers arrive once the Notion feed is connected.</p>`:""}`);
 }
 function weekHtml(d){
@@ -903,7 +909,7 @@ function alignHtml(d,part){
       :`<li><span class="pill bad">none</span><span class="nm muted">No career-core build running${plan["career-core"]!=null?" while the plan wants "+Math.round(plan["career-core"]*100)+"%":""}.</span></li>`}
       ${done?`<li><span></span><span class="muted" style="font-size:13px">${done} career task${done===1?"":"s"} done this week</span></li>`:""}</ul>`;
   if(part==="build"){
-    if(CB&&CB.length&&CB.every(x=>/^done/i.test(String(x.status||"")))) return `<p class="muted cbdone">Career build: ${CB.map(x=>esc(x.step||"")).filter(Boolean).join(", ")} done ✓</p>`;
+    if(CB&&CB.length&&CB.every(x=>/^done/i.test(String(x.status||"")))) return ""; if(0) return `<p class="muted cbdone">Career build: ${CB.map(x=>esc(x.step||"")).filter(Boolean).join(", ")} done ✓</p>`;
     return `<section class="panel align" aria-labelledby="cb"><h2 id="cb">Career build</h2>${build}</section>`;}
   return `<section class="panel align" aria-labelledby="al"><h2 id="al">Fleet effort vs plan</h2>${say}
     <div class="stack" role="img" aria-label="Actual effort by tier">${seg(tot,sum)}</div><div class="lab"><span>this week</span></div>

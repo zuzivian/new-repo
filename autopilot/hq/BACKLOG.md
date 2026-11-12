@@ -5,6 +5,12 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 | # | Finding | Status | Round |
 |---|---------|--------|-------|
 | 28 | Career metric is warm target companies (Nat): tile headline, contacts line; warm paths in the sheet once career_warm lands | done | R29 |
+| 43 | Focus said "All goals on track" while Career needs 1.1 warm companies/wk | done: Focus names the goal with a weekly need | R46 |
+| 44 | Career sheet: rejections inside "In progress"; footer "43 target companies" vs tile 28 | done: "Closed" group; footer "N companies researched" | R46 |
+| 45 | Growth sheet headline "—"; no link to practice material | done: status word; "Research for this goal" list on each sheet | R46 |
+| 46 | Method note shown twice; stray "Career build done" footer | done | R46 |
+| 47 | Needs have no one-tap answers (link-only) | needs data: options on nat_actions (e.g. Done / Snooze) | R46 |
+| 48 | Relationships "4 this wk" vs chart 2; "8 overdue keep-in-touch" not listable | needs data | R46 |
 | 36 | Pace line kept "behind by N" after the weekly reset passed | done: "reset since last read", no tick | R43 |
 | 37 | Stalled agents hidden off-screen in the phone strip | done: stalled first + "2 stalled · 1 working · 2 idle" line | R43 |
 | 38 | Agent showed IDLE and STALLED together; "waiting" vs "in flight" | done: one status word; "in flight" everywhere | R43 |
