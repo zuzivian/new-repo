@@ -1,4 +1,5 @@
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Autopilot HQ</title>
 <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
@@ -135,6 +136,8 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600}.pop .spark{width:100%;height:64px}
 .cards{display:grid;gap:10px}
+a.prep{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;margin:2px 0 0 4px;border-radius:999px;border:1px solid var(--core);color:var(--core);font-weight:600;text-decoration:none;vertical-align:middle}
+a.prep:hover{background:color-mix(in srgb,var(--core) 10%,var(--panel))}a.prep:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @media (max-width:640px){header{flex-wrap:nowrap;gap:8px}header h1{font-size:22px;white-space:nowrap}
   header #updated{font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   header .idea{flex:none;width:40px;height:40px;min-height:40px;padding:0;font-size:20px;line-height:1;display:inline-flex;align-items:center;justify-content:center}header .idea .lbl{display:none}}
@@ -525,7 +528,7 @@ function todayHtml(d){
   // next meeting (in progress counts for 30 min), with its primer
   const up=(d.meetings||[]).filter(m=>isDate(m.when)&&new Date(m.when)>now-30*60e3).sort((x,y)=>new Date(x.when)-new Date(y.when));
   if(up.length){const m=up[0], left=up.filter(x=>ptDay(x.when)===today).length;
-    row("Next",`<b>${esc(when(m.when))}</b> ${esc(m.title)}${m.ready!==false?` · <a href="#m-${esc(encodeURIComponent(m.id))}">Prep</a>`:""}${left>1?` <span class="muted">· ${left-1} more today</span>`:""}`)}
+    row("Next",`<b>${esc(when(m.when))}</b> ${esc(m.title)}${m.ready!==false?` <a class="prep" href="#m-${esc(encodeURIComponent(m.id))}" aria-label="Prep for ${esc(m.title)}">Prep →</a>`:""}${left>1?` <span class="muted">· ${left-1} more today</span>`:""}`)}
   else if(d.meetings) row("Next",`<span class="muted">No upcoming meetings</span>`);
   // due today (from top tasks) + overdue count
   const due=(tk.top||[]).filter(x=>isDate(x.due)&&ptDay(asDay(x.due))===today);
@@ -533,7 +536,7 @@ function todayHtml(d){
   if(due.length||od) row("Due today",[...due.slice(0,3).map(x=>/^https:\/\//.test(x.url||"")?link(x.url,x.title):esc(x.title)),
     due.length>3?`<span class="muted">+${due.length-3} more</span>`:"", od?`<span class="hot">${od} overdue</span>`:""].filter(Boolean).join(" · "));
   // needs
-  const nn=(d.needs||[]).length; if(nn) row("Needs you",`<a href="#life" class="hot" data-goneeds>${nn} waiting</a>`);
+  const nn=(d.needs||[]).length; if(Array.isArray(d.needs)) row("Needs you",nn?`<a href="#life" class="hot" data-goneeds>${nn} waiting</a>`:`<span class="muted">None waiting ✓</span>`);
   // focus: goals.nudge, else the first behind pillar (priority order) with its action
   let n=G.nudge&&G.nudge.text?{text:G.nudge.text,detail:G.nudge.detail||"",url:G.nudge.url||"",i:-1}:null;
   if(!n) (G.pillars||[]).some((p,i)=>{n=nudgeFor(d,i);return !!n});
@@ -631,7 +634,7 @@ function weekHtml(d){
   inWin.sort((a,b)=>(a.t?new Date(a.t):Infinity)-(b.t?new Date(b.t):Infinity));
   const seen=new Set(), list=inWin.filter(x=>{const key=(x.t||"").slice(0,10)+"|"+x.title;if(seen.has(key))return false;seen.add(key);return true}).slice(0,14);
   const wk7=now.getTime()+7*dayMs, nLater=list.filter(x=>x.t&&new Date(x.t)>wk7).length;
-  const sub=[num(tk.due_this_week)!=null?`${tk.due_this_week} tasks due`:"",num(tk.overdue)?`<span class="od">${tk.overdue} overdue</span>`:""].filter(Boolean).join(" · ");
+  const sub=[num(tk.due_this_week)!=null?`${tk.due_this_week} Notion tasks due this week`:"",num(tk.overdue)?`<span class="od">${tk.overdue} overdue</span>`:""].filter(Boolean).join(" · ");
   const row=x=>{const od=x.t&&ptDay(x.t)<today, dd=x.t?(ptDay(x.t)===today?"Today":fmtD(x.t)):"—";
     const ttl=x.href?`<a href="${esc(x.href)}">${esc(x.title)}</a>`:(typeof x.url==="string"&&/^https:\/\//.test(x.url))?link(x.url,x.title):esc(x.title);
     return `<li${x.t&&new Date(x.t)>wk7?' class="later"':""}><span class="d${dd==="Today"?" today":""}${od?" od":""}">${esc(dd)}${x.time?`<br>${esc(new Date(x.t).toLocaleTimeString("en-US",{...PT,hour:"numeric",minute:"2-digit"}))}`:""}</span><span>${ttl}</span><span class="k">${x.k}</span></li>`};
@@ -692,7 +695,7 @@ function curTab(){const h=location.hash.slice(1);
 function tabsHtml(d,tab,u,state){
   const nn=(d.needs||[]).length, hi=(d.issues||[]).filter(i=>i.severity==="critical"||i.severity==="high").length;
   const t=(k,l,extra)=>`<a role="tab" href="#${k}" class="tab${tab===k?" on":""}" aria-selected="${tab===k}">${l}${extra||""}</a>`;
-  return `<nav class="tabs" role="tablist" aria-label="HQ views">${t("life","Life")}${t("fleet","Fleet",`<span class="tx">${Math.round(u*100)}% fuel${hi?` · <b style="color:var(--bad)">${hi} high</b>`:""}</span>`)}
+  return `<nav class="tabs" role="tablist" aria-label="HQ views">${t("life","Life")}${t("fleet","Fleet",`<span class="tx">${Math.round(u*100)}% used${hi?` · <b style="color:var(--bad)">${hi} high</b>`:""}</span>`)}
     ${nn?`<button type="button" class="nb" data-goneeds>${nn} need${nn===1?"s":""} you</button>`:""}</nav>`;
 }
 function home(d){
@@ -725,10 +728,10 @@ function home(d){
   </div>${alignHtml(d,"build")}`;
   const fleet=`${agentsHtml(d.agents)}${alignHtml(d)}<div class="grid" style="margin-top:16px">
    <section class="panel" aria-labelledby="g"><h2 id="g">Weekly fuel · Stanford account</h2>
-     <div class="gauge-top"><div class="big mono">${Math.round(u*100)}%</div>
+     <div class="gauge-top"><div class="big mono">${Math.round(u*100)}%<span class="muted" style="font-size:14px;font-weight:600;margin-left:6px">used</span></div>
        <div class="stat"><span class="muted">Target now</span><b>${Math.round(t*100)}%</b></div>
        <div class="stat"><span class="muted">Resets</span><b>${esc(fmtT(d.week.reset))}</b></div>
-       <span class="pill ${state[0]}">${state[1]}</span></div>
+       <span class="pill ${state[0]}">${gap>0.01?`${Math.round(gap*100)} pts ahead of pace`:state[1]}</span></div>
      ${typeof d.week.u5==="number"&&isFinite(d.week.u5)?`<div class="muted" style="margin-top:10px">5-hour window · ${Math.round(d.week.u5*100)}%${typeof d.pacing.five_hour_ceiling==="number"?` <span class="mono">(ceiling ${Math.round(d.pacing.five_hour_ceiling*100)}%)</span>`:""}</div>
      <div class="bar5"><i style="width:${Math.min(d.week.u5*100,100)}%"></i></div>`:`<div class="muted" style="margin-top:10px">5-hour window · <i>no reading yet</i></div>`}
      ${gaugeChart(d)}${proChart(d)}</section>
