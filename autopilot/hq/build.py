@@ -126,6 +126,10 @@ def _md_table(path):
         h = h.lower()
         if h == "#": return "n"
         if h.startswith("company"): return "company"
+        # Check these before "posted": both headers contain the word (pinny-45 refresh added them, 11-12).
+        if h.startswith("on target"): return "on_target"
+        if h.startswith("reason"): return "reason"
+        if "visa" in h: return "eligibility"
         if "posted" in h: return "posted"
         if "open–close" in h or "open-close" in h or "typical" in h: return "window"
         if "open / check / closed" in h or h == "eligibility": return "elig_class"
@@ -144,7 +148,7 @@ def _md_table(path):
         if c and c[0] == "#":
             keys = [colkey(h) for h in c]; continue
         if keys is None or not c or not re.fullmatch(r"N?\d+", c[0].strip()): continue
-        r = {k: "" for k in ("company", "roles", "posted", "window", "eligibility", "elig_class", "location", "status", "source")}
+        r = {k: "" for k in ("company", "roles", "posted", "window", "eligibility", "elig_class", "location", "status", "source", "reason", "on_target")}
         r.update(dict(zip(keys, c)))
         if " (" in r["company"]:
             r["company_note"] = r["company"].split(" (", 1)[1].rstrip(")"); r["company"] = r["company"].split(" (", 1)[0]
@@ -160,7 +164,8 @@ def _md_table(path):
     for r in rows:
         ec = r["elig_class"].lower()
         excluded = any(k in r["company"].lower() for k in flt.get("exclude_companies", []))
-        if excluded or ec.startswith("closed") or (not ec and flt.get("exclude_us_person_roles") and r["us_person_required"]):
+        lean_closed = ec.startswith("lean closed") or "(lean closed)" in ec
+        if excluded or ec.startswith("closed") or lean_closed or (not ec and flt.get("exclude_us_person_roles") and r["us_person_required"]):
             r["eligible"] = "no"
         elif ec.startswith("open"):
             r["eligible"] = "yes"
