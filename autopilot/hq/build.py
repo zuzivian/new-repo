@@ -148,6 +148,18 @@ def _goals():
         car["email_not_in_tracker"] = ce.get("not_in_tracker_count")
     except Exception:
         pass
+    # Career quality metric (Nat, 11-12): target companies where he has a warm contact (had a real conversation),
+    # from Pinny's research/career/warm-paths.md (Warm / identified / none per company).
+    try:
+        rows = [l for l in open("/home/user/ops-bus/research/career/warm-paths.md") if re.match(r"\|\s*\d+\s*\|", l)]
+        kinds = [l.split("|")[3].replace("*", "").strip().lower() for l in rows]
+        car = (g.get("progress") or {}).setdefault("career", {}) if g.get("progress") is not None else None
+        if car is not None and rows:
+            car["warm_companies"] = sum(k.startswith("warm") for k in kinds)
+            car["identified_companies"] = sum(k.startswith("identified") for k in kinds)
+            car["target_companies"] = len(rows)
+    except Exception:
+        pass
     # One career headline: applications sent = the larger of Notion (applied-or-later) and the Gmail scan.
     try:
         car = (g.get("progress") or {}).get("career") or {}
