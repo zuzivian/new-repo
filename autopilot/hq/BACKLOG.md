@@ -4,6 +4,7 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 
 | # | Finding | Status | Round |
 |---|---------|--------|-------|
+| 28 | Career metric is warm target companies (Nat): tile headline, contacts line; warm paths in the sheet once career_warm lands | done | R29 |
 | 27 | Career sheet: Apply this week / In progress / Watch from career_targets; tile count line | done | R28 |
 | 20 | Phone back gesture left HQ while a sheet was open | done: Back closes the sheet | R27 |
 | 21 | "Year: 39/100", "7 more booked", "8 overdue keep-in-touch" looked like buttons | done: plain facts list | R27 |
