@@ -107,6 +107,7 @@ dialog.pop::backdrop{background:rgba(5,10,20,.55)}
 .pop .kv dt{color:var(--ink-2)}.pop .kv dd{margin:0}
 .pop .lst{display:grid;gap:6px;margin:0;padding:0;list-style:none}
 .pop .lst li{border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.pop .facts{margin:0;padding-left:18px;display:grid;gap:4px;font-size:14px;color:var(--ink-2)}
 @media (max-width:640px){dialog.pop{width:100%;max-width:100%;margin:auto 0 0;border-radius:16px 16px 0 0;max-height:85vh}}
 .agent{position:relative;grid-template-columns:52px 1fr}
 .agent .av{width:52px;height:52px}
@@ -134,7 +135,7 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 .agent .tip .spark{width:100%;height:44px}
 @media (prefers-reduced-motion:reduce){.agent .tip{transition:none}}
 @media (max-width:640px){.agent .tip{display:none}}
-.tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600}.pop .spark{width:100%;height:64px}
+.tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600;white-space:nowrap}.pop .spark{width:100%;height:64px}
 .cards{display:grid;gap:10px}
 .dlist{margin:6px 0 0;padding-left:18px;display:grid;gap:6px;font-size:14px}.dlist a{font-weight:600;white-space:nowrap}
 .linkbtn{font:inherit;background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:2px;min-height:32px}
@@ -405,8 +406,15 @@ function openPop(title,html){
     document.body.appendChild(d);d.querySelector(".x").addEventListener("click",()=>d.close());
     d.addEventListener("click",e=>{if(e.target===d)d.close()});}
   d.querySelector("#pop-t").textContent=title; d.querySelector(".bd").innerHTML=html;
-  if(d.showModal) d.showModal(); else d.setAttribute("open","");
+  const wasOpen=d.open;
+  if(!wasOpen){if(d.showModal) d.showModal(); else d.setAttribute("open","");
+    try{history.pushState({hqpop:1},"",location.href)}catch(_){}}
 }
+/* A sheet owns one history entry: Back closes it; closing it any other way pops that entry. */
+addEventListener("popstate",()=>{const d=document.getElementById("pop"); if(d&&d.open){d.dataset.viaBack="1";d.close()}});
+document.addEventListener("close",e=>{const d=e.target; if(!d||d.id!=="pop") return;
+  if(d.dataset.viaBack){delete d.dataset.viaBack;return}
+  if(history.state&&history.state.hqpop){try{history.back()}catch(_){}}},true);
 const link=(u,t)=>u?`<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t||u)} ↗</a>`:"";
 function issuePop(i){
   openPop(i.title,`<dl class="kv"><dt>Severity</dt><dd><span class="sev" style="--sv:${SEV_COLOR[i.severity]||"var(--maint)"}">${esc(i.severity)}</span></dd>
@@ -585,7 +593,7 @@ function goalsHtml(d){
       <span class="gk">${esc(pName(p))}</span>
       <span class="gv">${nf?"no feed yet":`${r.cur}<small>${r.target!=null?"/"+r.target:" "+esc(r.label.replace(/\s*\(.*\)\s*$/,""))}</small>`}</span>
       <span class="gm"${r.funnel?' style="white-space:normal"':""}>${r.funnel&&r.mail?'<span class="src">Notion</span> ':""}${esc(r.funnel||(r.m?r.label:(p.goal||"")))}</span>
-      ${r.mail?`<span class="gm" style="white-space:normal"><span class="src">Gmail scan</span> ${esc(r.mail.txt)}${r.mail.gap>0?` <span class="flag">≈${r.mail.gap} not in tracker</span>`:""}</span>`:""}
+      ${r.mail?`<span class="gm" style="white-space:normal">${r.mail.gap>0?`<span class="flag">≈${r.mail.gap} not in tracker</span> · `:""}<span class="src">Gmail scan</span> ${esc(r.mail.txt)}</span>`:""}
       ${r.funnel?"":`<span class="gbar"><i style="width:${pct.toFixed(0)}%"></i></span>`}
       ${r.sec?`<span class="gm">${esc(r.sec)}</span>`:""}
       <span class="gp">${esc(r.m?r.pace:"No metric set")}</span></button>`}).join("")}</section>`;
@@ -638,7 +646,7 @@ function goalPop(i){
     ${k2?`<div><div class="muted" style="font-size:12px;margin-bottom:2px">classmates logged · running total (+${k2.vals[k2.vals.length-1]-k2.vals[0]} in ${k2.vals.length} wks)</div>${k2.svg}</div>`:""}
     ${r.funnel?`<div><b>Funnel</b> <span class="muted">(Notion tracker)</span>: ${esc(r.funnel)}</div>`:""}
     ${r.mail?`<div><b>Inbox</b> <span class="muted">(Gmail scan${r.mail.at?", "+esc(fmtT(r.mail.at))+" PT":""})</span>: ${esc(r.mail.txt)}${r.mail.gap>0?`<div class="flag" style="margin-top:4px">≈${r.mail.gap} applications in email aren't in the Notion tracker yet</div>`:""}</div>`:""}
-    ${sec.length?`<ul class="lst">${sec.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}
+    ${sec.length?`<ul class="facts">${sec.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}
     <details><summary class="muted" style="cursor:pointer;font-size:13px">Targets</summary><dl class="kv" style="margin-top:6px">${Object.entries(T).map(([k,v])=>`<dt>${esc(k.replace(/_/g," "))}</dt><dd class="mono">${esc(tv(v))}</dd>`).join("")}</dl></details>
     ${g?Object.keys(g).filter(k=>k==="note"||/_note$/.test(k)).filter(k=>typeof g[k]==="string"&&g[k]).map(k=>`<p class="muted" style="margin:0;font-size:13px">${esc(g[k])}</p>`).join(""):""}
     ${!G.progress?`<p class="muted" style="margin:0;font-size:13px">Progress numbers arrive once the Notion feed is connected.</p>`:""}`);

@@ -4,6 +4,13 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 
 | # | Finding | Status | Round |
 |---|---------|--------|-------|
+| 20 | Phone back gesture left HQ while a sheet was open | done: Back closes the sheet | R27 |
+| 21 | "Year: 39/100", "7 more booked", "8 overdue keep-in-touch" looked like buttons | done: plain facts list | R27 |
+| 22 | Career tile's 2-line clamp cut the "≈N not in tracker" flag | done: flag leads the line | R27 |
+| 23 | Sheet headline "3 / 4" wrapped | done: nowrap | R27 |
+| 24 | Relationships: tile "4 this wk" (calendar) vs chart's 2 this week (all sources) | needs data: one weekly count, or Pinny's coffee series | R27 |
+| 25 | "8 overdue keep-in-touch" can't be opened | needs data: list (names stay out of this repo) | R27 |
+| 26 | Life Focus "All goals on track" while the fleet-effort issue is open | open: decide whether Focus covers the fleet | R27 |
 | 12 | Phone: the needs card started ~800 px down, under the tiles | done: Needs right under the Today brief | R24 |
 | 13 | Phone hid the "what a tap does" hint, so GitHub opening was a surprise | done: short hint "Opens GitHub → tap Submit" | R24 |
 | 14 | "25 Notion tasks due" but ~5 listed | done: "top 5 of 25 …" | R24 |
