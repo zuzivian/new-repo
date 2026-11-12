@@ -415,8 +415,8 @@ function paceOf(fp,a){const A=fp&&fp.agents||{}, x=A[a.key]||A[{cinny:"chinny",c
   // stalled: tasks waiting and the runner hasn't run for a while (it only wakes on its own app schedule)
   const idle=num(x.idle_min)??(isDate(x.last_run)?Math.round((Date.now()-new Date(x.last_run))/60000):null);
   return {used,tg,off,stale:!!x.stale,txt:bits.join(" · "),reset:isDate(x.reset)?x.reset:null,note:x.target_note||"",nolimit,
-    stalled:x.stalled===true,idle,waiting:q,lastRun:isDate(x.last_run)?x.last_run:null}}
-const idleTxt=m=>m==null?"":m<120?`${m} min`:`${Math.round(m/60)} h`;
+    stalled:x.stalled===true,idle,waiting:fl,lastRun:isDate(x.last_run)?x.last_run:null}}
+const idleTxt=m=>m==null?"":m<120?`${m} min`:m<1440?`${Math.floor(m/60)} h${m%60?` ${m%60} min`:""}`:`${Math.round(m/1440*10)/10} days`;
 function agentsHtml(list,fp){
   if(!list||!list.length) return "";
   return `<div class="agents" role="list" aria-label="Agents">${list.map((a,k)=>{const sc=AGENT_STATUS[a.status]||"var(--maint)";
