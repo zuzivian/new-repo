@@ -10,6 +10,7 @@ Usage: python3 autopilot/hq/build.py <scratch_dir>
 """
 import datetime as dt
 import json
+import re
 import os
 import sys
 
@@ -108,6 +109,27 @@ for b in board.values():
     else: b["status"] = "idle"
 ORDER = {"needs you": 0, "running": 1, "queued": 2, "paused": 3, "idle": 4, "off": 5}
 
+def _md_table(path):
+    """First markdown table in a file → list of dicts keyed by short column names. None if missing."""
+    try:
+        lines = [l.strip() for l in open(path) if l.strip().startswith("|")]
+    except Exception:
+        return None
+    if len(lines) < 3: return None
+    cells = lambda l: [c.strip().replace("**", "") for c in l.strip("|").split("|")]
+    keys = ["n", "company", "roles", "posted", "window", "eligibility", "location", "status", "source"]
+    rows = []
+    for l in lines[2:]:
+        c = cells(l)
+        if len(c) < 9: continue
+        r = dict(zip(keys, c[:9]))
+        m = re.search(r"\((https?://[^)\s]+)\)", r["posted"]) or re.search(r"(https?://\S+)", r["posted"])
+        r["url"] = m.group(1) if m else None
+        r["is_posted"] = r["posted"].upper().startswith("Y")
+        r["applied"] = bool(re.search(r"applied|interview|rejected|offer", r["status"], re.I))
+        rows.append(r)
+    return {"source": "research/career/internship-timelines.md", "rows": rows}
+
 def _goals():
     g = dict(state.get("goals") or {})
     try:
@@ -172,6 +194,8 @@ out = {
     # Nat's goals (targets from Binny gsb-year1-goals; live counts from Pinny's Notion feed in ops-bus goals/progress.json).
     "goals": _goals(),
     # Fleet pacer (scratchpad pace_fleet.py → ops-bus usage/pacing.json): Pinny/Minny/Chinny vs a 92%-by-reset line.
+    # Career targets: Pinny's research/career/internship-timelines.md table (ops-bus, private) as rows.
+    "career_targets": (lambda: _md_table("/home/user/ops-bus/research/career/internship-timelines.md"))(),
     "fleet_pacing": (lambda: (json.load(open("/home/user/ops-bus/usage/pacing.json")) if os.path.exists("/home/user/ops-bus/usage/pacing.json") else None))(),
     "workers": [w for w in state.get("workers", []) if not str(w.get("status","")).startswith("done")]
                + [w for w in state.get("workers", []) if str(w.get("status","")).startswith("done")][:6],
