@@ -171,7 +171,7 @@ button.more{font:inherit;font-size:13px;margin-top:8px;min-height:40px;padding:0
 .tabs .tab:focus-visible,.tabs .nb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .tabs .nb{margin-left:auto;font:inherit;font-size:13px;font-weight:600;min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--accent);background:var(--accent-soft);color:var(--ink);cursor:pointer}
 @media (max-width:640px){.tabs{margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px}.tabs .tab{flex:1;justify-content:center;padding:0 10px}.tabs .tab .tx{display:none}}
-@media (max-width:640px){.long{display:none}}
+@media (max-width:640px){.long{display:none}}.short{display:none}@media (max-width:640px){.short{display:inline}}
 .today{margin:-4px 0 12px;font-size:15px;color:var(--ink-2)}.today b{color:var(--ink);font-family:var(--f-display);letter-spacing:.06em;text-transform:uppercase;font-size:13px;margin-right:4px}
 .today a{color:inherit;text-decoration:underline;text-underline-offset:2px}.today .hot{color:var(--warn);font-weight:600}
 .tile .nx{font-size:12px;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:2px;text-align:left}
@@ -652,7 +652,7 @@ function weekHtml(d){
   inWin.sort((a,b)=>(a.t?new Date(a.t):Infinity)-(b.t?new Date(b.t):Infinity));
   const seen=new Set(), list=inWin.filter(x=>{const key=(x.t||"").slice(0,10)+"|"+x.title;if(seen.has(key))return false;seen.add(key);return true}).slice(0,14);
   const wk7=now.getTime()+7*dayMs, nLater=list.filter(x=>x.t&&new Date(x.t)>wk7).length;
-  const sub=[num(tk.due_this_week)!=null?`${tk.due_this_week} Notion tasks due this week`:"",num(tk.overdue)?(Array.isArray(tk.overdue_items)&&tk.overdue_items.length?`<button type="button" class="linkbtn od" data-overdue>${tk.overdue} overdue</button>`:`<span class="od">${tk.overdue} overdue</span>`):""].filter(Boolean).join(" · ");
+  const sub=[num(tk.due_this_week)!=null?`${(tk.top||[]).length&&(tk.top||[]).length<tk.due_this_week?`top ${(tk.top||[]).length} of `:""}${tk.due_this_week} Notion tasks due this week`:"",num(tk.overdue)?(Array.isArray(tk.overdue_items)&&tk.overdue_items.length?`<button type="button" class="linkbtn od" data-overdue>${tk.overdue} overdue</button>`:`<span class="od">${tk.overdue} overdue</span>`):""].filter(Boolean).join(" · ");
   const row=x=>{const od=x.t&&ptDay(x.t)<today, dd=x.t?(ptDay(x.t)===today?"Today":fmtD(x.t)):"—";
     const ttl=x.href?`<a href="${esc(x.href)}">${esc(x.title)}</a>`:(typeof x.url==="string"&&/^https:\/\//.test(x.url))?link(x.url,x.title):esc(x.title);
     return `<li${x.t&&new Date(x.t)>wk7?' class="later"':""}><span class="d${dd==="Today"?" today":""}${od?" od":""}">${esc(dd)}${x.time?`<br>${esc(new Date(x.t).toLocaleTimeString("en-US",{...PT,hour:"numeric",minute:"2-digit"}))}`:""}</span><span>${ttl}</span><span class="k">${x.k}</span></li>`};
@@ -738,12 +738,11 @@ function home(d){
   const maxc=Math.max(...d.spend.map(s=>s.usd),1);
   const spend=d.spend.map(s=>`<div class="row"><span class="name">${esc(s.project)}</span><span class="mono muted">$${s.usd.toFixed(0)}</span></div><div class="hbar"><i style="width:${(s.usd/maxc*100).toFixed(1)}%;background:${TIER_COLOR[s.tier]||"var(--maint)"}"></i></div>`).join("");
   const tab=curTab();
-  const life=`${wplan}${todayHtml(d)}${goalsHtml(d)}<div class="${rest.length?"grid":""}" style="margin-bottom:16px">
-   ${rest.length?`<section class="panel" aria-labelledby="n"><h2 id="n">Needs you · ${rest.length}</h2>
+  const life=`${wplan}${todayHtml(d)}
+   ${rest.length?`<section class="panel" aria-labelledby="n" style="margin-bottom:16px"><h2 id="n">Needs you · ${rest.length}</h2>
      <div class="cards">${needs}</div>
-     ${d.needs.length?`<p class="muted" style="margin:10px 0 0;font-size:13px"><span class="long">${ONE?"Tap an answer to send it to the autopilot in one tap. ":"Tap an answer to open a prefilled GitHub issue; Submit there sends it to the autopilot. "}</span>★ = my pick.</p><p class="muted keyhint">Keys: <kbd>j</kbd>/<kbd>k</kbd> pick a need · <kbd>1</kbd>–<kbd>9</kbd> choose an answer, <kbd>Enter</kbd> sends · <kbd>?</kbd> all shortcuts</p>`:""}</section>`:""}
-   ${weekHtml(d)}
-  </div>${alignHtml(d,"build")}`;
+     ${d.needs.length?`<p class="muted" style="margin:10px 0 0;font-size:13px"><span class="long">${ONE?"Tap an answer to send it to the autopilot in one tap. ":"Tap an answer to open a prefilled GitHub issue; Submit there sends it to the autopilot. "}</span><span class="short">${ONE?"One tap sends. ":"Opens GitHub → tap Submit. "}</span>★ = my pick.</p><p class="muted keyhint">Keys: <kbd>j</kbd>/<kbd>k</kbd> pick a need · <kbd>1</kbd>–<kbd>9</kbd> choose an answer, <kbd>Enter</kbd> sends · <kbd>?</kbd> all shortcuts</p>`:""}</section>`:""}
+   ${goalsHtml(d)}<div style="margin-bottom:16px">${weekHtml(d)}</div>${alignHtml(d,"build")}`;
   const fleet=()=>`${agentsHtml(d.agents,fpOf(d))}${alignHtml(d)}<div class="grid" style="margin-top:16px">
    <section class="panel" aria-labelledby="g"><h2 id="g">Weekly fuel · Stanford account</h2>
      <div class="gauge-top"><div class="big mono">${Math.round(u*100)}%<span class="muted" style="font-size:14px;font-weight:600;margin-left:6px">used</span></div>
@@ -778,7 +777,7 @@ function primer(m){
     <div><h1 style="font-size:26px">${esc(m.title)}</h1><div class="muted mono">${esc(fmtT(m.when))}${m.location?" · "+esc(m.location):""}</div>
     ${m.thin_record?`<span class="pill warn" style="margin-top:6px">Thin record</span>`:""} <span class="pill good" style="margin-top:6px">Not from Notion</span></div>
     <section class="panel">${people||'<p class="empty">Nothing recorded.</p>'}</section>
-    <section class="panel"><h2>Five questions</h2><ol>${(m.questions||[]).map(q=>`<li>${esc(q)}</li>`).join("")}</ol></section>
+    <section class="panel"><h2>${(m.questions||[]).length===1?"1 question":(m.questions||[]).length+" questions"}</h2><ol>${(m.questions||[]).map(q=>`<li>${esc(q)}</li>`).join("")}</ol></section>
     ${m.flags?.length?`<section class="panel"><h2>Flags</h2><ul>${m.flags.map(f=>`<li>${esc(f)}</li>`).join("")}</ul></section>`:""}
     <p class="muted" style="font-size:12px">Sources: ${(m.sources||[]).map(esc).join(" · ")||"none"}</p></div>`;
 }
@@ -862,7 +861,11 @@ function ideaPop(){
   });
 }
 document.getElementById("idea").addEventListener("click",ideaPop);
-addEventListener("hashchange",()=>{const h=location.hash.slice(1);render();if(h==="life"||h==="fleet")window.scrollTo(0,0)});
+let RET=null, LASTH=location.hash.slice(1);
+document.addEventListener("click",e=>{const a=e.target.closest&&e.target.closest('a[href^="#m-"]');if(a)RET=window.scrollY},true);
+addEventListener("hashchange",()=>{const h=location.hash.slice(1), from=LASTH; LASTH=h; render();
+  if((h==="life"||h==="")&&from.startsWith("m-")&&RET!=null){const y=RET;RET=null;requestAnimationFrame(()=>window.scrollTo(0,y))}
+  else if(h==="life"||h==="fleet")window.scrollTo(0,0)});
 function load(){return fetch("data.json",{cache:"no-store"}).then(r=>r.json()).then(d=>{DATA=d;try{render()}catch(e){document.getElementById("view").innerHTML='<p class="empty">HQ hit a display error ('+esc(String(e&&e.message||e))+'). Ask the autopilot chat to fix it.</p>'}}).catch(()=>{if(DATA){try{render()}catch(_){}}else document.getElementById("view").innerHTML='<p class="empty">Couldn\'t load status data. Ask the autopilot chat to republish HQ.</p>'})}
 load().then(()=>{if(DATA&&typeof DATA.one_click==="boolean"){ONE=DATA.one_click;if(ONE)try{render()}catch(_){}}else probeOne()});
 /* Refresh every 5 min while the tab is visible (not while a popup is open), and on return to the tab. */

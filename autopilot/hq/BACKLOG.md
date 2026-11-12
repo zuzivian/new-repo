@@ -4,6 +4,14 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 
 | # | Finding | Status | Round |
 |---|---------|--------|-------|
+| 12 | Phone: the needs card started ~800 px down, under the tiles | done: Needs right under the Today brief | R24 |
+| 13 | Phone hid the "what a tap does" hint, so GitHub opening was a surprise | done: short hint "Opens GitHub → tap Submit" | R24 |
+| 14 | "25 Notion tasks due" but ~5 listed | done: "top 5 of 25 …" | R24 |
+| 15 | Back from a prep page lost the scroll position | done: restored | R24 |
+| 16 | Prep page said "Five questions" over 3 | done: count from the list | R24 |
+| 17 | "Add them" need doesn't show which applications it will add | needs data: list candidates (detail or url) | R24 |
+| 18 | Timeline links are 19 px tall on phones | open | R24 |
+| 19 | Agent card vs sheet disagree for Pinny's Pro usage; raw ISO times in usage notes | needs data: one wording, PT times in usage_note | R24 |
 | 1 | No viewport meta in source; local and agent tests at 390 px render at 980 px and shrink | done (live sync already added one) | R20 |
 | 2 | With no pending decisions, the "Needs you" row disappears, so "nothing to answer" looks like "broken" | done: "None waiting ✓" | R20 |
 | 10 | Prep link was a 33×19 px inline word | done: 44 px "Prep →" button | R20 |
