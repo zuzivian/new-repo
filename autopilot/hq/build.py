@@ -160,6 +160,16 @@ def _goals():
         car["email_not_in_tracker"] = ce.get("not_in_tracker_count")
     except Exception:
         pass
+    # Growth tracker (daily scan): mock interviews from the calendar, Exponent % from Minny's weekly read.
+    try:
+        gr = json.load(open("/home/user/ops-bus/goals/growth.json"))
+        if g.get("progress") is not None:
+            gp = g["progress"].setdefault("growth", {})
+            for k in ("mock_interviews", "exponent_progress_pct", "exponent_source"):
+                if gr.get(k) is not None: gp[k] = gr[k]
+            gp["growth_scan_at"] = gr.get("at")
+    except Exception:
+        pass
     # Career quality metric (Nat, 11-12): target companies where he has a warm contact (had a real conversation),
     # from Pinny's research/career/warm-paths.md (Warm / identified / none per company).
     try:
