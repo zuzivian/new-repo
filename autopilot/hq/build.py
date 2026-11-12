@@ -656,6 +656,8 @@ out = {
 }
 _al = _allocation()
 if _al: out["allocation"] = _al
+# Nat's triage (2026-11-12): per-item tier now|week|later lives on nat_actions/needs; summary counts here.
+if state.get("triage"): out["triage"] = state["triage"]
 try:
     out["merge_queue"] = _merge_queue()
 except Exception:
