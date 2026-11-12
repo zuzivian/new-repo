@@ -137,6 +137,7 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600;white-space:nowrap}.pop .spark{width:100%;height:64px}.spark.wk7{height:auto!important;max-height:110px}
 .cards{display:grid;gap:10px}
+.needs-more{display:grid;gap:10px}.needs-more[hidden]{display:none}.needs-all{width:100%;min-height:44px}
 .blk{border:1px solid var(--line);border-left:3px solid var(--bad);border-radius:10px;padding:8px 12px;margin:0 0 10px}.blk .lst{margin:4px 0 0}
 .conseq{font-size:13px;font-weight:600;color:var(--warn);margin:2px 0}
 .goal .gk{position:relative;padding-right:18px}.goal .gchev{position:absolute;right:0;top:-2px;font-size:18px;line-height:1;color:var(--ink-2)}
@@ -145,7 +146,8 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 #rl,#is{scroll-margin-top:76px}
 .wdog{margin:0 0 6px;font-size:13px}
 .rq{font:inherit;font-size:15px;width:100%;min-height:40px;padding:0 12px;margin:0 0 8px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}.rq:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-.agsum{margin:0 0 6px;font-size:13px}.agsum .hint{display:none}@media (max-width:640px){.agsum .hint{display:inline}}
+.agsum{margin:0 0 6px;font-size:13px}
+.goal .gact{color:var(--ink);white-space:normal}.agsum .hint{display:none}@media (max-width:640px){.agsum .hint{display:inline}}
 .sev.zero{color:var(--ink-2);opacity:.7}
 details.closed summary::after{content:"▸";margin-left:6px}details.closed[open] summary::after{content:"▾"}
 details.dorm{margin-top:8px}details.dorm summary{overflow-wrap:anywhere}
@@ -204,7 +206,7 @@ kbd{font-family:var(--f-mono);font-size:12px;padding:1px 6px;border:1px solid va
 .wk li.later{display:none}.wk.all li.later{display:grid}
 button.more{font:inherit;font-size:13px;margin-top:8px;min-height:40px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink-2);cursor:pointer}
 .cbdone{margin:0 0 4px;font-size:13px}
-.need .openlink,.openlink{display:inline-flex;align-items:center;gap:4px;min-height:36px;padding:0 12px;border-radius:8px;border:1px solid var(--core);color:var(--core);text-decoration:none;font-weight:600;font-size:14px;background:var(--panel)}.openlink:hover{background:color-mix(in srgb,var(--core) 10%,var(--panel))}
+.need .openlink,.openlink{display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:0 12px;border-radius:8px;border:1px solid var(--core);color:var(--core);text-decoration:none;font-weight:600;font-size:14px;background:var(--panel)}.openlink:hover{background:color-mix(in srgb,var(--core) 10%,var(--panel))}
 #n{scroll-margin-top:76px}
 .tabs{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:6px;margin:0 0 14px;padding:8px 0;background:var(--bg)}
 .tabs .tab{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);text-decoration:none;font-weight:600;font-size:15px}
@@ -684,6 +686,8 @@ function goalsHtml(d){
     const al=`${pName(p)}: ${nf?"no feed yet":r.warm?`${r.cur} of ${r.warm.of} target companies warm`:r.target!=null?`${r.cur} of ${r.target} ${r.label}`:`${r.cur} ${r.label}`}${st&&!nf?", "+st:""}. ${r.m?r.pace:""}. Open details`;
     return `<button type="button" class="goal${nf?" nf":""}" data-goal="${i}" style="--gs:${GS[r.state]??GS[""]}" aria-label="${esc(al)}">
       <span class="gk">${esc(pName(p))}<span class="gchev" aria-hidden="true">›</span></span>
+      ${p.key==="career"&&ctSummary(d)?(()=>{const todo=(ctSummary(d).match(/(\d+) to apply/)||[])[1], lv=num((((G.progress||{}).career)||{}).live_roles);
+        return todo!=null?`<span class="gm gact"><b>Apply this week: ${todo}</b>${lv!=null?` · ${lv} eligible live`:""}</span>`:""})():""}
       <span class="gv">${nf?esc(((G.progress||{})[p.key]||{}).status_label||"no feed yet"):r.warm?`${r.cur}<small> warm of ${r.warm.of} targets${r.target!=null?` · goal ${r.target}`:""}</small>`:/_pct$/.test(r.m||"")?`${r.cur}%<small>${r.target!=null&&r.target!==100?` of ${r.target}%`:" done"}</small>`:`${r.cur}<small>${r.target!=null?"/"+r.target+(r.dl&&!r.weekly&&/^Year goal/.test(r.sec||"")?` by ${esc(fmtD(asDay(r.dl)).replace(/^\w+, /,""))}`:""):" "+esc(r.label.replace(/\s*\(.*\)\s*$/,""))}</small>`}</span>
       ${r.warm?`<span class="gm ctsum">${[r.warm.ident!=null?`${r.warm.ident} named contact${r.warm.ident===1?"":"s"}`:"",`${r.warm.open} to open`].filter(Boolean).join(" · ")}</span>`:""}
       ${r.warm||(nf&&((G.progress||{})[p.key]||{}).status_label&&!r.funnel)?"":`<span class="gm"${r.funnel?' style="white-space:normal"':""}>${r.funnel&&r.mail?'<span class="src">Notion</span> ':""}${esc(r.funnel||(r.m?r.label:(p.goal||"")))}</span>`}
@@ -691,7 +695,7 @@ function goalsHtml(d){
         return t!=null||a!=null?`<span class="gm ctsum">Other counts: ${[t!=null?`Notion typed ${t}`:"",a!=null?`all touchpoints ${a}`:""].filter(Boolean).join(" · ")}</span>`:""})():""}
       ${p.key==="digigov"&&r.cur!=null?(()=>{const g=(G.progress||{}).digigov||{}, b=num(g.interviews_booked); return `<span class="gm ctsum">${b==null?"none booked yet":`${b} booked`}</span>`})():""}
       ${p.key==="growth"&&gpTile(d)?`<span class="gm ctsum">${esc(gpTile(d))}</span>`:""}
-      ${p.key==="career"&&liveRoles(G)?`<span class="gm ctsum">${esc(liveRoles(G)+(ctSummary(d)?" · "+ctSummary(d).split(" · ").pop():""))}</span>`:""}
+
       ${p.key==="career"&&!liveRoles(G)&&ctSummary(d)?`<span class="gm${r.warm?"":" ctsum"}">${esc(ctSummary(d))}</span>`:""}
       ${r.mail&&!r.warm?`<span class="gm" style="white-space:normal">${r.mail.gap>0?`<span class="flag">≈${r.mail.gap} not in tracker</span> · `:""}<span class="src">Gmail scan</span> ${esc(r.mail.txt)}</span>`:""}
       ${r.funnel?"":`<span class="gbar"><i style="width:${pct.toFixed(0)}%"></i></span>`}
@@ -735,7 +739,8 @@ function sinceHtml(d){if(!SEEN_BEFORE) return ""; const t0=new Date(SEEN_BEFORE)
   const D=decs(d).filter(x=>nw(x.at)).length, R=(d.research||[]).filter(x=>x&&nw(x.at)).length;
   const C=(((d.gh_issues||{}).items)||[]).filter(i=>i.state==="closed"&&nw(i.closed)).length;
   const M=((d.overnight||{}).merged_prs||[]).length&&nw((d.overnight||{}).since)?(d.overnight.merged_prs||[]).length:0;
-  const bits=[D?`<button type="button" class="linkbtn" data-decall>${D} decision${D===1?"":"s"}</button>`:"",R?`<button type="button" class="linkbtn" data-go="rl">${R} research file${R===1?"":"s"}</button>`:"",
+  const N=(d.needs||[]).filter(n=>nw(n.since||n.at||n.created)).length;
+  const bits=[D?`<button type="button" class="linkbtn" data-go="ov">${D} decision${D===1?"":"s"}</button>`:"",N?`<button type="button" class="linkbtn" data-go="n">${N} new need${N===1?"":"s"}</button>`:"",R?`<button type="button" class="linkbtn" data-go="rl">${R} research file${R===1?"":"s"}</button>`:"",
     M?`<span>${M} PR${M===1?"":"s"} merged</span>`:"",C?`<button type="button" class="linkbtn" data-go="is" data-tab="fleet">${C} issue${C===1?"":"s"} closed</button>`:""].filter(Boolean);
   return bits.length?`<p class="since"><span class="muted">Since you last looked (${esc(fmtT(SEEN_BEFORE))}):</span> ${bits.join(" · ")}</p>`:""}
 function nightHtml(d){const ov=overnightHtml(d); if(!ov) return decHtml(d);
@@ -830,7 +835,8 @@ function ctHtml(d){const R=ctRows(d); if(!R||!R.length) return "";
   const CW=Array.isArray(d.career_warm)&&d.career_warm.some(x=>x&&x.company)?d.career_warm.filter(x=>x&&x.company):null, key=x=>cell(x).toLowerCase().replace(/[^a-z0-9]/g,"");
   const wOf=r=>CW&&CW.find(x=>key(x.company)===key(r.company));
   const WS={warm:["good","warm"],identified:["warn","contact named"],none:["bad","no path yet"]};
-  const wp=CW&&apply.length?`<h4>Warm paths for this week's applications</h4><ul class="ctl wp">${apply.map(r=>{const x=wOf(r), st=x&&WS[String(x.state||"").toLowerCase()]||WS.none;
+  const wp=CW&&apply.length?`<h4>Warm paths for this week's applications</h4><ul class="ctl wp">${apply.map(r=>{const x=wOf(r), st0=x&&WS[String(x.state||"").toLowerCase()]||WS.none;
+      const br=x&&(x.bridge_action||(String(x.note||"").match(/bridges? via ([^.;]+)/i)||[])[1]), st=st0===WS.none&&br?["warn","next: ask via "+String(br).replace(/^ask\s+/i,"").slice(0,40)]:st0;
       return `<li><b>${esc(cell(r.company))}</b> <span class="pill ${st[0]}">${st[1]}</span>${x&&num(x.contacts)?` <span class="muted">· ${num(x.contacts)} contact${num(x.contacts)===1?"":"s"}</span>`:""}${x&&x.note?`<div class="ct-el muted">${esc(cell(x.note))}</div>`:""}</li>`}).join("")}</ul>`:"";
   return `<div class="ct">${wp}
     <h4>Apply this week · ${apply.length}</h4>${apply.length?`<ul class="ctl">${A}</ul>`:`<p class="muted" style="margin:0">Every live posting open to you has an application ✓</p>`}
@@ -1004,7 +1010,9 @@ function home(d){
   const card=(n,i,cls)=>{
     const opts=(n.options||["Done","Later"]), ans=n.url?opts.filter(o=>!isOpen(o)):opts, openOpt=n.url?opts.find(isOpen):null;
     const dh=detailHtml(n.detail||n.note||""), prList=dh.includes("/pull/")&&/github\.com\/[^/]+\/[^/]+\/pull\//.test(n.url||"");
-    const openL=n.url&&!prList?`<a class="openlink" href="${esc(needUrl(n.url))}" target="_blank" rel="noopener">${esc(openOpt||(cls?"Open plan":"Open"))} ↗</a>`:"";
+    const pl=n.prep_link, plU=pl?(/^https:\/\//.test(pl)?pl:/^[\w./-]+\.md$/.test(pl)?"https://github.com/zuzivian/ops-bus/blob/main/"+pl.replace(/^\.?\//,""):""):"";
+    const prepL=plU?`<a class="openlink" href="${esc(plU)}" target="_blank" rel="noopener">Prep ↗</a>`:"";
+    const openL=prepL+(n.url&&!prList?`<a class="openlink" href="${esc(needUrl(n.url))}" target="_blank" rel="noopener">${esc(openOpt||(cls?"Open plan":"Open"))} ↗</a>`:"");
     const prev=n.preview?`<a class="openlink" href="${esc(n.preview)}" target="_blank" rel="noopener">▶ Preview</a>`:"";
     return `<div class="card need${cls?" "+cls:""}">${cls?`<div class="wp-k">Week plan · your call</div>`:""}<div class="t">${cls?"":i+1+". "}${esc(n.title)}${(()=>{const m=num(n.est_min), dd=isDate(n.due)?(ptDay(asDay(n.due))<ptDay(Date.now())?"overdue":ptDay(asDay(n.due))===ptDay(Date.now())?"today":"by "+fmtD(asDay(n.due)).replace(/^\w+, /,"")):""; const t=[m!=null?m+" min":"",dd].filter(Boolean).join(", "); return t?` <span class="muted" style="font-weight:400;font-size:13px">(${t})</span>`:""})()}${n.from?` <span class="pill" style="font-size:10px;padding:1px 7px;vertical-align:middle">${esc(n.from)}</span>`:""}</div>${(()=>{const c=n.consequence||n.risk||(/no more approval|standing (approval|authority)|auto-?merge|without asking|permission|always allow/i.test(String(n.title)+" "+String(n.detail||""))?"Changes standing authority for the fleet. Read the details before Done.":"");return c?`<div class="conseq">⚠ ${esc(c)}</div>`:""})()}${dh}
      ${openL||prev?`<div class="reply">${openL}${prev}</div>`:""}
@@ -1014,7 +1022,7 @@ function home(d){
   const waiting=d.needs_waiting||[];
   const rest=d.needs.map((n,i)=>[n,i]).filter(([,i])=>i!==wpI);
   const waitHtml=waiting.length?`<p class="muted" style="margin:10px 0 0;font-size:13px">Waiting on agents (you're done): ${waiting.map(n=>esc(String(n.title).slice(0,60))).join(" · ")}</p>`:"";
-  const needs=rest.length?rest.map(([n,i])=>card(n,i)).join("")
+  const NCAP=3, needs=rest.length?rest.slice(0,NCAP).map(([n,i])=>card(n,i)).join("")+(rest.length>NCAP?`<div class="needs-more" hidden>${rest.slice(NCAP).map(([n,i])=>card(n,i)).join("")}</div><button type="button" class="more needs-all" data-needsall>Show all ${rest.length}</button>`:"")
      :`<div class="empty">Nothing waiting on you.</div>`;
   const crew=d.workers.length?d.workers.map(w=>`<div class="row"><span class="name">${esc(w.project)} <span class="muted">· ${esc(w.task)}</span></span>${(()=>{const st=String(w.status||w.state||"").toLowerCase();return `<span class="pill ${st==="working"||st==="running"?"warn":st.includes("block")?"bad":st.startsWith("queued")?"":"good"}">${esc(w.status||w.state||"—")}</span>`})()}</div>`).join(""):`<div class="empty">No workers running.</div>`;
   const maxc=Math.max(...d.spend.map(s=>s.usd),1);
@@ -1101,6 +1109,7 @@ function render(){
     let e=document.getElementById("rq-n"); if(!e){e=document.createElement("p");e.id="rq-n";e.className="muted";e.style.cssText="margin:6px 0 0;font-size:12px";l.after(e)} e.textContent=q?`${n} match${n===1?"":"es"}`:""});
   v.querySelectorAll("[data-rmore]").forEach(b=>b.addEventListener("click",()=>{const l=document.getElementById("rlist");if(l)l.classList.add("all");b.remove()}));
   v.querySelectorAll("[data-overdue]").forEach(b=>b.addEventListener("click",overduePop));
+  v.querySelectorAll("[data-needsall]").forEach(b=>b.addEventListener("click",()=>{const m=v.querySelector(".needs-more");if(m)m.hidden=false;b.remove()}));
   v.querySelectorAll("[data-more]").forEach(b=>b.addEventListener("click",()=>{const l=document.getElementById("wkl");if(l)l.classList.add("all");b.remove()}));
   v.querySelectorAll("[data-goal]").forEach(b=>b.addEventListener("click",()=>goalPop(+b.dataset.goal)));
   v.querySelectorAll("[data-proj]").forEach(b=>b.addEventListener("click",()=>projectPop(b.dataset.proj)));
@@ -1191,7 +1200,7 @@ function natNeeds(d){if(!d||!Array.isArray(d.needs)) return d; const seen=new Se
   // one card per thing: an action row wins over the fleet issue that tracks the same thing
   // (linked by x.issue, or sharing a distinctive ref: an ALL_CAPS name, "PR #N", or a file name like X.md)
   const refs=t=>new Set((String(t||"").match(/\b[A-Z][A-Z0-9]*_[A-Z0-9_]+\b|PR #\d+|\b[\w-]+\.(?:md|json|yml|py|js)\b/g)||[]).map(x=>x.toLowerCase()));
-  const acts=(d.nat_actions||[]).filter(x=>x&&x.title).map(x=>({project:x.project||"fleet",title:x.title,detail:x.detail||"",url:x.url,issue:x.issue,options:x.options||[],consequence:x.consequence||x.risk||"",state:x.state||x.status||"",due:x.due,est_min:x.est_min,from:"Your action"}));
+  const acts=(d.nat_actions||[]).filter(x=>x&&x.title).map(x=>({project:x.project||"fleet",title:x.title,detail:x.detail||"",url:x.url,issue:x.issue,options:x.options||[],consequence:x.consequence||x.risk||"",state:x.state||x.status||"",due:x.due,est_min:x.est_min,prep_link:x.prep_link,from:"Your action"}));
   const dup=i=>acts.some(a=>(a.issue&&a.issue===i.url)||[...refs(i.title+" "+(i.detail||""))].some(r=>refs(a.title+" "+a.detail+" "+(a.url||"")).has(r)));
   const iss=(d.issues||[]).filter(own).filter(i=>!dup(i)).map(i=>({project:"fleet",title:i.title,detail:i.detail||"",url:i.url,options:[],from:"Fleet issue"}));
   const FP=fpOf(d), stall=[];
