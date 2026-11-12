@@ -137,6 +137,11 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600;white-space:nowrap}.pop .spark{width:100%;height:64px}.spark.wk7{height:auto!important;max-height:110px}
 .cards{display:grid;gap:10px}
+.agsum{margin:0 0 6px;font-size:13px}.agsum .hint{display:none}@media (max-width:640px){.agsum .hint{display:inline}}
+.sev.zero{color:var(--ink-2);opacity:.7}
+details.closed summary::after{content:"▸";margin-left:6px}details.closed[open] summary::after{content:"▾"}
+details.dorm{margin-top:8px}details.dorm summary{overflow-wrap:anywhere}
+.grid>section[aria-labelledby="g"]{align-self:start}
 .wk li.dh{display:block;min-height:0;padding:10px 0 2px;border-top:0;font-family:var(--f-display);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
 .wk li.dh:first-child{padding-top:0}.wk li.dh.today{color:var(--accent)}.wk li.dh.od{color:var(--bad)}.wk li.dh+li{border-top:0}
 .wk:not(.all) li.dh.later{display:none}.wk.all li.dh.later{display:block}
@@ -349,10 +354,13 @@ function ago(iso){const t=new Date(iso);if(!iso||isNaN(t))return "";const m=Math
 function boardHtml(b){
   if(!b||!b.length) return '<div class="empty">No projects.</div>';
   const counts={}; b.forEach(p=>counts[p.status]=(counts[p.status]||0)+1);
-  const tiles=b.map(p=>{
+  const dormant=p=>/^(idle|off)$/.test(p.status)&&!p.running&&!p.queued&&!p.codex&&!p.needs&&!p.next_step;
+  const live=b.filter(p=>!dormant(p)), sleep=b.filter(dormant);
+  const tile=p=>{
     const bits=[]; if(p.running) bits.push(p.running+" running"); if(p.queued) bits.push(p.queued+" queued");
     if(p.codex) bits.push(p.codex+" Codex"); if(p.needs) bits.push(p.needs+" for you"); if(!bits.length&&p.done) bits.push(p.done+" done this week");
-    return `<button type="button" class="tile" data-proj="${esc(p.project)}" style="--st:${ST_COLOR[p.status]}" aria-label="${esc(p.project)}: ${esc(p.status)}. Show details"><span class="nm">${esc(p.project)}</span><span class="st">${esc(p.status)}</span><span class="ct">${esc(bits.join(" · ")||"—")}${p.last_activity&&ago(p.last_activity)?` · <span title="${esc(p.last_activity)}">pushed ${esc(ago(p.last_activity))}</span>`:""}</span>${p.next_step?`<span class="nx">Next: ${esc(p.next_step)}</span>`:""}</button>`}).join("");
+    return `<button type="button" class="tile" data-proj="${esc(p.project)}" style="--st:${ST_COLOR[p.status]}" aria-label="${esc(p.project)}: ${esc(p.status)}. Show details"><span class="nm">${esc(p.project)}</span><span class="st">${esc(p.status)}</span><span class="ct">${esc(bits.join(" · ")||"—")}${p.last_activity&&ago(p.last_activity)?` · <span title="${esc(p.last_activity)}">pushed ${esc(ago(p.last_activity))}</span>`:""}</span>${p.next_step?`<span class="nx">Next: ${esc(p.next_step)}</span>`:""}</button>`};
+  const tiles=live.map(tile).join("")+(sleep.length?`</div><details class="closed dorm"><summary class="muted">${sleep.length} dormant: ${esc(sleep.map(p=>p.project).join(", "))}</summary><div class="board">${sleep.map(tile).join("")}</div></details><div>`:"");
   const legend=Object.keys(ST_COLOR).filter(k=>counts[k]).map(k=>`<span style="--st:${ST_COLOR[k]}"><i></i>${counts[k]} ${esc(k)}</span>`).join("");
   return `<div class="board">${tiles}</div><div class="legend-st">${legend}</div>`;
 }
@@ -360,7 +368,8 @@ const SEV_COLOR={critical:"var(--bad)",high:"var(--warn)",medium:"var(--core)",l
 function issuesHtml(list){
   if(!list||!list.length) return '<div class="empty">No open issues.</div>';
   const c={}; list.forEach(i=>c[i.severity]=(c[i.severity]||0)+1);
-  const bar=Object.keys(SEV_COLOR).map(k=>`<span class="sev" style="--sv:${SEV_COLOR[k]}">${c[k]||0} ${k}</span>`).join("");
+  // 8. zero counts are neutral, not alarm-coloured
+  const bar=Object.keys(SEV_COLOR).map(k=>`<span class="sev${c[k]?"":" zero"}" style="--sv:${c[k]?SEV_COLOR[k]:"var(--line)"}">${c[k]||0} ${k}</span>`).join("");
   const rows=list.map((i,k)=>`<button type="button" class="iss" data-iss="${k}" style="--sv:${SEV_COLOR[i.severity]||"var(--maint)"}"><span class="dot" aria-hidden="true"></span><span class="t">${esc(i.title)}</span><span class="chev" aria-hidden="true">›</span></button>`).join("");
   return `<div class="sevbar">${bar}</div>${rows}`;
 }
@@ -421,18 +430,23 @@ function utilOf(v){if(typeof v==="string"&&v.trim()!=="")v=Number(v.replace("%",
   if(typeof v!=="number"||!isFinite(v)||v<0)return null; return v>1.5?Math.min(v/100,1):Math.min(v,1)}
 function paceOf(fp,a){const A=fp&&fp.agents||{}, x=A[a.key]||A[{cinny:"chinny",chinny:"cinny"}[a.key]]; if(!x) return null;
   const used=utilOf(x.used), tg=utilOf(x.target), q=num(x.queue), fl=num(x.in_flight);
-  const off=used!=null&&tg!=null?Math.round((used-tg)*100):null;
+  const past=isDate(x.reset)&&new Date(x.reset)<Date.now()&&(!isDate(x.read_at)||new Date(x.read_at)<new Date(x.reset));
+  const off=!past&&used!=null&&tg!=null?Math.round((used-tg)*100):null;
   const nolimit=x.used===null&&x.target===null;
   const bits=nolimit?["no limit",fl!=null?`${fl} in flight`:"",q!=null?`${q} queued`:""].filter(Boolean)
-    :[off==null?"":off<=-3?`behind by ${-off} pts`:off>=3?`${off} pts ahead`:"on pace", q!=null?`${q} queued`:"", fl!=null?`${fl} in flight`:""].filter(Boolean);
+    :[past?"reset since last read":off==null?"":off<=-3?`${-off} pts under pace`:off>=3?`${off} pts over pace`:"on pace", q!=null?`${q} queued`:"", fl!=null?`${fl} in flight`:""].filter(Boolean);
   // stalled: tasks waiting and the runner hasn't run for a while (it only wakes on its own app schedule)
   const idle=num(x.idle_min)??(isDate(x.last_run)?Math.round((Date.now()-new Date(x.last_run))/60000):null);
-  return {used,tg,off,stale:!!x.stale,txt:bits.join(" · "),reset:isDate(x.reset)?x.reset:null,note:x.target_note||"",nolimit,
+  return {used,tg:past?null:tg,off,past,stale:!!x.stale,txt:bits.join(" · "),reset:isDate(x.reset)?x.reset:null,note:x.target_note||"",nolimit,
     stalled:x.stalled===true,idle,waiting:fl,lastRun:isDate(x.last_run)?x.last_run:null}}
 const idleTxt=m=>m==null?"":m<120?`${m} min`:m<1440?`${Math.floor(m/60)} h${m%60?` ${m%60} min`:""}`:`${Math.round(m/1440*10)/10} days`;
 function agentsHtml(list,fp){
   if(!list||!list.length) return "";
-  return `<div class="agents" role="list" aria-label="Agents">${list.map((a,k)=>{const sc=AGENT_STATUS[a.status]||"var(--maint)";
+  const rank=a=>{const P=paceOf(fp,a);return P&&P.stalled?0:/work|run/i.test(a.status||"")?1:2};
+  list=list.slice().sort((a,b)=>rank(a)-rank(b));
+  const cnt=[0,0,0]; list.forEach(a=>cnt[rank(a)]++);
+  const summ=[cnt[0]?`<b style="color:var(--bad)">${cnt[0]} stalled</b>`:"",cnt[1]?`${cnt[1]} working`:"",cnt[2]?`${cnt[2]} idle`:""].filter(Boolean).join(" · ");
+  return `<p class="agsum muted">${summ}<span class="hint"> · swipe for all ${list.length}</span></p><div class="agents" role="list" aria-label="Agents">${list.map((a,k)=>{const sc=AGENT_STATUS[a.status]||"var(--maint)";
     const col=(AGENT_LOOK[a.key]||{c:"#8795a6"}).c, P=paceOf(fp,a), u=utilOf(a.util)??(P?P.used:null);
     const pct=u==null?(P&&P.nolimit?"no limit":"no feed"):Math.round(u*100)+"%";
     const ser=(a.series||[]).filter(s=>s&&utilOf(s.u)!=null&&!isNaN(new Date(s.t))).map(s=>({t:s.t,u:utilOf(s.u)}));
@@ -448,7 +462,7 @@ function agentsHtml(list,fp){
       ${a.url?`<a href="${esc(a.url)}" target="_blank" rel="noopener" style="font-size:12px">Open ↗</a>`:""}</div>`;
     return `<div class="agent${u==null?" nofeed":""}" role="listitem" tabindex="0" data-s="${esc(a.status)}" style="--sc:${sc}" aria-describedby="tip-${k}">
       <div class="av">${ringSvg(u,col,P&&P.tg)}<div class="face">${avatar(a.key)}</div><span class="pip"></span><span class="pc mono${u==null?" nf":""}"${old?' style="color:var(--warn)"':""}>${pct}</span></div>
-      <div style="min-width:0"><div class="nm">${esc(a.name)} <span class="sx">${esc(a.status)}</span></div><div class="rl">${esc(a.role)}</div><div class="dg">${esc(a.doing||"—")}</div>${P&&P.stalled?`<div class="pace stalled"><b>STALLED</b>${P.idle!=null?` · idle ${idleTxt(P.idle)}`:""}${P.waiting!=null?` · ${P.waiting} waiting`:""}</div>`:""}${P&&!P.stalled&&(P.txt||P.stale)?`<div class="pace${P.off!=null&&P.off<=-3?" behind":""}">${P.stale?`<span class="stbadge">STALE</span> `:""}${esc(P.txt)}${P.tg!=null?` <span class="muted">· target ${Math.round(P.tg*100)}% now</span>`:""}</div>`:""}</div>${tip}</div>`}).join("")}</div>`;
+      <div style="min-width:0"><div class="nm">${esc(a.name)} <span class="sx"${P&&P.stalled?' style="color:var(--bad)"':""}>${esc(P&&P.stalled?"stalled":a.status)}</span></div><div class="rl">${esc(a.role)}</div><div class="dg">${esc(a.doing||"—")}</div>${P&&P.stalled?`<div class="pace stalled">Idle ${P.idle!=null?idleTxt(P.idle):"a while"}${P.waiting!=null?` · ${P.waiting} in flight`:""}</div>`:""}${P&&!P.stalled&&(P.txt||P.stale)?`<div class="pace${P.off!=null&&P.off<=-3?" behind":""}">${P.stale?`<span class="stbadge">STALE</span> `:""}${esc(P.txt)}${P.tg!=null?` <span class="muted">· target ${Math.round(P.tg*100)}% now</span>`:""}</div>`:""}</div>${tip}</div>`}).join("")}</div>`;
 }
 function openPop(title,html){
   let d=document.getElementById("pop");
@@ -945,7 +959,7 @@ function home(d){
      <div class="gauge-top"><div class="big mono">${Math.round(u*100)}%<span class="muted" style="font-size:14px;font-weight:600;margin-left:6px">used</span></div>
        <div class="stat"><span class="muted">Target now</span><b>${t==null?"—":Math.round(t*100)+"%"}</b></div>
        <div class="stat"><span class="muted">Resets</span><b>${esc(fmtT(d.week.reset))}</b></div>
-       <span class="pill ${state[0]}">${gap>0.01?`${Math.round(gap*100)} pts ahead of pace`:state[1]}</span></div>
+       <span class="pill ${state[0]}" title="Pace = share of the weekly limit the plan expects used by now">${gap>0.01?`${Math.round(gap*100)} pts over pace`:gap<-0.01?`${Math.round(-gap*100)} pts under pace`:state[1]}</span></div>
      ${typeof d.week.u5==="number"&&isFinite(d.week.u5)?`<div class="muted" style="margin-top:10px">5-hour window · ${Math.round(d.week.u5*100)}%${typeof d.pacing.five_hour_ceiling==="number"?` <span class="mono">(ceiling ${Math.round(d.pacing.five_hour_ceiling*100)}%)</span>`:""}</div>
      <div class="bar5"><i style="width:${Math.min(d.week.u5*100,100)}%"></i></div>`:`<div class="muted" style="margin-top:10px">5-hour window · <i>no reading yet</i></div>`}
      ${PC?gaugeChart(d):""}${proChart(d)}</section>

@@ -5,6 +5,13 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 | # | Finding | Status | Round |
 |---|---------|--------|-------|
 | 28 | Career metric is warm target companies (Nat): tile headline, contacts line; warm paths in the sheet once career_warm lands | done | R29 |
+| 36 | Pace line kept "behind by N" after the weekly reset passed | done: "reset since last read", no tick | R43 |
+| 37 | Stalled agents hidden off-screen in the phone strip | done: stalled first + "2 stalled · 1 working · 2 idle" line | R43 |
+| 38 | Agent showed IDLE and STALLED together; "waiting" vs "in flight" | done: one status word; "in flight" everywhere | R43 |
+| 39 | "behind by N pts" (amber) vs "N PTS AHEAD OF PACE" (green) | done: "N pts under / over pace" everywhere | R43 |
+| 40 | Projects grid ~2,000 px with empty dormant tiles | done: dormant repos fold into one row | R43 |
+| 41 | Zero-count severity chips drawn in alarm colours; fuel card stretched on desktop | done | R43 |
+| 42 | Crew list duplicates Projects; issues duplicating Effort/Cost cards; burn names vs project names | open | R43 |
 | 29 | Morning view put Next 1100 px down under Overnight + Decided | done: Today → Needs → Overnight (decisions folded in) → goals | R41 |
 | 30 | "Tap an answer / ★" footer shown when no card had answers | done: only when a card has answer buttons | R41 |
 | 31 | Needs count shown 3 times (pill, Today row, header) | done: Today's Needs row only for "None waiting ✓" | R41 |
