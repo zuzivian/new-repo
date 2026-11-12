@@ -135,6 +135,10 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600}.pop .spark{width:100%;height:64px}
 .cards{display:grid;gap:10px}
+.gm .src{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);opacity:.8}
+.flag{display:inline-block;font-size:12px;font-weight:600;color:var(--warn)}
+.wplan{margin:0 0 14px}.wplan .need.wp{border:1px solid var(--accent);background:var(--accent-soft);border-left-width:4px}
+.wp-k{font-family:var(--f-display);font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
 .tbrief{display:grid;gap:6px;margin:0 0 14px;padding:12px 14px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}
 .tb-r{display:grid;grid-template-columns:84px minmax(0,1fr);gap:10px;align-items:baseline;font-size:15px}
 .tb-k{font-family:var(--f-display);font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
@@ -421,6 +425,7 @@ function copy(btn,text){
 }
 function openExt(u){let w=null;try{w=window.open(u,"_blank")}catch(_){} if(w){try{w.opener=null}catch(_){}} return w}
 const ISSUE_NEW="https://github.com/zuzivian/ops-bus/issues/new";
+const needUrl=u=>/^https?:\/\//.test(u)?u:"https://github.com/zuzivian/ops-bus/blob/main/"+String(u).replace(/^\.?\//,"");
 /* Answer buttons message the supervisor session directly through the viewer's
    Claude Code Remote connector; if that isn't available, fall back to copy. */
 const CCR="Claude Code Remote";
@@ -477,9 +482,11 @@ function pillarRead(p,prog,d){
   const k2=yk?null:keys.find(k=>k!==m&&num(g[k])!=null), sec=yk&&cur!=null?`${cur} of ${tnum(T[yk])} for the year`:k2?`${k2.replace(/_/g," ")} ${num(g[k2])}/${tnum(T[k2])}`.replace(/^(\w)/,c=>c.toUpperCase()):"";
   // funnel (no numeric target): show the stages that are reported
   const FUN=["tracked","applied","interviewing","offers"], funnel=target==null&&FUN.some(k=>num(g[k])!=null)?FUN.filter(k=>num(g[k])!=null).map(k=>`${num(g[k])} ${k}`).join(" · "):"";
+  const EM=[["email_applied","applied"],["email_interviews","interviews"],["email_rejections","rejections"],["email_offers","offers"]].filter(([k])=>num(g[k])!=null);
+  const mail=EM.length?{txt:EM.map(([k,l])=>`${num(g[k])} ${num(g[k])===1?l.replace(/s$/,""):l}`).join(" · "),at:isDate(g.email_scan_at)?g.email_scan_at:null,gap:num(g.email_not_in_tracker)||0}:null;
   const dl=[T[m]&&T[m].by,T[m+"_by"],T.by,T.deadline,T.fall_end].find(isDate);
   const now=new Date(d.updated||Date.now());
-  if(target==null) return {m,label,target,cur,state:cur==null?"nf":"",pace:cur==null?(g.note?String(g.note):"Not reported yet"):(dl?"Goal by "+fmtD(asDay(dl)):""),dl,sec,funnel,cal};
+  if(target==null) return {m,label,target,cur,state:cur==null?"nf":"",pace:cur==null?(g.note?String(g.note):"Not reported yet"):(dl?"Goal by "+fmtD(asDay(dl)):""),dl,sec,funnel,cal,mail};
   let need=null,rate=null,state="nf",pace=cur==null?(g.note?String(g.note):prog?"Not reported yet":"Waiting on the progress feed"):"";
   if(cur!=null){
     if(cur>=target){state="good";pace=weekly?"Done for this week":"Target reached ✓"}
@@ -498,7 +505,7 @@ function pillarRead(p,prog,d){
   }
   const booked=Object.keys(g).filter(k=>/_booked$|_upcoming$/.test(k)&&num(g[k])).map(k=>`${num(g[k])} more booked`);
   const overdue=booked.concat(Object.keys(g).filter(k=>/^overdue_/.test(k)&&num(g[k])).map(k=>`${num(g[k])} ${k.replace(/^overdue_/,"overdue ").replace(/_/g," ")}`.replace("overdue keep in touch","overdue keep-in-touch")));
-  return {m,label,target,cur,state,pace:(cal?"Calendar blocks, not verified · ":"")+pace,dl,sec,funnel,cal,need,rate,weekly,overdue};
+  return {m,label,target,cur,state,pace:(cal?"Calendar blocks, not verified · ":"")+pace,dl,sec,funnel,cal,need,rate,weekly,overdue,mail};
 }
 /* One nudge: goals.nudge if Sinny sets it, else the first behind pillar in priority order (data order). Counts only, never names. */
 /* Today: the 10-second read. Only facts the data actually carries; missing feeds are simply left out. */
@@ -510,7 +517,7 @@ function todayHtml(d){
   // next meeting (in progress counts for 30 min), with its primer
   const up=(d.meetings||[]).filter(m=>isDate(m.when)&&new Date(m.when)>now-30*60e3).sort((x,y)=>new Date(x.when)-new Date(y.when));
   if(up.length){const m=up[0], left=up.filter(x=>ptDay(x.when)===today).length;
-    row("Next",`<b>${esc(when(m.when))}</b> ${esc(m.title)}${m.ready!==false?` · <a href="#m-${esc(m.id)}">Prep</a>`:""}${left>1?` <span class="muted">· ${left-1} more today</span>`:""}`)}
+    row("Next",`<b>${esc(when(m.when))}</b> ${esc(m.title)}${m.ready!==false?` · <a href="#m-${esc(encodeURIComponent(m.id))}">Prep</a>`:""}${left>1?` <span class="muted">· ${left-1} more today</span>`:""}`)}
   else if(d.meetings) row("Next",`<span class="muted">No upcoming meetings</span>`);
   // due today (from top tasks) + overdue count
   const due=(tk.top||[]).filter(x=>isDate(x.due)&&ptDay(asDay(x.due))===today);
@@ -549,7 +556,8 @@ function goalsHtml(d){
     return `<button type="button" class="goal${nf?" nf":""}" data-goal="${i}" style="--gs:${GS[r.state]??GS[""]}" aria-label="${esc(al)}">
       <span class="gk">${esc(pName(p))}</span>
       <span class="gv">${nf?"no feed yet":`${r.cur}<small>${r.target!=null?"/"+r.target:" "+esc(r.label)}</small>`}</span>
-      <span class="gm"${r.funnel?' style="white-space:normal"':""}>${esc(r.funnel||(r.m?r.label:(p.goal||"")))}</span>
+      <span class="gm"${r.funnel?' style="white-space:normal"':""}>${r.funnel&&r.mail?'<span class="src">Notion</span> ':""}${esc(r.funnel||(r.m?r.label:(p.goal||"")))}</span>
+      ${r.mail?`<span class="gm" style="white-space:normal"><span class="src">Gmail scan</span> ${esc(r.mail.txt)}${r.mail.gap>0?` <span class="flag">≈${r.mail.gap} not in tracker</span>`:""}</span>`:""}
       ${r.funnel?"":`<span class="gbar"><i style="width:${pct.toFixed(0)}%"></i></span>`}
       ${r.sec?`<span class="gm">${esc(r.sec)}</span>`:""}
       <span class="gp">${esc(r.m?r.pace:"No metric set")}</span></button>`}).join("")}</section>`;
@@ -596,7 +604,8 @@ function goalPop(i){
     ${proj?`<p style="margin:0;font-size:14px">${proj}</p>`:""}
     ${hb?`<div><div class="muted" style="font-size:12px;margin-bottom:2px">${esc(hTitle)} · ${hb.cum?"running total":"per week"}, last ${hb.vals.length} weeks${hb.cw?" (this week so far)":""}</div>${hb.svg}</div>`:""}
     ${k2?`<div><div class="muted" style="font-size:12px;margin-bottom:2px">classmates logged · running total (+${k2.vals[k2.vals.length-1]-k2.vals[0]} in ${k2.vals.length} wks)</div>${k2.svg}</div>`:""}
-    ${r.funnel?`<div><b>Funnel</b>: ${esc(r.funnel)}</div>`:""}
+    ${r.funnel?`<div><b>Funnel</b> <span class="muted">(Notion tracker)</span>: ${esc(r.funnel)}</div>`:""}
+    ${r.mail?`<div><b>Inbox</b> <span class="muted">(Gmail scan${r.mail.at?", "+esc(fmtT(r.mail.at))+" PT":""})</span>: ${esc(r.mail.txt)}${r.mail.gap>0?`<div class="flag" style="margin-top:4px">≈${r.mail.gap} applications in email aren't in the Notion tracker yet</div>`:""}</div>`:""}
     ${sec.length?`<ul class="lst">${sec.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}
     <details><summary class="muted" style="cursor:pointer;font-size:13px">Targets</summary><dl class="kv" style="margin-top:6px">${Object.entries(T).map(([k,v])=>`<dt>${esc(k.replace(/_/g," "))}</dt><dd class="mono">${esc(tv(v))}</dd>`).join("")}</dl></details>
     ${g?Object.keys(g).filter(k=>k==="note"||/_note$/.test(k)).filter(k=>typeof g[k]==="string"&&g[k]).map(k=>`<p class="muted" style="margin:0;font-size:13px">${esc(g[k])}</p>`).join(""):""}
@@ -607,7 +616,7 @@ function weekHtml(d){
   const items=[];
   (G.dates||[]).forEach(x=>isDate(x.date)&&items.push({t:asDay(x.date),title:x.title,k:"date",url:x.url}));
   ((P.career&&P.career.next_deadlines)||[]).forEach(x=>isDate(x.date)&&items.push({t:asDay(x.date),title:x.title,k:"career",url:x.url}));
-  (d.meetings||[]).forEach(m=>isDate(m.when)&&items.push({t:m.when,title:m.title,k:"meeting",href:"#m-"+m.id,time:true}));
+  (d.meetings||[]).forEach(m=>isDate(m.when)&&items.push({t:m.when,title:m.title,k:"meeting",href:"#m-"+encodeURIComponent(m.id),time:true}));
   const tk=P.tasks||{};
   (tk.top||[]).forEach(x=>items.push({t:isDate(x.due)?asDay(x.due):null,title:x.title,k:"task",url:x.url}));
   const inWin=items.filter(x=>!x.t||(new Date(x.t)<=end&&(ptDay(x.t)>=today||x.k==="task")));
@@ -684,20 +693,24 @@ function home(d){
   /* Needs: reading the context (title, "Open ↗", preview) never files an answer. An option that is really a
      link ("Open …", "View …", "Review …") renders as a link to n.url, not as an answer button. */
   const isOpen=o=>/^(open|view|see|read|review)\b/i.test(String(o||""))&&!/\b(later|skip|done|no)\b/i.test(String(o||""));
-  const needs=d.needs.length?d.needs.map((n,i)=>{
+  const card=(n,i,cls)=>{
     const opts=(n.options||["Done","Later"]), ans=n.url?opts.filter(o=>!isOpen(o)):opts, openOpt=n.url?opts.find(isOpen):null;
-    const openL=n.url?`<a class="openlink" href="${esc(n.url)}" target="_blank" rel="noopener">${esc(openOpt||"Open")} ↗</a>`:"";
+    const openL=n.url?`<a class="openlink" href="${esc(needUrl(n.url))}" target="_blank" rel="noopener">${esc(openOpt||(cls?"Open plan":"Open"))} ↗</a>`:"";
     const prev=n.preview?`<a class="openlink" href="${esc(n.preview)}" target="_blank" rel="noopener">▶ Preview</a>`:"";
-    return `<div class="card need"><div class="t">${i+1}. ${esc(n.title)}</div><div class="muted">${esc(n.detail||n.note||"")}</div>
+    return `<div class="card need${cls?" "+cls:""}">${cls?`<div class="wp-k">Week plan · your call</div>`:""}<div class="t">${cls?"":i+1+". "}${esc(n.title)}</div><div class="muted">${esc(n.detail||n.note||"")}</div>
      ${openL||prev?`<div class="reply">${openL}${prev}</div>`:""}
-     ${ans.length?`<div class="reply" aria-label="Answers"><span class="muted" style="font-size:12px">Answer:</span>${ans.map(o=>`<button class="code" data-copy="${esc((i+1)+" → "+o)}" data-title="${esc(n.title)}">${esc(o)}${o===n.recommend?" ★":""}</button>`).join("")}</div>`:""}</div>`}).join("")
+     ${ans.length?`<div class="reply" aria-label="Answers"><span class="muted" style="font-size:12px">Answer:</span>${ans.map(o=>`<button class="code" data-copy="${esc((i+1)+" → "+o)}" data-title="${esc(n.title)}">${esc(o)}${o===n.recommend?" ★":""}</button>`).join("")}</div>`:""}</div>`};
+  const dow=new Date(new Date().toLocaleString("en-US",PT)).getDay(), wpI=dow===0||dow===1?d.needs.findIndex(n=>n.project==="weekly-review"):-1;
+  const wplan=wpI>=0?`<section class="wplan" aria-label="Week plan"${d.needs.length===1?' id="n"':""}>${card(d.needs[wpI],wpI,"wp")}</section>`:"";
+  const rest=d.needs.map((n,i)=>[n,i]).filter(([,i])=>i!==wpI);
+  const needs=rest.length?rest.map(([n,i])=>card(n,i)).join("")
      :`<div class="empty">Nothing waiting on you.</div>`;
   const crew=d.workers.length?d.workers.map(w=>`<div class="row"><span class="name">${esc(w.project)} <span class="muted">· ${esc(w.task)}</span></span>${(()=>{const st=String(w.status||w.state||"").toLowerCase();return `<span class="pill ${st==="working"||st==="running"?"warn":st.includes("block")?"bad":st.startsWith("queued")?"":"good"}">${esc(w.status||w.state||"—")}</span>`})()}</div>`).join(""):`<div class="empty">No workers running.</div>`;
   const maxc=Math.max(...d.spend.map(s=>s.usd),1);
   const spend=d.spend.map(s=>`<div class="row"><span class="name">${esc(s.project)}</span><span class="mono muted">$${s.usd.toFixed(0)}</span></div><div class="hbar"><i style="width:${(s.usd/maxc*100).toFixed(1)}%;background:${TIER_COLOR[s.tier]||"var(--maint)"}"></i></div>`).join("");
   const tab=curTab();
-  const life=`${todayHtml(d)}${goalsHtml(d)}<div class="${d.needs.length?"grid":""}" style="margin-bottom:16px">
-   ${d.needs.length?`<section class="panel" aria-labelledby="n"><h2 id="n">Needs you · ${d.needs.length}</h2>
+  const life=`${wplan}${todayHtml(d)}${goalsHtml(d)}<div class="${rest.length?"grid":""}" style="margin-bottom:16px">
+   ${rest.length?`<section class="panel" aria-labelledby="n"><h2 id="n">Needs you · ${rest.length}</h2>
      <div class="cards">${needs}</div>
      ${d.needs.length?`<p class="muted" style="margin:10px 0 0;font-size:13px"><span class="long">${ONE?"Tap an answer to send it to the autopilot in one tap. ":"Tap an answer to open a prefilled GitHub issue; Submit there sends it to the autopilot. "}</span>★ = my pick.</p>`:""}</section>`:""}
    ${weekHtml(d)}
@@ -723,14 +736,14 @@ function home(d){
 }
 
 function primer(m){
-  if(!m) return `<a class="back" href="#">← Back</a><p class="empty">That primer isn't ready yet.</p>`;
+  if(!m) return `<a class="back" href="#life">← Back</a><p class="empty">That brief isn't ready yet. Briefs refresh daily for the next 72 hours.</p>`;
   const people=(m.people||[]).map(p=>`<div class="card"><div class="t">${p.notion_url&&/^https:\/\//.test(p.notion_url)?link(p.notion_url,p.name):esc(p.name)}</div><div>${esc(p.who||[p.role,p.org].filter(Boolean).join(" · "))}</div>
      ${p.last_time?`<div><b>Last time:</b> ${esc(p.last_time)}</div>`:""}
      ${p.open_loops?.length?`<div><b>Open loops</b><ul>${p.open_loops.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>`:""}
      ${p.their_world?`<div><b>Their world:</b> ${esc(p.their_world)}</div>`:""}
      ${p.pipeline?`<div><b>Pipeline:</b> ${esc(p.pipeline)}</div>`:""}
      ${p.rapport?.length?`<div><b>Rapport:</b> ${p.rapport.map(esc).join(" · ")}</div>`:""}</div>`).join("");
-  return `<div class="primer"><a class="back" href="#">← Back to HQ</a>
+  return `<div class="primer"><a class="back" href="#life">← Back to HQ</a>
     <div><h1 style="font-size:26px">${esc(m.title)}</h1><div class="muted mono">${esc(fmtT(m.when))}${m.location?" · "+esc(m.location):""}</div>
     ${m.thin_record?`<span class="pill warn" style="margin-top:6px">Thin record</span>`:""} <span class="pill good" style="margin-top:6px">Not from Notion</span></div>
     <section class="panel">${people||'<p class="empty">Nothing recorded.</p>'}</section>
@@ -750,7 +763,7 @@ function render(){
   const v=document.getElementById("view"); if(!DATA){v.innerHTML='<p class="empty">Loading the latest status…</p>';return}
   document.getElementById("updated").textContent="Updated "+fmtT(DATA.updated)+" PT";
   const h=location.hash.slice(1);
-  v.innerHTML=staleHtml(DATA)+(h.startsWith("m-")?primer(DATA.meetings.find(m=>"m-"+m.id===h)):home(DATA));
+  v.innerHTML=staleHtml(DATA)+(h.startsWith("m-")?primer((DATA.meetings||[]).find(m=>"m-"+m.id===(()=>{try{return decodeURIComponent(h)}catch(_){return h}})())):home(DATA));
   v.querySelectorAll(".agent").forEach(el=>el.addEventListener("click",e=>{
     if(!matchMedia("(max-width:640px)").matches||e.target.closest("a")) return;
     const t=el.querySelector(".tip"); if(t) openPop(el.querySelector(".nm").firstChild.textContent.trim(), t.innerHTML);
