@@ -570,6 +570,40 @@ for p in primers.get("primers", []):
         meetings.append({**p, "ready": True})
 meetings.sort(key=lambda m: m["when"])
 
+MERGE_REPOS = ["natwong-dev", "skyviu", "ad-constellation"]  # new-repo: session drafts + the HQ branch PR, never one-click
+
+def _merge_queue():
+    """Open PRs awaiting Nat for HQ one-click merge. Repos this builder can't reach fall back to
+    ops-bus supervisor/merge-queue.json rows (Sinny writes them: same fields). Bus PRs (ops-bus) are excluded."""
+    rows, reached = [], set()
+    for repo in MERGE_REPOS:
+        r = _sp.run(["gh", "api", f"repos/zuzivian/{repo}/pulls?state=open&per_page=50"], capture_output=True, text=True, timeout=30)
+        if r.returncode != 0: continue
+        reached.add(repo)
+        for pr in json.loads(r.stdout or "[]"):
+            if "DO NOT MERGE" in pr.get("title", ""): continue
+            labels = [l["name"] for l in pr.get("labels", [])]
+            sha = pr["head"]["sha"]
+            st = _gh_json(f"repos/zuzivian/{repo}/commits/{sha}/status") or {}
+            cr = (_gh_json(f"repos/zuzivian/{repo}/commits/{sha}/check-runs?per_page=100") or {}).get("check_runs", [])
+            states = [s.get("state") for s in (st.get("statuses") or [])]
+            states += ["pending" if c.get("status") != "completed" else
+                       ("success" if c.get("conclusion") in ("success", "neutral", "skipped") else "failure") for c in cr]
+            checks = ("failing" if any(x in ("failure", "error") for x in states) else
+                      "pending" if any(x == "pending" for x in states) else "green")
+            rows.append({"repo": repo, "number": pr["number"], "title": pr["title"], "url": pr["html_url"],
+                         "reviewed": "sinny:reviewed" in labels, "checks": checks, "draft": bool(pr.get("draft")),
+                         "since": pr.get("updated_at") or pr.get("created_at"), "author": pr["user"]["login"]})
+    try:
+        extra = json.load(open("/home/user/ops-bus/supervisor/merge-queue.json"))
+        for x in extra.get("rows", extra if isinstance(extra, list) else []):
+            if x.get("repo") not in reached and x.get("url", "").startswith("https://github.com/"):
+                rows.append({k: x.get(k) for k in ("repo", "number", "title", "url", "reviewed", "checks", "draft", "since", "author")})
+    except Exception:
+        pass
+    rows = [r for r in rows if not (r["draft"] and r.get("author", "").endswith("[bot]"))]
+    return sorted(rows, key=lambda r: (not r["reviewed"], r["checks"] != "green", r["draft"], r["since"] or ""))
+
 out = {
     "updated": now.isoformat(),
     "week": state["week"],
@@ -608,6 +642,10 @@ out = {
 }
 _al = _allocation()
 if _al: out["allocation"] = _al
+try:
+    out["merge_queue"] = _merge_queue()
+except Exception:
+    out["merge_queue"] = []
 try:
     out["watchdog"] = {**(out.get("watchdog") or {}), "fixes": _fixes()}
 except Exception:
