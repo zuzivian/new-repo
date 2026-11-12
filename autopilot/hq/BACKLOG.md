@@ -11,7 +11,7 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 | 39 | "behind by N pts" (amber) vs "N PTS AHEAD OF PACE" (green) | done: "N pts under / over pace" everywhere | R43 |
 | 40 | Projects grid ~2,000 px with empty dormant tiles | done: dormant repos fold into one row | R43 |
 | 41 | Zero-count severity chips drawn in alarm colours; fuel card stretched on desktop | done | R43 |
-| 42 | Crew list duplicates Projects; issues duplicating Effort/Cost cards; burn names vs project names | open | R43 |
+| 42 | Crew list duplicates Projects; burn names vs project names | done R44: Crew folded into project cards (only unmatched work listed); HQ = new-repo everywhere | R43 |
 | 29 | Morning view put Next 1100 px down under Overnight + Decided | done: Today → Needs → Overnight (decisions folded in) → goals | R41 |
 | 30 | "Tap an answer / ★" footer shown when no card had answers | done: only when a card has answer buttons | R41 |
 | 31 | Needs count shown 3 times (pill, Today row, header) | done: Today's Needs row only for "None waiting ✓" | R41 |

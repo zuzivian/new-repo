@@ -486,17 +486,19 @@ function issuePop(i){
     <dt>Area</dt><dd>${esc(i.area||"—")}</dd><dt>Owner</dt><dd>${esc(i.owner||"—")}</dd><dt>Since</dt><dd>${esc(i.since||"—")}</dd></dl>
     <p style="margin:0">${esc(i.detail||"")}</p>${i.url?`<p style="margin:0">${link(i.url,"Open")}</p>`:""}`);
 }
+const PALIAS={HQ:"new-repo","new-repo":"HQ"};
+const sameProj=(a,b)=>a===b||PALIAS[a]===b;
 function projectPop(name){
   const d=DATA, b=(d.board||[]).find(x=>x.project===name)||{project:name,status:"idle"};
   const has=s=>String(s||"").toLowerCase().includes(name.toLowerCase());
-  const ws=(d.workers||[]).filter(w=>w.project===name||(name==="temasek-1360"&&String(w.project).startsWith("temasek")));
+  const ws=(d.workers||[]).filter(w=>sameProj(w.project,name)||(name==="temasek-1360"&&String(w.project).startsWith("temasek")));
   const ns=(d.needs||[]).filter(n=>has(n.title)||has(n.url));
   const is=(d.issues||[]).filter(i=>i.area===name||has(i.title));
-  const sp=(d.spend||[]).find(s=>s.project===name);
+  const sp=(d.spend||[]).find(s=>sameProj(s.project,name));
   const li=(arr,f)=>arr.length?`<ul class="lst">${arr.map(f).join("")}</ul>`:'<div class="muted">None.</div>';
   openPop(name,`<dl class="kv"><dt>Status</dt><dd style="color:${ST_COLOR[b.status]||"inherit"};font-weight:600">${esc(b.status)}</dd>
     <dt>Tier</dt><dd>${esc(b.tier||"—")}</dd><dt>Last push</dt><dd>${b.last_activity?esc(ago(b.last_activity)+" · "+fmtT(b.last_activity)):'<span class="muted">not visible to the fleet</span>'}</dd>${b.next_step?`<dt>Next step</dt><dd>${esc(b.next_step)}</dd>`:""}<dt>Spend this week</dt><dd>${sp?"$"+sp.usd.toFixed(2):"—"}</dd>
-    <dt>Repo</dt><dd>${link("https://github.com/zuzivian/"+name,"github.com/zuzivian/"+name)}</dd></dl>
+    <dt>Repo</dt><dd>${(r=>link("https://github.com/zuzivian/"+r,"github.com/zuzivian/"+r))(name==="HQ"?"new-repo":name)}</dd></dl>
     <div><b>Needs you</b>${li(ns,n=>`<li>${link(n.url,n.title)||esc(n.title)}${n.preview?` · ${link(n.preview,"preview")}`:""}<div class="muted">${esc(n.detail||"")}</div></li>`)}</div>
     <div><b>Work</b>${li(ws,w=>`<li>${esc(w.task)} · <span class="muted">${esc(w.status)}</span>${w.session&&/^https?:/.test(w.session)?` · ${link(w.session,"open")}`:""}</li>`)}</div>
     <div><b>Issues</b>${li(is,i=>`<li><span class="sev" style="--sv:${SEV_COLOR[i.severity]}">${esc(i.severity)}</span> ${esc(i.title)}</li>`)}</div>`);
@@ -947,7 +949,7 @@ function home(d){
      :`<div class="empty">Nothing waiting on you.</div>`;
   const crew=d.workers.length?d.workers.map(w=>`<div class="row"><span class="name">${esc(w.project)} <span class="muted">· ${esc(w.task)}</span></span>${(()=>{const st=String(w.status||w.state||"").toLowerCase();return `<span class="pill ${st==="working"||st==="running"?"warn":st.includes("block")?"bad":st.startsWith("queued")?"":"good"}">${esc(w.status||w.state||"—")}</span>`})()}</div>`).join(""):`<div class="empty">No workers running.</div>`;
   const maxc=Math.max(...d.spend.map(s=>s.usd),1);
-  const spend=d.spend.map(s=>`<div class="row"><span class="name">${esc(s.project)}</span><span class="mono muted">$${s.usd.toFixed(0)}</span></div><div class="hbar"><i style="width:${(s.usd/maxc*100).toFixed(1)}%;background:${TIER_COLOR[s.tier]||"var(--maint)"}"></i></div>`).join("");
+  const spend=d.spend.map(s=>`<div class="row"><span class="name">${esc(PALIAS[s.project]&&(d.board||[]).some(b=>b.project===PALIAS[s.project])?PALIAS[s.project]:s.project)}</span><span class="mono muted">$${s.usd.toFixed(0)}</span></div><div class="hbar"><i style="width:${(s.usd/maxc*100).toFixed(1)}%;background:${TIER_COLOR[s.tier]||"var(--maint)"}"></i></div>`).join("");
   const tab=curTab();
   const life=`${wplan}${todayHtml(d)}
    ${rest.length?`<section class="panel" aria-labelledby="n" style="margin-bottom:16px"><h2 id="n">Needs you · ${rest.length}</h2>
@@ -968,7 +970,8 @@ function home(d){
      ${(d.chinny_queue||[]).length?`<details class="closed"><summary class="muted">Chinny's queue · ${d.chinny_queue.length}</summary>${d.chinny_queue.map(i=>`<div class="row"><a href="${esc(i.url)}" target="_blank" rel="noopener" class="name">${esc(i.title.replace(/^Codex:\s*/,""))}</a><span class="muted" style="font-size:12px;white-space:nowrap">${esc(i.detail.split(" · ")[0])}</span></div>`).join("")}</details>`:""}
      ${(d.issues_closed||[]).length?`<details class="closed"><summary class="muted">Closed this week · ${d.issues_closed.length}</summary>${d.issues_closed.map(i=>`<div class="row"><a href="${esc(i.url)}" target="_blank" rel="noopener" class="name"><s>${esc(i.title)}</s></a><span class="muted" style="font-size:12px">${esc(i.detail.split(" · ").pop())}</span></div>`).join("")}</details>`:""}
      <p class="muted" style="margin:8px 0 0;font-size:12px">${d.issues_at?`Live from GitHub (${esc(((d.gh_issues||{}).repos||[]).map(r=>r.split("/").pop()).join(", "))}) · read ${esc(fmtT(d.issues_at))} PT. Synced every 15 min; a closed issue leaves on the next sync.`:`From the supervisor's list${d.updated?` · ${esc(fmtT(d.updated))} PT`:""}. Not yet mirrored from GitHub.`}</p></section>
-   <section class="panel" aria-labelledby="c"><h2 id="c">Crew</h2><div class="rows">${crew}</div></section>
+   ${(()=>{const orphan=(d.workers||[]).filter(w=>!(d.board||[]).some(b=>sameProj(w.project,b.project)||(b.project==="temasek-1360"&&String(w.project).startsWith("temasek"))));
+     return orphan.length?`<section class="panel" aria-labelledby="cw"><h2 id="cw">Other work · ${orphan.length}</h2><div class="rows">${orphan.map(w=>`<div class="row"><span class="name">${esc(w.project)} <span class="muted">· ${esc(w.task)}</span></span><span class="pill">${esc(w.status||w.state||"—")}</span></div>`).join("")}</div><p class="muted" style="margin:8px 0 0;font-size:12px">Work on each project is in its card above; tap a card for details.</p></section>`:""})()}
    <section class="panel" aria-labelledby="c"><h2 id="c">API-equivalent cost · this week · $${(d.cost&&d.cost.total||0).toFixed(0)}</h2>
      ${costHtml(d.cost,d.updated)}
      <p class="muted" style="margin:10px 0 0;font-size:13px">What these tokens would cost at API list prices (Claude Code's own estimate per session). Plan usage, not a bill.</p></section>
