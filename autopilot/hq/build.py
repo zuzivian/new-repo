@@ -193,6 +193,25 @@ def _gh_issues():
                           "since": i["created_at"], "closed": i.get("closed_at")})
     return {"at": dt.datetime.now(dt.timezone.utc).isoformat(), "repos": ["ops-bus", "new-repo", "skyviu", "ad-constellation", "natwong-dev"], "items": items}
 
+def _research():
+    """Research library: every markdown file under ops-bus research/, newest first, with ops-bus blob links."""
+    import subprocess as sp, glob as _g
+    rows = []
+    for f in _g.glob("/home/user/ops-bus/research/**/*.md", recursive=True):
+        rel = f.split("/home/user/ops-bus/", 1)[1]
+        r = sp.run(["git", "-C", "/home/user/ops-bus", "log", "-1", "--format=%cI|%s", "--", rel], capture_output=True, text=True)
+        at, _, msg = (r.stdout.strip() or "|").partition("|")
+        title = ""
+        try:
+            for line in open(f):
+                if line.startswith("# "): title = line[2:].strip(); break
+        except Exception:
+            pass
+        area = rel.split("/")[1] if rel.count("/") >= 2 else "other"
+        rows.append({"title": title or os.path.basename(f)[:-3], "area": area, "path": rel, "at": at,
+                     "url": f"https://github.com/zuzivian/ops-bus/blob/main/{rel}"})
+    return sorted(rows, key=lambda x: x["at"], reverse=True)
+
 def _goals():
     g = dict(state.get("goals") or {})
     try:
@@ -284,6 +303,8 @@ out = {
     "gh_issues": _gh_issues(),
     "nat_actions": state.get("nat_actions", []),
     # Key decisions the supervisor made on Nat's behalf (newest first), so he can review or reverse them.
+    "research": _research(),
+    "overnight": state.get("overnight"),
     "decisions": sorted(state.get("decisions", []), key=lambda d: d.get("at", ""), reverse=True)[:30],
     "fleet_pacing": (lambda: (json.load(open("/home/user/ops-bus/usage/pacing.json")) if os.path.exists("/home/user/ops-bus/usage/pacing.json") else None))(),
     "workers": [w for w in state.get("workers", []) if not str(w.get("status","")).startswith("done")]
