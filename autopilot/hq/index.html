@@ -137,6 +137,7 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600;white-space:nowrap}.pop .spark{width:100%;height:64px}.spark.wk7{height:auto!important;max-height:110px}
 .cards{display:grid;gap:10px}
+.ntier{margin-top:4px}.ntier summary{min-height:44px;display:flex;align-items:center;font-weight:600}.nminil{list-style:none;padding:0;margin:0}.nmini{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line)}.nmini>span:first-child{min-width:0;overflow-wrap:anywhere}.nmini>span:last-child{flex:none;font-size:13px}
 .hibadge{background:var(--bad);color:var(--panel);border-radius:8px;padding:0 6px;font-weight:700}
 .mql{list-style:none;padding:0;margin:0}.mq{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line)}.mq>div{min-width:0;overflow-wrap:anywhere}.mq .openlink{flex:none}
 .needs-more{display:grid;gap:10px}.needs-more[hidden]{display:none}.needs-all{width:100%;min-height:44px}
@@ -1003,11 +1004,13 @@ function fleetSummary(d,u,state){
   return `<span class="h">Fleet</span><span class="muted">${run} working</span><span class="muted">fuel ${Math.round(u*100)}% <span class="pill ${state[0]}" style="font-size:10px;padding:1px 7px">${state[1]}</span></span>`+
     `<span class="${hi?"":"muted"}"${hi?' style="color:var(--bad)"':""}>${iss} issue${iss===1?"":"s"}${hi?` · ${hi} high`:""}</span>${d.cost&&num(d.cost.total)!=null?`<span class="muted">$${d.cost.total.toFixed(0)} API-eq</span>`:""}<span class="chev" aria-hidden="true">›</span>`;
 }
+function needTier(n){const t=String(n&&n.tier||"").toLowerCase(); if(t==="now"||t==="week"||t==="later") return t;
+  if(!isDate(n&&n.due)) return "later"; const h=(new Date(asDay(n.due))-Date.now())/36e5; return h<=48?"now":h<=24*7?"week":"later"}
 function curTab(){const h=location.hash.slice(1);
   if(h==="life"||h==="fleet"){try{localStorage.setItem("hq.tab",h)}catch(_){} return h}
   try{return localStorage.getItem("hq.tab")==="fleet"?"fleet":"life"}catch(_){return "life"}}
 function tabsHtml(d,tab,u,state){
-  const nn=(d.needs||[]).length, hi=(d.issues||[]).filter(i=>i.severity==="critical"||i.severity==="high").length;
+  const nn=(d.needs||[]).filter(n=>needTier(n)==="now").length, hi=(d.issues||[]).filter(i=>i.severity==="critical"||i.severity==="high").length;
   const t=(k,l,extra)=>`<a role="tab" href="#${k}" class="tab${tab===k?" on":""}" aria-selected="${tab===k}">${l}${extra||""}</a>`;
   return `<nav class="tabs" role="tablist" aria-label="HQ views">${t("life","Life")}${t("fleet","Fleet",`<span class="tx">${Math.round(u*100)}% used${hi?` · <b class="hibadge">${hi} high</b>`:""}</span>`)}
     ${nn?`<button type="button" class="nb" data-goneeds>${nn} need${nn===1?"s":""} you</button>`:""}</nav>`;
@@ -1039,14 +1042,19 @@ function home(d){
   const waiting=d.needs_waiting||[];
   const rest=d.needs.map((n,i)=>[n,i]).filter(([,i])=>i!==wpI);
   const waitHtml=waiting.length?`<p class="muted" style="margin:10px 0 0;font-size:13px">Waiting on agents (you're done): ${waiting.map(n=>esc(String(n.title).slice(0,60))).join(" · ")}</p>`:"";
-  const NCAP=3, needs=rest.length?rest.slice(0,NCAP).map(([n,i])=>card(n,i)).join("")+(rest.length>NCAP?`<div class="needs-more" hidden>${rest.slice(NCAP).map(([n,i])=>card(n,i)).join("")}</div><button type="button" class="more needs-all" data-needsall>Show all ${rest.length}</button>`:"")
-     :`<div class="empty">Nothing waiting on you.</div>`;
+  const TN=rest.filter(([n])=>needTier(n)==="now"), TW=rest.filter(([n])=>needTier(n)==="week"), TL=rest.filter(([n])=>needTier(n)==="later");
+  const NCAP=4, dueTxt=n=>{if(!isDate(n.due)) return ""; const k=ptDay(asDay(n.due)), t=ptDay(Date.now()); return k<t?"overdue":k===t?"today":fmtD(asDay(n.due)).replace(/^(\w+), /,"$1 ")};
+  const mini=([n,i])=>`<li class="nmini"><span>${n.url&&/^https:\/\//.test(needUrl(n.url))?`<a href="${esc(needUrl(n.url))}" target="_blank" rel="noopener">${esc(n.title)}</a>`:esc(n.title)}</span><span class="muted">${esc([dueTxt(n),num(n.est_min)!=null?num(n.est_min)+" min":""].filter(Boolean).join(" · "))}</span></li>`;
+  const needs=(TN.length?TN.slice(0,NCAP).map(([n,i])=>card(n,i)).join("")+(TN.length>NCAP?`<div class="needs-more" hidden>${TN.slice(NCAP).map(([n,i])=>card(n,i)).join("")}</div><button type="button" class="more needs-all" data-needsall>${TN.length-NCAP} more for now</button>`:"")
+      :`<div class="empty">Nothing needs you right now${rest.length?"":" ✓"}.</div>`)
+    +(TW.length?`<details class="closed ntier"><summary>This week · ${TW.length}</summary><ul class="lst nminil">${TW.map(mini).join("")}</ul></details>`:"")
+    +(TL.length?`<details class="closed ntier"><summary class="muted">${TL.length} later${d.notion_later===true?" · in Notion":", moving to Notion"}</summary><ul class="lst nminil">${TL.map(mini).join("")}</ul></details>`:"");
   const crew=d.workers.length?d.workers.map(w=>`<div class="row"><span class="name">${esc(w.project)} <span class="muted">· ${esc(w.task)}</span></span>${(()=>{const st=String(w.status||w.state||"").toLowerCase();return `<span class="pill ${st==="working"||st==="running"?"warn":st.includes("block")?"bad":st.startsWith("queued")?"":"good"}">${esc(w.status||w.state||"—")}</span>`})()}</div>`).join(""):`<div class="empty">No workers running.</div>`;
   const maxc=Math.max(...d.spend.map(s=>s.usd),1);
   const spend=d.spend.map(s=>`<div class="row"><span class="name">${esc(PALIAS[s.project]&&(d.board||[]).some(b=>b.project===PALIAS[s.project])?PALIAS[s.project]:s.project)}</span><span class="mono muted">$${s.usd.toFixed(0)}</span></div><div class="hbar"><i style="width:${(s.usd/maxc*100).toFixed(1)}%;background:${TIER_COLOR[s.tier]||"var(--maint)"}"></i></div>`).join("");
   const tab=curTab();
   const life=`${sinceHtml(d)}${wplan}${todayHtml(d)}
-   ${rest.length?`<section class="panel" aria-labelledby="n" style="margin-bottom:16px"><h2 id="n">Needs you · ${rest.length}</h2>
+   ${rest.length?`<section class="panel" aria-labelledby="n" style="margin-bottom:16px"><h2 id="n">Needs you now · ${TN.length}${TW.length+TL.length?` <span class="muted" style="font-size:12px;letter-spacing:0;text-transform:none">· ${rest.length} in all</span>`:""}</h2>
      ${rest.some(([n])=>!Array.isArray(n.options)||n.options.length)?`<p class="muted" style="margin:-4px 0 10px;font-size:13px"><span class="long">${ONE?"Tap an answer to send it to the autopilot in one tap. ":"Tap an answer to open a prefilled GitHub issue; Submit there sends it to the autopilot. "}</span><span class="short">${ONE?"One tap sends. ":"Opens GitHub → tap Submit. "}</span>★ = my pick.</p><p class="muted keyhint">Keys: <kbd>j</kbd>/<kbd>k</kbd> pick a need · <kbd>1</kbd>–<kbd>9</kbd> choose an answer, <kbd>Enter</kbd> sends · <kbd>?</kbd> all shortcuts</p>`:""}
      <div class="cards">${needs}</div>${waitHtml}
 </section>`:""}
@@ -1217,7 +1225,7 @@ function natNeeds(d){if(!d||!Array.isArray(d.needs)) return d; const seen=new Se
   // one card per thing: an action row wins over the fleet issue that tracks the same thing
   // (linked by x.issue, or sharing a distinctive ref: an ALL_CAPS name, "PR #N", or a file name like X.md)
   const refs=t=>new Set((String(t||"").match(/\b[A-Z][A-Z0-9]*_[A-Z0-9_]+\b|PR #\d+|\b[\w-]+\.(?:md|json|yml|py|js)\b/g)||[]).map(x=>x.toLowerCase()));
-  const acts=(d.nat_actions||[]).filter(x=>x&&x.title).map(x=>({project:x.project||"fleet",title:x.title,detail:x.detail||"",url:x.url,issue:x.issue,options:x.options||[],consequence:x.consequence||x.risk||"",state:x.state||x.status||"",due:x.due,est_min:x.est_min,prep_link:x.prep_link,since:x.since,from:"Your action"}));
+  const acts=(d.nat_actions||[]).filter(x=>x&&x.title).map(x=>({project:x.project||"fleet",title:x.title,detail:x.detail||"",url:x.url,issue:x.issue,options:x.options||[],consequence:x.consequence||x.risk||"",state:x.state||x.status||"",due:x.due,est_min:x.est_min,prep_link:x.prep_link,since:x.since,tier:x.tier,from:"Your action"}));
   const dup=i=>acts.some(a=>(a.issue&&a.issue===i.url)||[...refs(i.title+" "+(i.detail||""))].some(r=>refs(a.title+" "+a.detail+" "+(a.url||"")).has(r)));
   const iss=(d.issues||[]).filter(own).filter(i=>!dup(i)).map(i=>({project:"fleet",title:i.title,detail:i.detail||"",url:i.url,options:[],from:"Fleet issue"}));
   const FP=fpOf(d), stall=[];

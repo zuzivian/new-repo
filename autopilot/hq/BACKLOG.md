@@ -5,6 +5,7 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 | # | Finding | Status | Round |
 |---|---------|--------|-------|
 | 58 | Keep-in-touch chip not openable; coffee-chat tile didn't say which count (Pinny #6, #2) | done: list from keep_in_touch, sorted by due, flags touched-since; "Other counts: Notion typed · all touchpoints" | R58 |
+| 69 | 16 "needs you" items is too many (Nat) | done R72 (PR): Now (max 4 cards) · This week (folded, due + minutes) · Later (one line, "moving to Notion"); tier from data, else due ≤48h now, ≤7d week, else later; badge counts Now | R72 |
 | 66 | Merge panel said "Ready to merge · 0 / Nothing ready yet" for 3 waiting PRs; merge_queue `waiting` reason ignored | done R70: one folded "Merge queue · N waiting" line when none ready; `waiting` shown and blocks Merge | R70 |
 | 67 | Dark/light contrast: "off" status text in --line (1.3:1); red "1 high" on the dark active tab (2.4:1) | done R70: off uses --ink-2; "N high" is a filled badge | R70 |
 | 68 | Overnight card: highlight said "94 research files" while the list said "6 research files" | done R71: data reworded; list reads "6 must-reads of 94 new files" | R70 |
