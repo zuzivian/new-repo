@@ -598,7 +598,7 @@ function pillarRead(p,prog,d){
   const mail=EM.length?{txt:EM.map(([k,l])=>`${num(g[k])} ${num(g[k])===1?l.replace(/s$/,""):l}`).join(" · "),at:isDate(g.email_scan_at)?g.email_scan_at:null,gap:num(g.email_not_in_tracker)||0}:null;
   const pend=keys.filter(k=>k!==m&&!/_by$/.test(k)&&!/year/i.test(k)&&num(g[k])==null&&k in g).map(k=>`goal ${tnum(T[k])} ${k.replace(/_/g," ")} · not tracked yet`);
   const warm=m==="warm_companies"&&num(g.target_companies)!=null&&cur!=null?{of:num(g.target_companies),ident:num(g.identified_companies),open:Math.max(0,num(g.target_companies)-cur-(num(g.identified_companies)||0))}:null;
-  const dl=[T[m]&&T[m].by,T[m+"_by"],T.by,T.deadline,T.fall_end].find(isDate);
+  const dl=[T[m]&&T[m].by,T[m+"_by"],T.by,T.deadline,p.deadline,T.fall_end].find(isDate);
   const now=new Date(d.updated||Date.now());
   if(target==null) return {m,label,target,cur,state:cur==null?"nf":"",pace:cur==null?(g.note?String(g.note):"Not reported yet"):"No target set"+(dl?" · deadline "+fmtD(asDay(dl)).replace(/^\w+, /,""):""),dl,sec,funnel,cal,mail,warm,pend};
   let need=null,rate=null,state="nf",pace=cur==null?(g.note?String(g.note):prog?"Not reported yet":"Waiting on the progress feed"):"";
@@ -676,6 +676,7 @@ function goalsHtml(d){
       ${r.warm||(nf&&((G.progress||{})[p.key]||{}).status_label&&!r.funnel)?"":`<span class="gm"${r.funnel?' style="white-space:normal"':""}>${r.funnel&&r.mail?'<span class="src">Notion</span> ':""}${esc(r.funnel||(r.m?r.label:(p.goal||"")))}</span>`}
       ${p.key==="relationships"&&r.m==="coffee_chats_calendar"?(()=>{const g=(G.progress||{}).relationships||{}, t=num(g.coffee_chats_typed), a=num(g.coffee_chats_all_excl_orientation);
         return t!=null||a!=null?`<span class="gm ctsum">Other counts: ${[t!=null?`Notion typed ${t}`:"",a!=null?`all touchpoints ${a}`:""].filter(Boolean).join(" · ")}</span>`:""})():""}
+      ${p.key==="digigov"&&r.cur!=null?(()=>{const g=(G.progress||{}).digigov||{}, b=num(g.interviews_booked); return `<span class="gm ctsum">${b==null?"none booked yet":`${b} booked`}</span>`})():""}
       ${p.key==="growth"&&gpTile(d)?`<span class="gm ctsum">${esc(gpTile(d))}</span>`:""}
       ${p.key==="career"&&liveRoles(G)?`<span class="gm ctsum">${esc(liveRoles(G)+(ctSummary(d)?" · "+ctSummary(d).split(" · ").pop():""))}</span>`:""}
       ${p.key==="career"&&!liveRoles(G)&&ctSummary(d)?`<span class="gm${r.warm?"":" ctsum"}">${esc(ctSummary(d))}</span>`:""}
@@ -792,13 +793,15 @@ const cell=v=>String(v==null?"":v).replace(/\[([^\]]+)\]\([^)]*\)/g,"$1").replac
 const ctNo=r=>{const e=String(r.eligible||"").toLowerCase().trim(); return e==="no"||/\bclosed\b/.test(e)};
 const ctRows=d=>{const C=d&&d.career_targets; return C&&Array.isArray(C.rows)?C.rows.filter(r=>r&&r.company):null};
 function liveRoles(G){const c=((G||{}).progress||{}).career||{}, n=num(c.live_roles); return n==null?"":`${c.live_roles_label||"Eligible PM/TPM roles live"}: ${n}`}
+const ctOT=R=>R.some(r=>r&&r.on_target!=null&&r.on_target!=="")?r=>yes(r.on_target):()=>true;
 function ctSummary(d){const R=ctRows(d); if(!R||!R.length) return "";
-  const open=R.filter(r=>yes(r.is_posted)&&!ctNo(r)), todo=open.filter(r=>!yes(r.applied)).length;
+  const ot=ctOT(R), open=R.filter(r=>yes(r.is_posted)&&!ctNo(r)&&ot(r)), todo=open.filter(r=>!yes(r.applied)).length;
   return `${open.length} live posting${open.length===1?"":"s"} open to you · ${todo} to apply`}
 function ctHtml(d){const R=ctRows(d); if(!R||!R.length) return "";
   const co=r=>/^https:\/\//.test(r.url||"")?`<a href="${esc(r.url)}" target="_blank" rel="noopener"><b>${esc(cell(r.company))}</b> ↗</a>`:`<b>${esc(cell(r.company))}</b>`;
   const roles=r=>{const x=cell(r.roles); return x&&!/^(none|no )/i.test(x)?`<div class="ct-roles">${esc(x)}</div>`:""};
-  const apply=R.filter(r=>yes(r.is_posted)&&!yes(r.applied)&&!ctNo(r)), prog=R.filter(r=>yes(r.applied)&&!ctNo(r)),
+  const ot=ctOT(R), offT=R.filter(r=>yes(r.is_posted)&&!yes(r.applied)&&!ctNo(r)&&!ot(r));
+  const apply=R.filter(r=>yes(r.is_posted)&&!yes(r.applied)&&!ctNo(r)&&ot(r)), prog=R.filter(r=>yes(r.applied)&&!ctNo(r)),
     watch=R.filter(r=>!yes(r.is_posted)&&!yes(r.applied)&&!ctNo(r)), closed=R.filter(ctNo);
   const rej=r=>/reject|declin|withdr/i.test(String(r.status||""));
   const shut=prog.filter(rej); prog.splice(0,prog.length,...prog.filter(r=>!rej(r)));
@@ -818,6 +821,7 @@ function ctHtml(d){const R=ctRows(d); if(!R||!R.length) return "";
   return `<div class="ct">${wp}
     <h4>Apply this week · ${apply.length}</h4>${apply.length?`<ul class="ctl">${A}</ul>`:`<p class="muted" style="margin:0">Every live posting open to you has an application ✓</p>`}
     <details><summary>In progress · ${prog.length}</summary><ul class="ctl">${Pg}</ul></details>
+    ${offT.length?`<details><summary>Posted, no PM/TPM role · ${offT.length}</summary><ul class="ctl">${offT.map(r=>li(r,{body:r.reason?`<div class="ct-el clamp muted">${esc(cell(r.reason))}</div>`:""})).join("")}</ul></details>`:""}
     <details><summary>Watch (not posted yet) · ${watch.length}</summary><ul class="ctl">${W}</ul></details>
     ${shut.length?`<details><summary>Closed · ${shut.length}</summary><ul class="ctl nopen">${shut.map(r=>li(r,{body:`<div class="ct-el muted">${esc(cell(r.status))}</div>`})).join("")}</ul></details>`:""}
     ${closed.length?`<details><summary>Not open to you · ${closed.length}</summary><ul class="ctl nopen">${N}</ul></details>`:""}${src}</div>`}
