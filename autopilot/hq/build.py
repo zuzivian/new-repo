@@ -658,6 +658,9 @@ _al = _allocation()
 if _al: out["allocation"] = _al
 # Nat's triage (2026-11-12): per-item tier now|week|later lives on nat_actions/needs; summary counts here.
 if state.get("triage"): out["triage"] = state["triage"]
+# LATER items live in Notion once Binny's writes are approved; HQ shows "N in Notion".
+out["notion_later"] = bool(state.get("binny_writes_approved"))
+out["in_notion"] = len(state.get("in_notion", []))
 try:
     out["merge_queue"] = _merge_queue()
 except Exception:
