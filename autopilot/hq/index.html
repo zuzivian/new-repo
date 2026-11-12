@@ -591,7 +591,7 @@ function pillarRead(p,prog,d){
   let cal=false; if(cur==null&&num(g[base+"_scheduled_done"])!=null){cur=num(g[base+"_scheduled_done"]);cal=true}
   // second numeric target with a reported value, e.g. classmates logged
   const yk=keys.find(k=>k!==m&&/year/i.test(k)&&tnum(T[k])!=null);
-  const k2=yk?null:keys.find(k=>k!==m&&num(g[k])!=null), sec=yk&&cur!=null?`Year: ${cur}/${tnum(T[yk])}`:k2?`${k2.replace(/_/g," ")} ${num(g[k2])}/${tnum(T[k2])}`.replace(/^(\w)/,c=>c.toUpperCase()):"";
+  const k2=yk?null:keys.find(k=>k!==m&&num(g[k])!=null), sec=yk&&cur!=null?`Year goal: ${cur}/${tnum(T[yk])}`:k2?`${k2.replace(/_/g," ")} ${num(g[k2])}/${tnum(T[k2])}`.replace(/^(\w)/,c=>c.toUpperCase()):"";
   // funnel (no numeric target): show the stages that are reported
   const FUN=["tracked","applied","interviewing","offers"], funnel=target==null&&FUN.some(k=>num(g[k])!=null)?FUN.filter(k=>num(g[k])!=null).map(k=>`${num(g[k])} ${k}`).join(" · "):"";
   const EM=[["email_applied","applied"],["email_interviews","interviews"],["email_rejections","rejections"],["email_offers","offers"]].filter(([k])=>num(g[k])!=null);
@@ -671,7 +671,7 @@ function goalsHtml(d){
     const al=`${pName(p)}: ${nf?"no feed yet":r.warm?`${r.cur} of ${r.warm.of} target companies warm`:r.target!=null?`${r.cur} of ${r.target} ${r.label}`:`${r.cur} ${r.label}`}${st&&!nf?", "+st:""}. ${r.m?r.pace:""}. Open details`;
     return `<button type="button" class="goal${nf?" nf":""}" data-goal="${i}" style="--gs:${GS[r.state]??GS[""]}" aria-label="${esc(al)}">
       <span class="gk">${esc(pName(p))}<span class="gchev" aria-hidden="true">›</span></span>
-      <span class="gv">${nf?esc(((G.progress||{})[p.key]||{}).status_label||"no feed yet"):r.warm?`${r.cur}<small> warm of ${r.warm.of} targets${r.target!=null?` · goal ${r.target}`:""}</small>`:/_pct$/.test(r.m||"")?`${r.cur}%<small>${r.target!=null&&r.target!==100?` of ${r.target}%`:" done"}</small>`:`${r.cur}<small>${r.target!=null?"/"+r.target:" "+esc(r.label.replace(/\s*\(.*\)\s*$/,""))}</small>`}</span>
+      <span class="gv">${nf?esc(((G.progress||{})[p.key]||{}).status_label||"no feed yet"):r.warm?`${r.cur}<small> warm of ${r.warm.of} targets${r.target!=null?` · goal ${r.target}`:""}</small>`:/_pct$/.test(r.m||"")?`${r.cur}%<small>${r.target!=null&&r.target!==100?` of ${r.target}%`:" done"}</small>`:`${r.cur}<small>${r.target!=null?"/"+r.target+(r.dl&&!r.weekly&&/^Year goal/.test(r.sec||"")?` by ${esc(fmtD(asDay(r.dl)).replace(/^\w+, /,""))}`:""):" "+esc(r.label.replace(/\s*\(.*\)\s*$/,""))}</small>`}</span>
       ${r.warm?`<span class="gm ctsum">${[r.warm.ident!=null?`${r.warm.ident} named contact${r.warm.ident===1?"":"s"}`:"",`${r.warm.open} to open`].filter(Boolean).join(" · ")}</span>`:""}
       ${r.warm||(nf&&((G.progress||{})[p.key]||{}).status_label&&!r.funnel)?"":`<span class="gm"${r.funnel?' style="white-space:normal"':""}>${r.funnel&&r.mail?'<span class="src">Notion</span> ':""}${esc(r.funnel||(r.m?r.label:(p.goal||"")))}</span>`}
       ${p.key==="growth"&&gpTile(d)?`<span class="gm ctsum">${esc(gpTile(d))}</span>`:""}
@@ -691,17 +691,18 @@ addEventListener("pagehide",markVisit);
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")markVisit(); else VIS_AT=Date.now()});
 const decs=d=>(Array.isArray(d&&d.decisions)?d.decisions:[]).filter(x=>x&&x.decision).slice().sort((a,b)=>String(b.at||"").localeCompare(String(a.at||"")));
 const decT=x=>isDate(x.at)?fmtT(x.at)+" PT":"";
-function decRow(x,i,full){return `<li class="dec"><div class="dec-d">${esc(x.decision)}</div>${x.why?`<div class="muted dec-w">${esc(x.why)}</div>`:""}
+function decRow(x,i,full,isNew){return `<li class="dec"><div class="dec-d">${isNew?'<span class="pill good" style="font-size:10px;padding:0 6px;margin-right:6px;vertical-align:middle">new</span>':""}${esc(x.decision)}</div>${x.why?`<div class="muted dec-w">${esc(x.why)}</div>`:""}
   <div class="dec-m"><span class="muted">${esc(decT(x))}</span>${/^https:\/\//.test(x.link||"")?` · ${link(x.link,"Details")}`:""} · <button type="button" class="linkbtn" data-reverse="${i}">Reverse?</button></div></li>`}
 function decHtml(d,where){const D=decs(d); if(!D.length) return "";
   if(where==="fleet") return `<section class="panel" aria-labelledby="dcf"><h2 id="dcf">Decided for you · ${D.length}</h2><ul class="decl">${D.slice(0,6).map((x,i)=>decRow(x,i)).join("")}</ul>${D.length>6?`<button type="button" class="more" data-decall>See all ${D.length}</button>`:""}</section>`;
-  const fresh=SEEN_BEFORE?D.filter(x=>isDate(x.at)&&new Date(x.at)>new Date(SEEN_BEFORE)):D;
-  if(where==="inner") return fresh.length?`<div class="ov-dec"><h3>Decided for you${SEEN_BEFORE?` · ${fresh.length} new`:""}</h3><ul class="decl">${fresh.slice(0,3).map(x=>decRow(x,D.indexOf(x))).join("")}</ul>
-    <div class="dec-act"><button type="button" class="more" data-decall>See all ${D.length}</button><button type="button" class="more" data-decok>Got it</button></div></div>`
-    :`<p class="muted decnone" style="margin:8px 0 0">No new decisions · <button type="button" class="linkbtn" data-decall>see all ${D.length}</button></p>`;
-  if(!fresh.length) return `<p class="muted decnone">${DEC_OK?"Marked as seen":"No new decisions since your last visit"} · <button type="button" class="linkbtn" data-decall>see all ${D.length}</button></p>`;
-  return `<section class="panel decs" aria-labelledby="dc"><h2 id="dc">Decided for you${SEEN_BEFORE?` · ${fresh.length} new`:""}</h2><ul class="decl">${fresh.slice(0,3).map(x=>decRow(x,D.indexOf(x))).join("")}</ul>
-    <div class="dec-act"><button type="button" class="more" data-decall>See all ${D.length}</button><button type="button" class="more" data-decok>Got it</button></div></section>`}
+  // always show the newest 3 (what the agents decided is never hidden); "new" marks those since the last visit
+  const isNew=x=>!SEEN_BEFORE||(isDate(x.at)&&new Date(x.at)>new Date(SEEN_BEFORE));
+  const nNew=SEEN_BEFORE?D.filter(isNew).length:0, top=D.slice(0,3);
+  const head=`Decided for you${nNew?` · ${nNew} new`:SEEN_BEFORE?` · nothing new since your last visit`:""}`;
+  const list=`<ul class="decl">${top.map(x=>decRow(x,D.indexOf(x),0,SEEN_BEFORE&&isNew(x))).join("")}</ul>
+    <div class="dec-act"><button type="button" class="more" data-decall>See all ${D.length}</button>${nNew?`<button type="button" class="more" data-decok>${DEC_OK?"Marked as seen":"Got it"}</button>`:""}</div>`;
+  if(where==="inner") return `<div class="ov-dec"><h3>${head}</h3>${list}</div>`;
+  return `<section class="panel decs" aria-labelledby="dc"><h2 id="dc">${head}</h2>${list}</section>`}
 /* Watchdog (data.watchdog {fixes_24h, at?, fixes?[{at, what, link?}]}): what the fleet repaired on its own */
 function watchHtml(d){const W=d&&d.watchdog; if(!W||num(W.fixes_24h)==null) return "";
   const asItem=x=>typeof x==="string"?{what:x.replace(/\s*https?:\/\/\S+/,"").trim()||x,link:(x.match(/https:\/\/\S+/)||[""])[0]}:x&&{what:x.what||x.title||x.action,link:x.link||x.url,at:x.at};
