@@ -1,5 +1,11 @@
 <meta charset="utf-8">
 <title>Autopilot HQ</title>
+<link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="HQ"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#eef1f5" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#0b1320" media="(prefers-color-scheme: dark)">
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
 /* Layout: a cockpit panel. Fuel gauge for the week up top, then "needs you", meetings, crew (workers), burn by project. One column on phones, two on desktop. */
@@ -410,8 +416,23 @@ const ISSUE_NEW="https://github.com/zuzivian/ops-bus/issues/new";
 /* Answer buttons message the supervisor session directly through the viewer's
    Claude Code Remote connector; if that isn't available, fall back to copy. */
 const CCR="Claude Code Remote";
+let ONE=null; // one-click answers available?
+function probeOne(){try{fetch("/api/answer",{method:"POST",headers:{"Content-Type":"application/json","X-HQ":"1"},body:'{"title":""}'})
+  .then(r=>{ONE=r.status===400; if(ONE&&DATA){try{render()}catch(_){}}}).catch(()=>{ONE=false})}catch(_){ONE=false}}
+function fileIssue(title,body){return fetch("/api/answer",{method:"POST",headers:{"Content-Type":"application/json","X-HQ":"1"},body:JSON.stringify({title,body})})
+  .then(r=>r.ok?r.json():Promise.reject(r.status))}
 async function answer(btn,text,title){
-  const sid=DATA&&DATA.supervisor;
+  const sid=DATA&&DATA.supervisor, pick=text.split(" → ").slice(1).join(" → "), t="HQ answer: "+title+" → "+pick;
+  const gh=()=>{const u=ISSUE_NEW+"?title="+encodeURIComponent(t)+"&body="+encodeURIComponent("Tap Submit to send this to the autopilot supervisor.");
+    if(!openExt(u)){copy(btn,text);toast("Couldn't open GitHub. Copied your answer instead")} else {btn.textContent="Opened ✓ tap Submit"}};
+  if(btn.dataset.fallback){gh();return}
+  if(ONE){
+    const orig=btn.textContent, card=btn.closest(".need"); btn.disabled=true; btn.textContent="Sending…";
+    try{const j=await fileIssue(t,"Answer from HQ: "+pick);
+      btn.textContent="Sent ✓"; if(card){card.style.opacity=".55";card.querySelectorAll("button.code").forEach(b=>b.disabled=true)}
+      toast("Sent to the autopilot"+(j&&j.number?" (#"+j.number+")":""));
+    }catch(e){btn.disabled=false; btn.textContent="Finish on GitHub ↗"; btn.dataset.fallback="1"; toast("One-click send failed. Tap again to finish on GitHub")}
+    return}
   let mcp=null; try{mcp=await window.claude?.use?.("mcp")}catch(e){}
   if(!sid||!mcp){
     /* No Claude connector here (e.g. hq.natwong.dev): open a prefilled GitHub issue; submitting it wakes the supervisor. */
@@ -654,7 +675,7 @@ function home(d){
   const life=`${todayHtml(d)}${goalsHtml(d)}<div class="grid" style="margin-bottom:16px">
    <section class="panel" aria-labelledby="n"><h2 id="n">Needs you · ${d.needs.length}</h2>
      <div class="cards">${needs}</div>
-     ${d.needs.length?`<p class="muted" style="margin:10px 0 0;font-size:13px"><span class="long">Tap an answer to send it straight to the autopilot (without the Claude connector here, it opens a prefilled GitHub issue to submit; if a send fails, it copies the answer). </span>★ = my pick.</p>`:""}</section>
+     ${d.needs.length?`<p class="muted" style="margin:10px 0 0;font-size:13px"><span class="long">${ONE?"Tap an answer to send it to the autopilot in one tap. ":"Tap an answer to open a prefilled GitHub issue; Submit there sends it to the autopilot. "}</span>★ = my pick.</p>`:""}</section>
    ${weekHtml(d)}
   </div>${alignHtml(d,"build")}`;
   const fleet=`${agentsHtml(d.agents)}${alignHtml(d)}<div class="grid" style="margin-top:16px">
@@ -723,13 +744,17 @@ function render(){
 function ideaPop(){
   openPop("Suggest an HQ change",`<label for="idea-t" class="muted" style="font-size:13px">What should HQ do better? One line is enough.</label>
     <textarea id="idea-t" maxlength="300" placeholder="e.g. Show which meeting is next at the top"></textarea>
-    <div class="act"><button type="button" class="pri" id="idea-go">Open issue on GitHub</button></div>
-    <p class="muted" style="margin:0;font-size:12px">Opens a prefilled issue in ops-bus. Tap Submit there and the autopilot picks it up next round.</p>`);
+    <div class="act"><button type="button" class="pri" id="idea-go">${ONE?"Send idea":"Open issue on GitHub"}</button></div>
+    <p class="muted" style="margin:0;font-size:12px">${ONE?"Files it in ops-bus with one tap; the autopilot picks it up next round.":"Opens a prefilled issue in ops-bus. Tap Submit there and the autopilot picks it up next round."}</p>`);
   const ta=document.getElementById("idea-t"); setTimeout(()=>ta.focus(),30);
   document.getElementById("idea-go").addEventListener("click",()=>{
     const txt=ta.value.trim().replace(/\s+/g," "); if(!txt){ta.focus();toast("Write a line first");return}
     const short=txt.length>80?txt.slice(0,77)+"…":txt;
     const u=ISSUE_NEW+"?title="+encodeURIComponent("HQ idea: "+short)+"&body="+encodeURIComponent(txt+"\n\n(from the HQ Suggest button"+(DATA&&DATA.updated?", data "+DATA.updated:"")+")");
+    const go=document.getElementById("idea-go"), body=txt+"\n\n(from the HQ Suggest button"+(DATA&&DATA.updated?", data "+DATA.updated:"")+")";
+    if(ONE&&!go.dataset.fallback){go.disabled=true;go.textContent="Sending…";
+      fileIssue("HQ idea: "+short,body).then(j=>{document.getElementById("pop").close();toast("Idea sent ✓"+(j&&j.number?" (#"+j.number+")":""))})
+        .catch(()=>{go.disabled=false;go.dataset.fallback="1";go.textContent="Finish on GitHub ↗";toast("One-click send failed. Tap again to finish on GitHub")});return}
     if(openExt(u)){document.getElementById("pop").close();toast("Opened ✓ tap Submit on GitHub")}
     else{try{navigator.clipboard.writeText(u)}catch(_){} toast("Couldn't open GitHub. Copied the issue link")}
   });
@@ -737,7 +762,7 @@ function ideaPop(){
 document.getElementById("idea").addEventListener("click",ideaPop);
 addEventListener("hashchange",()=>{const h=location.hash.slice(1);render();if(h==="life"||h==="fleet")window.scrollTo(0,0)});
 function load(){return fetch("data.json",{cache:"no-store"}).then(r=>r.json()).then(d=>{DATA=d;try{render()}catch(e){document.getElementById("view").innerHTML='<p class="empty">HQ hit a display error ('+esc(String(e&&e.message||e))+'). Ask the autopilot chat to fix it.</p>'}}).catch(()=>{if(DATA){try{render()}catch(_){}}else document.getElementById("view").innerHTML='<p class="empty">Couldn\'t load status data. Ask the autopilot chat to republish HQ.</p>'})}
-load();
+load().then(()=>{if(DATA&&typeof DATA.one_click==="boolean"){ONE=DATA.one_click;if(ONE)try{render()}catch(_){}}else probeOne()});
 /* Refresh every 5 min while the tab is visible (not while a popup is open), and on return to the tab. */
 setInterval(()=>{const pop=document.getElementById("pop");if(document.visibilityState==="visible"&&!(pop&&pop.open))load()},5*60e3);
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&DATA&&Date.now()-new Date(DATA.updated)>5*60e3)load()});
