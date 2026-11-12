@@ -432,6 +432,8 @@ out = {
     "career_targets": (lambda: _md_table("/home/user/ops-bus/research/career/internship-timelines.md"))(),
     # Warm leads per eligible target company (Pinny, ops-bus goals/career_warm.json; counts only, no names).
     "career_warm": (lambda: (lambda f: json.load(open(f)) if os.path.exists(f) else [])("/home/user/ops-bus/goals/career_warm.json"))(),
+    # Overdue keep-in-touch contacts (Pinny, ops-bus goals/keep_in_touch.json: first name, company, Notion link, reason).
+    "keep_in_touch": (lambda f: json.load(open(f)) if os.path.exists(f) else [])("/home/user/ops-bus/goals/keep_in_touch.json"),
     "gh_issues": _gh_issues(),
     "nat_actions": _nat_actions(),
     "watchdog": _watchdog(),
