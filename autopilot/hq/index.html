@@ -813,7 +813,7 @@ function home(d){
     const dh=detailHtml(n.detail||n.note||""), prList=dh.includes("/pull/")&&/github\.com\/[^/]+\/[^/]+\/pull\//.test(n.url||"");
     const openL=n.url&&!prList?`<a class="openlink" href="${esc(needUrl(n.url))}" target="_blank" rel="noopener">${esc(openOpt||(cls?"Open plan":"Open"))} ↗</a>`:"";
     const prev=n.preview?`<a class="openlink" href="${esc(n.preview)}" target="_blank" rel="noopener">▶ Preview</a>`:"";
-    return `<div class="card need${cls?" "+cls:""}">${cls?`<div class="wp-k">Week plan · your call</div>`:""}<div class="t">${cls?"":i+1+". "}${esc(n.title)}</div>${dh}
+    return `<div class="card need${cls?" "+cls:""}">${cls?`<div class="wp-k">Week plan · your call</div>`:""}<div class="t">${cls?"":i+1+". "}${esc(n.title)}${n.from?` <span class="pill" style="font-size:10px;padding:1px 7px;vertical-align:middle">${esc(n.from)}</span>`:""}</div>${dh}
      ${openL||prev?`<div class="reply">${openL}${prev}</div>`:""}
      ${ans.length?`<div class="reply" aria-label="Answers"><span class="muted" style="font-size:12px">Answer:</span>${ans.map(o=>`<button class="code" data-copy="${esc((i+1)+" → "+o)}" data-title="${esc(n.title)}">${esc(o)}${o===n.recommend?" ★":""}</button>`).join("")}</div>`:""}</div>`};
   const dow=new Date(new Date().toLocaleString("en-US",PT)).getDay(), wpI=dow===0||dow===1?d.needs.findIndex(n=>n.project==="weekly-review"):-1;
@@ -953,7 +953,15 @@ document.addEventListener("click",e=>{const a=e.target.closest&&e.target.closest
 addEventListener("hashchange",()=>{const h=location.hash.slice(1), from=LASTH; LASTH=h; render();
   if((h==="life"||h==="")&&from.startsWith("m-")&&RET!=null){const y=RET;RET=null;requestAnimationFrame(()=>window.scrollTo(0,y))}
   else if(h==="life"||h==="fleet")window.scrollTo(0,0)});
-function load(){return fetch("data.json",{cache:"no-store"}).then(r=>r.json()).then(d=>{DATA=d;try{render()}catch(e){document.getElementById("view").innerHTML='<p class="empty">HQ hit a display error ('+esc(String(e&&e.message||e))+'). Ask the autopilot chat to fix it.</p>'}}).catch(()=>{if(DATA){try{render()}catch(_){}}else document.getElementById("view").innerHTML='<p class="empty">Couldn\'t load status data. Ask the autopilot chat to republish HQ.</p>'})}
+/* Anything in the data that waits on Nat becomes a Need, wherever it was filed: fleet issues owned by Nat,
+   and items flagged needs_nat (e.g. a PR to merge, a secret to add). They carry a link, never answer buttons. */
+function natNeeds(d){if(!d||!Array.isArray(d.needs)) return d; const seen=new Set(d.needs.map(n=>String(n.title||"").toLowerCase()));
+  const own=x=>/^nat\b/i.test(String(x&&x.owner||""))||x&&(x.needs_nat===true||/^nat$/i.test(String(x.needs||"")));
+  const add=[].concat((d.issues||[]).filter(own).map(i=>({project:"fleet",title:i.title,detail:i.detail||"",url:i.url,options:[],from:"Fleet issue"})),
+    (d.nat_actions||[]).filter(x=>x&&x.title).map(x=>({project:x.project||"fleet",title:x.title,detail:x.detail||"",url:x.url,options:x.options||[],from:"Fleet"})))
+    .filter(n=>!seen.has(String(n.title||"").toLowerCase()));
+  d.needs=d.needs.concat(add); return d}
+function load(){return fetch("data.json",{cache:"no-store"}).then(r=>r.json()).then(d=>{DATA=natNeeds(d);try{render()}catch(e){document.getElementById("view").innerHTML='<p class="empty">HQ hit a display error ('+esc(String(e&&e.message||e))+'). Ask the autopilot chat to fix it.</p>'}}).catch(()=>{if(DATA){try{render()}catch(_){}}else document.getElementById("view").innerHTML='<p class="empty">Couldn\'t load status data. Ask the autopilot chat to republish HQ.</p>'})}
 load().then(()=>{if(DATA&&typeof DATA.one_click==="boolean"){ONE=DATA.one_click;if(ONE)try{render()}catch(_){}}else probeOne()});
 /* Refresh every 5 min while the tab is visible (not while a popup is open), and on return to the tab. */
 setInterval(()=>{const pop=document.getElementById("pop");if(document.visibilityState==="visible"&&!(pop&&pop.open))load()},5*60e3);
