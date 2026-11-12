@@ -137,6 +137,7 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600;white-space:nowrap}.pop .spark{width:100%;height:64px}.spark.wk7{height:auto!important;max-height:110px}
 .cards{display:grid;gap:10px}
+.rq{font:inherit;font-size:15px;width:100%;min-height:40px;padding:0 12px;margin:0 0 8px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}.rq:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .agsum{margin:0 0 6px;font-size:13px}.agsum .hint{display:none}@media (max-width:640px){.agsum .hint{display:inline}}
 .sev.zero{color:var(--ink-2);opacity:.7}
 details.closed summary::after{content:"▸";margin-left:6px}details.closed[open] summary::after{content:"▾"}
@@ -725,12 +726,14 @@ function overnightHtml(d){const O=d&&d.overnight; if(!O) return "";
 let RFILT=null; try{RFILT=localStorage.getItem("hq.rfilt")}catch(_){}
 function researchHtml(d){const R=(Array.isArray(d&&d.research)?d.research:[]).filter(x=>x&&x.title).slice().sort((a,b)=>String(b.at||"").localeCompare(String(a.at||"")));
   if(!R.length) return "";
-  const areas=[...new Set(R.map(x=>String(x.area||"other").toLowerCase()))], f=areas.includes(RFILT)?RFILT:null, L=f?R.filter(x=>String(x.area||"other").toLowerCase()===f):R;
+  const AL={"digitizing-government":"Digigov"}, aLab=a=>AL[a]||a.replace(/-/g," ").replace(/^./,c=>c.toUpperCase());
+  const areas=[...new Set(R.map(x=>String(x.area||"other").toLowerCase()))].sort((a,b)=>R.filter(x=>String(x.area||"other").toLowerCase()===b).length-R.filter(x=>String(x.area||"other").toLowerCase()===a).length), f=areas.includes(RFILT)?RFILT:null, L=f?R.filter(x=>String(x.area||"other").toLowerCase()===f):R;
   const url=x=>/^https:\/\//.test(x.url||x.path||"")?(x.url||x.path):x.path?"https://github.com/zuzivian/ops-bus/blob/main/"+String(x.path).replace(/^\.?\//,""):"";
   const chip=(k,l,n)=>`<button type="button" class="chip${(k||null)===f?" on":""}" data-rf="${esc(k||"")}" aria-pressed="${(k||null)===f}">${esc(l)} <span class="muted">${n}</span></button>`;
   return `<section class="panel" aria-labelledby="rl"><h2 id="rl">Research library · ${R.length}</h2>
-    <div class="chips" role="group" aria-label="Filter by area">${chip("","All",R.length)}${areas.map(a=>chip(a,a.replace(/^./,c=>c.toUpperCase()),R.filter(x=>String(x.area||"other").toLowerCase()===a).length)).join("")}</div>
-    <ul class="rlist" id="rlist">${L.map((x,i)=>`<li${i>=3?' class="later"':""}>${SEEN_BEFORE&&isDate(x.at)&&new Date(x.at)>new Date(SEEN_BEFORE)?'<span class="pill good" style="font-size:10px;padding:0 6px;justify-self:start">new</span>':""}${url(x)?`<a href="${esc(url(x))}" target="_blank" rel="noopener">${esc(x.title)} ↗</a>`:esc(x.title)}<span class="muted">${esc([x.area&&!f?x.area:"",x.by,isDate(x.at)?fmtD(x.at).replace(/^\w+, /,""):""].filter(Boolean).join(" · "))}</span></li>`).join("")}</ul>
+    ${R.length>8?`<input type="search" id="rq" class="rq" placeholder="Search ${R.length} files" aria-label="Search research titles" autocomplete="off">`:""}
+    <div class="chips" role="group" aria-label="Filter by area">${chip("","All",R.length)}${areas.map(a=>chip(a,aLab(a),R.filter(x=>String(x.area||"other").toLowerCase()===a).length)).join("")}</div>
+    <ul class="rlist" id="rlist">${L.map((x,i)=>`<li data-t="${esc(String(x.title).toLowerCase())}"${i>=3?' class="later"':""}>${SEEN_BEFORE&&isDate(x.at)&&new Date(x.at)>new Date(SEEN_BEFORE)?'<span class="pill good" style="font-size:10px;padding:0 6px;justify-self:start">new</span>':""}${url(x)?`<a href="${esc(url(x))}" target="_blank" rel="noopener">${esc(x.title)} ↗</a>`:esc(x.title)}<span class="muted">${esc([x.area&&!f?aLab(String(x.area).toLowerCase()):"",x.by,isDate(x.at)?fmtD(x.at).replace(/^\w+, /,""):""].filter(Boolean).join(" · "))}</span></li>`).join("")}</ul>
     ${L.length>3?`<button type="button" class="more" data-rmore>Show all ${L.length}</button>`:""}</section>`}
 /* Growth plan (goals.growth_plan): week-by-week Exponent plan. Current week = latest start <= today (PT). */
 function gpNow(d){const P=d&&d.goals&&d.goals.growth_plan; if(!P||!Array.isArray(P.weeks)||!P.weeks.length) return null;
@@ -1023,6 +1026,10 @@ function render(){
   v.querySelectorAll("[data-reverse]").forEach(b=>b.addEventListener("click",()=>reversePop(+b.dataset.reverse)));
   v.querySelectorAll("[data-decok]").forEach(b=>b.addEventListener("click",()=>{SEEN_BEFORE=new Date().toISOString();try{localStorage.setItem("hq.lastVisit",SEEN_BEFORE)}catch(_){} render()}));
   v.querySelectorAll("[data-rf]").forEach(b=>b.addEventListener("click",()=>{RFILT=b.dataset.rf||null;try{RFILT?localStorage.setItem("hq.rfilt",RFILT):localStorage.removeItem("hq.rfilt")}catch(_){} const y=scrollY;render();scrollTo(0,y)}));
+  const rq=v.querySelector("#rq"); if(rq) rq.addEventListener("input",()=>{const q=rq.value.trim().toLowerCase(), l=document.getElementById("rlist"); if(!l) return;
+    l.classList.toggle("all",!!q); const mb=v.querySelector("[data-rmore]"); if(mb) mb.style.display=q?"none":"";
+    let n=0; l.querySelectorAll("li").forEach(li=>{const hit=!q||li.dataset.t.includes(q); li.style.display=hit?"":"none"; if(hit)n++});
+    let e=document.getElementById("rq-n"); if(!e){e=document.createElement("p");e.id="rq-n";e.className="muted";e.style.cssText="margin:6px 0 0;font-size:12px";l.after(e)} e.textContent=q?`${n} match${n===1?"":"es"}`:""});
   v.querySelectorAll("[data-rmore]").forEach(b=>b.addEventListener("click",()=>{const l=document.getElementById("rlist");if(l)l.classList.add("all");b.remove()}));
   v.querySelectorAll("[data-overdue]").forEach(b=>b.addEventListener("click",overduePop));
   v.querySelectorAll("[data-more]").forEach(b=>b.addEventListener("click",()=>{const l=document.getElementById("wkl");if(l)l.classList.add("all");b.remove()}));
