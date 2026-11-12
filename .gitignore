@@ -46,3 +46,9 @@ __pycache__/
 
 # Autopilot HQ data: private (meeting primers, people). Never commit.
 autopilot/hq/data.json
+
+# Stray test/critic output at the repo root (may contain personal data; this repo is public)
+/*.png
+/*.txt
+/*.jpg
+/*.log
