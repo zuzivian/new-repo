@@ -1200,7 +1200,7 @@ function natNeeds(d){if(!d||!Array.isArray(d.needs)) return d; const seen=new Se
   // one card per thing: an action row wins over the fleet issue that tracks the same thing
   // (linked by x.issue, or sharing a distinctive ref: an ALL_CAPS name, "PR #N", or a file name like X.md)
   const refs=t=>new Set((String(t||"").match(/\b[A-Z][A-Z0-9]*_[A-Z0-9_]+\b|PR #\d+|\b[\w-]+\.(?:md|json|yml|py|js)\b/g)||[]).map(x=>x.toLowerCase()));
-  const acts=(d.nat_actions||[]).filter(x=>x&&x.title).map(x=>({project:x.project||"fleet",title:x.title,detail:x.detail||"",url:x.url,issue:x.issue,options:x.options||[],consequence:x.consequence||x.risk||"",state:x.state||x.status||"",due:x.due,est_min:x.est_min,prep_link:x.prep_link,from:"Your action"}));
+  const acts=(d.nat_actions||[]).filter(x=>x&&x.title).map(x=>({project:x.project||"fleet",title:x.title,detail:x.detail||"",url:x.url,issue:x.issue,options:x.options||[],consequence:x.consequence||x.risk||"",state:x.state||x.status||"",due:x.due,est_min:x.est_min,prep_link:x.prep_link,since:x.since,from:"Your action"}));
   const dup=i=>acts.some(a=>(a.issue&&a.issue===i.url)||[...refs(i.title+" "+(i.detail||""))].some(r=>refs(a.title+" "+a.detail+" "+(a.url||"")).has(r)));
   const iss=(d.issues||[]).filter(own).filter(i=>!dup(i)).map(i=>({project:"fleet",title:i.title,detail:i.detail||"",url:i.url,options:[],from:"Fleet issue"}));
   const FP=fpOf(d), stall=[];
