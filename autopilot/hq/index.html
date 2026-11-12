@@ -787,7 +787,7 @@ function gpHtml(d){const g=gpNow(d); if(!g) return "";
 /* Career targets: Pinny's internship-timeline research, one row per company. Cells may carry markdown/URLs; strip them. */
 const yes=v=>v===true||/^(true|y|yes|1)$/i.test(String(v==null?"":v).trim());
 const cell=v=>String(v==null?"":v).replace(/\[([^\]]+)\]\([^)]*\)/g,"$1").replace(/\*\*|__|`/g,"").replace(/https?:\/\/\S+/g,"").replace(/\s*\[(pattern|est\.?)\]/gi,"").replace(/\s+/g," ").replace(/[\s;:,(]+$/,"").trim();
-const ctNo=r=>String(r.eligible||"").toLowerCase()==="no";
+const ctNo=r=>{const e=String(r.eligible||"").toLowerCase().trim(); return e==="no"||/\bclosed\b/.test(e)};
 const ctRows=d=>{const C=d&&d.career_targets; return C&&Array.isArray(C.rows)?C.rows.filter(r=>r&&r.company):null};
 function liveRoles(G){const c=((G||{}).progress||{}).career||{}, n=num(c.live_roles); return n==null?"":`${c.live_roles_label||"Eligible PM/TPM roles live"}: ${n}`}
 function ctSummary(d){const R=ctRows(d); if(!R||!R.length) return "";
@@ -859,7 +859,7 @@ function goalPop(i){
   const nd=nudgeFor(DATA,i);
   openPop(pName(p),`${p.goal?`<p style="margin:0">${esc(p.goal)}</p>`:""}
     ${p.previous&&(p.previous.result||p.previous.goal)?`<p class="muted" style="margin:0;font-size:13px">Previous: ${esc(p.previous.result||p.previous.goal)}${/done|✓/i.test(p.previous.result||"")?"":""}</p>`:""}
-    ${p.key==="career"&&liveRoles(G)?`<p><b>${esc(liveRoles(G))}</b>${((G.progress||{}).career||{}).live_roles_note?`<br><span class="muted" style="font-size:13px">${esc((String(G.progress.career.live_roles_note).match(/\d{4}-\d\d-\d\d:\s*([^.]+)\./)||[,""])[1])}</span>`:""}</p>`:""}
+    ${p.key==="career"&&liveRoles(G)?`<p><b>${esc(liveRoles(G))}</b>${((G.progress||{}).career||{}).live_roles_note?`<br><span class="muted" style="font-size:13px">${esc((String(G.progress.career.live_roles_note).match(/:\s*([^.]+)\./)||[,""])[1])}</span>`:""}</p>`:""}
     ${p.key==="career"?ctHtml(DATA):""}${p.key==="growth"?gpHtml(DATA):""}
     ${(()=>{const RS=(DATA.research||[]).filter(x=>x&&x.title&&String(x.area||"").toLowerCase()===p.key).sort((a,b)=>String(b.at||"").localeCompare(String(a.at||"")));
       const u=x=>/^https:\/\//.test(x.url||"")?x.url:x.path?"https://github.com/zuzivian/ops-bus/blob/main/"+String(x.path).replace(/^\.?\//,""):"";
