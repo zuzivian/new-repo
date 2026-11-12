@@ -457,7 +457,9 @@ function agentsHtml(list,fp){
   const rank=a=>{const P=paceOf(fp,a);return P&&P.stalled?0:/work|run/i.test(a.status||"")?1:P&&num(P.waiting)>0?2:3};
   list=list.slice().sort((a,b)=>rank(a)-rank(b));
   const cnt=[0,0,0,0]; list.forEach(a=>cnt[rank(a)]++);
-  const exp=list.map(a=>paceOf(fp,a)).filter(P=>P&&P.expire);
+  // Minny runs on a free allowance for purchases/sign-in tasks only: its unused capacity isn't actionable
+  const actionable=a=>{const x=((fp||{}).agents||{})[a.key]||{}; return x.capacity_actionable!=null?x.capacity_actionable!==false:a.key!=="minny"};
+  const exp=list.filter(actionable).map(a=>paceOf(fp,a)).filter(P=>P&&P.expire);
   const summ=[exp.length?`<b style="color:var(--warn)">${exp.length} agent${exp.length===1?"":"s"} near reset with ${exp.reduce((t,P)=>t+P.unused,0)} pts unused</b>`:"",cnt[0]?`<b style="color:var(--bad)">${cnt[0]} stalled</b>`:"",cnt[1]?`${cnt[1]} working`:"",cnt[2]?`${cnt[2]} between runs`:"",cnt[3]?`${cnt[3]} idle`:""].filter(Boolean).join(" · ");
   const BL=(Array.isArray(DATA.blocked)?DATA.blocked:Array.isArray((fp||{}).blocked)?fp.blocked:[]).filter(b=>b&&b.title).slice().sort((a,b)=>String(a.since||"").localeCompare(String(b.since||"")));
   const WO={nat:"you",agent:"an agent",external:"outside"};
