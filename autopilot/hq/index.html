@@ -135,6 +135,14 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600}.pop .spark{width:100%;height:64px}
 .cards{display:grid;gap:10px}
+.tbrief{display:grid;gap:6px;margin:0 0 14px;padding:12px 14px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}
+.tb-r{display:grid;grid-template-columns:84px minmax(0,1fr);gap:10px;align-items:baseline;font-size:15px}
+.tb-k{font-family:var(--f-display);font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.tb-v{min-width:0;overflow-wrap:anywhere}.tb-v a{color:inherit;text-underline-offset:2px}.tb-v .hot{color:var(--warn);font-weight:600}
+.tb-r.focus .tb-v b{color:var(--ink)}.tb-r .code{margin-left:4px;min-height:28px;padding:2px 8px}
+.wk li.later{display:none}.wk.all li.later{display:grid}
+button.more{font:inherit;font-size:13px;margin-top:8px;min-height:40px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink-2);cursor:pointer}
+.cbdone{margin:0 0 4px;font-size:13px}
 .need .openlink,.openlink{display:inline-flex;align-items:center;gap:4px;min-height:36px;padding:0 12px;border-radius:8px;border:1px solid var(--core);color:var(--core);text-decoration:none;font-weight:600;font-size:14px;background:var(--panel)}.openlink:hover{background:color-mix(in srgb,var(--core) 10%,var(--panel))}
 #n{scroll-margin-top:76px}
 .tabs{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:6px;margin:0 0 14px;padding:8px 0;background:var(--bg)}
@@ -495,15 +503,28 @@ function pillarRead(p,prog,d){
 /* One nudge: goals.nudge if Sinny sets it, else the first behind pillar in priority order (data order). Counts only, never names. */
 /* Today: the 10-second read. Only facts the data actually carries; missing feeds are simply left out. */
 function todayHtml(d){
-  const G=d.goals||{}, P=G.progress||{}, tk=P.tasks||{}, today=ptDay(Date.now()), bits=[];
-  const mt=(d.meetings||[]).filter(m=>isDate(m.when)&&ptDay(m.when)===today&&new Date(m.when)>Date.now()-30*60e3).sort((x,y)=>new Date(x.when)-new Date(y.when));
+  const G=d.goals||{}, P=G.progress||{}, tk=P.tasks||{}, now=Date.now(), today=ptDay(now), rows=[];
   const tm=t=>new Date(t).toLocaleTimeString("en-US",{...PT,hour:"numeric",minute:"2-digit"});
-  if(d.meetings) bits.push(mt.length?`<a href="#m-${esc(mt[0].id)}">${mt.length} more meeting${mt.length===1?"":"s"}</a> today (next ${esc(tm(mt[0].when))})`:"no more meetings today");
-  const nn=(d.needs||[]).length; bits.push(nn?`<a href="#life" class="hot" data-goneeds>${nn} need${nn===1?"s":""} you</a>`:"nothing needs you");
-  if(num(tk.due_this_week)!=null) bits.push(`${tk.due_this_week} tasks this week${num(tk.overdue)?` <span class="hot">(${tk.overdue} overdue)</span>`:""}`);
-  const behind=(G.pillars||[]).map(p=>[p,pillarRead(p,G.progress,d)]).filter(([,r])=>r.state==="warn").map(([p,r])=>esc(r.label||p.name));
-  if(G.pillars&&G.progress) bits.push(behind.length?`<span class="hot">behind on ${behind.join(", ")}</span>`:"goals on track");
-  return `<p class="today"><b>Today</b> ${bits.join(" · ")}</p>`;
+  const when=t=>ptDay(t)===today?tm(t):fmtD(t)+" "+tm(t);
+  const row=(k,v,cls)=>rows.push(`<div class="tb-r${cls?" "+cls:""}"><span class="tb-k">${k}</span><span class="tb-v">${v}</span></div>`);
+  // next meeting (in progress counts for 30 min), with its primer
+  const up=(d.meetings||[]).filter(m=>isDate(m.when)&&new Date(m.when)>now-30*60e3).sort((x,y)=>new Date(x.when)-new Date(y.when));
+  if(up.length){const m=up[0], left=up.filter(x=>ptDay(x.when)===today).length;
+    row("Next",`<b>${esc(when(m.when))}</b> ${esc(m.title)}${m.ready!==false?` · <a href="#m-${esc(m.id)}">Prep</a>`:""}${left>1?` <span class="muted">· ${left-1} more today</span>`:""}`)}
+  else if(d.meetings) row("Next",`<span class="muted">No upcoming meetings</span>`);
+  // due today (from top tasks) + overdue count
+  const due=(tk.top||[]).filter(x=>isDate(x.due)&&ptDay(asDay(x.due))===today);
+  const od=num(tk.overdue);
+  if(due.length||od) row("Due today",[...due.slice(0,3).map(x=>/^https:\/\//.test(x.url||"")?link(x.url,x.title):esc(x.title)),
+    due.length>3?`<span class="muted">+${due.length-3} more</span>`:"", od?`<span class="hot">${od} overdue</span>`:""].filter(Boolean).join(" · "));
+  // needs
+  const nn=(d.needs||[]).length; if(nn) row("Needs you",`<a href="#life" class="hot" data-goneeds>${nn} waiting</a>`);
+  // focus: goals.nudge, else the first behind pillar (priority order) with its action
+  let n=G.nudge&&G.nudge.text?{text:G.nudge.text,detail:G.nudge.detail||"",url:G.nudge.url||"",i:-1}:null;
+  if(!n) (G.pillars||[]).some((p,i)=>{n=nudgeFor(d,i);return !!n});
+  if(n) row("Focus",`<b>${n.url?link(n.url,n.text):esc(n.text)}</b>${n.detail?` <span class="muted">· ${esc(n.detail)}</span>`:""}${n.i>=0?` <button type="button" class="code" data-goal="${n.i}" aria-label="Why: open ${esc(pName((G.pillars||[])[n.i]||{}))} details">Why</button>`:""}`,"focus");
+  else if(G.pillars&&G.progress) row("Focus",`<span class="muted">All goals on track</span>`);
+  return rows.length?`<section class="tbrief" aria-label="Today">${rows.join("")}</section>`:"";
 }
 function nudgeFor(d,i){
   const G=d.goals||{}, p=(G.pillars||[])[i]; if(!p) return null; const r=pillarRead(p,G.progress,d);
@@ -531,7 +552,7 @@ function goalsHtml(d){
       <span class="gm"${r.funnel?' style="white-space:normal"':""}>${esc(r.funnel||(r.m?r.label:(p.goal||"")))}</span>
       ${r.funnel?"":`<span class="gbar"><i style="width:${pct.toFixed(0)}%"></i></span>`}
       ${r.sec?`<span class="gm">${esc(r.sec)}</span>`:""}
-      <span class="gp">${esc(r.m?r.pace:"No metric set")}</span></button>`}).join("")}</section>${nudgeHtml(d)}`;
+      <span class="gp">${esc(r.m?r.pace:"No metric set")}</span></button>`}).join("")}</section>`;
 }
 /* Pillar popup = "what to do next": where you are, the pace you need, a projection, the last weeks, related counts. */
 function histBars(H,key,opt){
@@ -591,13 +612,14 @@ function weekHtml(d){
   (tk.top||[]).forEach(x=>items.push({t:isDate(x.due)?asDay(x.due):null,title:x.title,k:"task",url:x.url}));
   const inWin=items.filter(x=>!x.t||(new Date(x.t)<=end&&(ptDay(x.t)>=today||x.k==="task")));
   inWin.sort((a,b)=>(a.t?new Date(a.t):Infinity)-(b.t?new Date(b.t):Infinity));
-  const seen=new Set(), list=inWin.filter(x=>{const key=(x.t||"").slice(0,10)+"|"+x.title;if(seen.has(key))return false;seen.add(key);return true}).slice(0,12);
+  const seen=new Set(), list=inWin.filter(x=>{const key=(x.t||"").slice(0,10)+"|"+x.title;if(seen.has(key))return false;seen.add(key);return true}).slice(0,14);
+  const wk7=now.getTime()+7*dayMs, nLater=list.filter(x=>x.t&&new Date(x.t)>wk7).length;
   const sub=[num(tk.due_this_week)!=null?`${tk.due_this_week} tasks due`:"",num(tk.overdue)?`<span class="od">${tk.overdue} overdue</span>`:""].filter(Boolean).join(" · ");
   const row=x=>{const od=x.t&&ptDay(x.t)<today, dd=x.t?(ptDay(x.t)===today?"Today":fmtD(x.t)):"—";
     const ttl=x.href?`<a href="${esc(x.href)}">${esc(x.title)}</a>`:(typeof x.url==="string"&&/^https:\/\//.test(x.url))?link(x.url,x.title):esc(x.title);
-    return `<li><span class="d${dd==="Today"?" today":""}${od?" od":""}">${esc(dd)}${x.time?`<br>${esc(new Date(x.t).toLocaleTimeString("en-US",{...PT,hour:"numeric",minute:"2-digit"}))}`:""}</span><span>${ttl}</span><span class="k">${x.k}</span></li>`};
-  return `<section class="panel" aria-labelledby="wk"><h2 id="wk">Next 14 days${sub?` · <span style="text-transform:none;letter-spacing:0;font-weight:500">${sub}</span>`:""}</h2>
-    ${list.length?`<ul class="wk">${list.map(row).join("")}</ul>`:`<div class="empty">Nothing dated in the next two weeks.</div>`}
+    return `<li${x.t&&new Date(x.t)>wk7?' class="later"':""}><span class="d${dd==="Today"?" today":""}${od?" od":""}">${esc(dd)}${x.time?`<br>${esc(new Date(x.t).toLocaleTimeString("en-US",{...PT,hour:"numeric",minute:"2-digit"}))}`:""}</span><span>${ttl}</span><span class="k">${x.k}</span></li>`};
+  return `<section class="panel" aria-labelledby="wk"><h2 id="wk">Next 7 days${sub?` · <span style="text-transform:none;letter-spacing:0;font-weight:500">${sub}</span>`:""}</h2>
+    ${list.length?`<ul class="wk" id="wkl">${list.map(row).join("")}</ul>${nLater?`<button type="button" class="more" data-more>Show the following week (${nLater})</button>`:""}`:`<div class="empty">Nothing dated in the next two weeks.</div>`}
     ${!G.progress?`<p class="muted" style="margin:8px 0 0;font-size:12px">Tasks and career deadlines appear once the Notion feed lands.</p>`
       :P.career&&Array.isArray(P.career.next_deadlines)&&!P.career.next_deadlines.length?`<p class="muted" style="margin:8px 0 0;font-size:13px">No dated career deadlines in the next 3 weeks.</p>`:""}</section>`;
 }
@@ -633,7 +655,9 @@ function alignHtml(d,part){
       return `<li><span class="pill ${r===0?"warn":r===1?"":"good"}">${esc(r===0?"building":String(w.status||"—"))}</span><span class="nm">${rowT(w)}</span></li>`}).join("")
       :`<li><span class="pill bad">none</span><span class="nm muted">No career-core build running${plan["career-core"]!=null?" while the plan wants "+Math.round(plan["career-core"]*100)+"%":""}.</span></li>`}
       ${done?`<li><span></span><span class="muted" style="font-size:13px">${done} career task${done===1?"":"s"} done this week</span></li>`:""}</ul>`;
-  if(part==="build") return `<section class="panel align" aria-labelledby="cb"><h2 id="cb">Career build</h2>${build}</section>`;
+  if(part==="build"){
+    if(CB&&CB.length&&CB.every(x=>/^done/i.test(String(x.status||"")))) return `<p class="muted cbdone">Career build: ${CB.map(x=>esc(x.step||"")).filter(Boolean).join(", ")} done ✓</p>`;
+    return `<section class="panel align" aria-labelledby="cb"><h2 id="cb">Career build</h2>${build}</section>`;}
   return `<section class="panel align" aria-labelledby="al"><h2 id="al">Fleet effort vs plan</h2>${say}
     <div class="stack" role="img" aria-label="Actual effort by tier">${seg(tot,sum)}</div><div class="lab"><span>this week</span></div>
     <div class="stack plan" role="img" aria-label="Planned effort by tier">${seg(plan,psum)}</div><div class="lab"><span>plan</span></div>
@@ -672,10 +696,10 @@ function home(d){
   const maxc=Math.max(...d.spend.map(s=>s.usd),1);
   const spend=d.spend.map(s=>`<div class="row"><span class="name">${esc(s.project)}</span><span class="mono muted">$${s.usd.toFixed(0)}</span></div><div class="hbar"><i style="width:${(s.usd/maxc*100).toFixed(1)}%;background:${TIER_COLOR[s.tier]||"var(--maint)"}"></i></div>`).join("");
   const tab=curTab();
-  const life=`${todayHtml(d)}${goalsHtml(d)}<div class="grid" style="margin-bottom:16px">
-   <section class="panel" aria-labelledby="n"><h2 id="n">Needs you · ${d.needs.length}</h2>
+  const life=`${todayHtml(d)}${goalsHtml(d)}<div class="${d.needs.length?"grid":""}" style="margin-bottom:16px">
+   ${d.needs.length?`<section class="panel" aria-labelledby="n"><h2 id="n">Needs you · ${d.needs.length}</h2>
      <div class="cards">${needs}</div>
-     ${d.needs.length?`<p class="muted" style="margin:10px 0 0;font-size:13px"><span class="long">${ONE?"Tap an answer to send it to the autopilot in one tap. ":"Tap an answer to open a prefilled GitHub issue; Submit there sends it to the autopilot. "}</span>★ = my pick.</p>`:""}</section>
+     ${d.needs.length?`<p class="muted" style="margin:10px 0 0;font-size:13px"><span class="long">${ONE?"Tap an answer to send it to the autopilot in one tap. ":"Tap an answer to open a prefilled GitHub issue; Submit there sends it to the autopilot. "}</span>★ = my pick.</p>`:""}</section>`:""}
    ${weekHtml(d)}
   </div>${alignHtml(d,"build")}`;
   const fleet=`${agentsHtml(d.agents)}${alignHtml(d)}<div class="grid" style="margin-top:16px">
@@ -735,6 +759,7 @@ function render(){
   v.querySelectorAll("[data-goneeds]").forEach(b=>b.addEventListener("click",e=>{e.preventDefault();
     const go=()=>{const n=document.getElementById("n");if(n)n.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth",block:"start"})};
     if(curTab()!=="life"){location.hash="life";setTimeout(go,30)}else go()}));
+  v.querySelectorAll("[data-more]").forEach(b=>b.addEventListener("click",()=>{const l=document.getElementById("wkl");if(l)l.classList.add("all");b.remove()}));
   v.querySelectorAll("[data-goal]").forEach(b=>b.addEventListener("click",()=>goalPop(+b.dataset.goal)));
   v.querySelectorAll("[data-proj]").forEach(b=>b.addEventListener("click",()=>projectPop(b.dataset.proj)));
   v.querySelectorAll("[data-copy]").forEach(b=>b.addEventListener("click",()=>b.dataset.title?answer(b,b.dataset.copy,b.dataset.title):copy(b,b.dataset.copy)));
