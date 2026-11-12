@@ -137,6 +137,7 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600;white-space:nowrap}.pop .spark{width:100%;height:64px}.spark.wk7{height:auto!important;max-height:110px}
 .cards{display:grid;gap:10px}
+.agent .pace.stalled{color:var(--bad);font-weight:600}
 .gp-w{display:grid;gap:4px;font-size:14px;padding:6px 0;border-top:1px solid var(--line)}.ct.gp>.gp-w{border-top:0;padding-top:0}
 .gp-k{font-family:var(--f-display);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);margin-right:4px}
 details.closed{margin-top:8px}details.closed summary{cursor:pointer;font-size:13px;min-height:36px;display:flex;align-items:center}details.closed .row a{color:var(--ink-2);text-decoration:none}
@@ -408,13 +409,19 @@ function utilOf(v){if(typeof v==="string"&&v.trim()!=="")v=Number(v.replace("%",
 function paceOf(fp,a){const A=fp&&fp.agents||{}, x=A[a.key]||A[{cinny:"chinny",chinny:"cinny"}[a.key]]; if(!x) return null;
   const used=utilOf(x.used), tg=utilOf(x.target), q=num(x.queue), fl=num(x.in_flight);
   const off=used!=null&&tg!=null?Math.round((used-tg)*100):null;
-  const bits=[off==null?"":off<=-3?`behind by ${-off} pts`:off>=3?`${off} pts ahead`:"on pace", q!=null?`${q} queued`:"", fl!=null?`${fl} in flight`:""].filter(Boolean);
-  return {used,tg,off,stale:!!x.stale,txt:bits.join(" · "),reset:isDate(x.reset)?x.reset:null,note:x.target_note||""}}
+  const nolimit=x.used===null&&x.target===null;
+  const bits=nolimit?["no limit",fl!=null?`${fl} in flight`:"",q!=null?`${q} queued`:""].filter(Boolean)
+    :[off==null?"":off<=-3?`behind by ${-off} pts`:off>=3?`${off} pts ahead`:"on pace", q!=null?`${q} queued`:"", fl!=null?`${fl} in flight`:""].filter(Boolean);
+  // stalled: tasks waiting and the runner hasn't run for a while (it only wakes on its own app schedule)
+  const idle=num(x.idle_min)??(isDate(x.last_run)?Math.round((Date.now()-new Date(x.last_run))/60000):null);
+  return {used,tg,off,stale:!!x.stale,txt:bits.join(" · "),reset:isDate(x.reset)?x.reset:null,note:x.target_note||"",nolimit,
+    stalled:x.stalled===true,idle,waiting:q,lastRun:isDate(x.last_run)?x.last_run:null}}
+const idleTxt=m=>m==null?"":m<120?`${m} min`:`${Math.round(m/60)} h`;
 function agentsHtml(list,fp){
   if(!list||!list.length) return "";
   return `<div class="agents" role="list" aria-label="Agents">${list.map((a,k)=>{const sc=AGENT_STATUS[a.status]||"var(--maint)";
     const col=(AGENT_LOOK[a.key]||{c:"#8795a6"}).c, P=paceOf(fp,a), u=utilOf(a.util)??(P?P.used:null);
-    const pct=u==null?"no feed":Math.round(u*100)+"%";
+    const pct=u==null?(P&&P.nolimit?"no limit":"no feed"):Math.round(u*100)+"%";
     const ser=(a.series||[]).filter(s=>s&&utilOf(s.u)!=null&&!isNaN(new Date(s.t))).map(s=>({t:s.t,u:utilOf(s.u)}));
     const tms=[a.util_at,ser.length?ser[ser.length-1].t:null].filter(t=>t&&!isNaN(new Date(t))).map(t=>new Date(t).getTime());
     const at=tms.length?new Date(Math.max(...tms)):null, old=at&&(Date.now()-at)>2*3600e3;
@@ -422,13 +429,13 @@ function agentsHtml(list,fp){
     const tip=`<div class="tip" role="tooltip" id="tip-${k}"><div class="tt"><b>${esc(a.name)}</b><span class="mono">${u==null?"—":pct}</span></div>
       <div class="muted" style="font-size:12px">${esc(a.util_label||(u==null?"Plan usage":"Share of plan used this week"))}</div>
       ${P&&P.tg!=null?`<div style="font-size:12px">Tick = pace line: ${Math.round(P.tg*100)}% now, ${Math.round(((fpOf(DATA)||{}).target_end||.92)*100)}% by ${P.reset?esc(fmtT(P.reset)):"reset"}${P.note?" ("+esc(P.note)+")":""}</div>`:""}
-      ${u==null?`<div class="nf-note">No usage feed yet. The ring fills in once this agent reports its plan usage.</div>`:asof}
+      ${u==null?(P&&P.nolimit?`<div class="nf-note">No usage limit to pace against.${P.lastRun?` Last ran ${esc(fmtT(P.lastRun))} PT.`:""}</div>`:`<div class="nf-note">No usage feed yet. The ring fills in once this agent reports its plan usage.</div>`):asof}
       ${(()=>{const known=a.util_reset||(P&&P.reset), asm=!known&&P&&/monday/i.test(P.note||"");
         return weekChart(ser,col,known||(asm?nextMonUTC():null),P&&P.tg,(fpOf(DATA)||{}).target_end,asm)+(asm?`<div class="muted" style="font-size:11px">Reset assumed Mon 00:00 UTC (${esc(fmtT(nextMonUTC()))} PT); not reported yet</div>`:"")})()}${a.usage_note?`<div style="font-size:12px">${esc(a.usage_note)}</div>`:""}
       ${a.url?`<a href="${esc(a.url)}" target="_blank" rel="noopener" style="font-size:12px">Open ↗</a>`:""}</div>`;
     return `<div class="agent${u==null?" nofeed":""}" role="listitem" tabindex="0" data-s="${esc(a.status)}" style="--sc:${sc}" aria-describedby="tip-${k}">
       <div class="av">${ringSvg(u,col,P&&P.tg)}<div class="face">${avatar(a.key)}</div><span class="pip"></span><span class="pc mono${u==null?" nf":""}"${old?' style="color:var(--warn)"':""}>${pct}</span></div>
-      <div style="min-width:0"><div class="nm">${esc(a.name)} <span class="sx">${esc(a.status)}</span></div><div class="rl">${esc(a.role)}</div><div class="dg">${esc(a.doing||"—")}</div>${P&&(P.txt||P.stale)?`<div class="pace${P.off!=null&&P.off<=-3?" behind":""}">${P.stale?`<span class="stbadge">STALE</span> `:""}${esc(P.txt)}${P.tg!=null?` <span class="muted">· target ${Math.round(P.tg*100)}% now</span>`:""}</div>`:""}</div>${tip}</div>`}).join("")}</div>`;
+      <div style="min-width:0"><div class="nm">${esc(a.name)} <span class="sx">${esc(a.status)}</span></div><div class="rl">${esc(a.role)}</div><div class="dg">${esc(a.doing||"—")}</div>${P&&P.stalled?`<div class="pace stalled"><b>STALLED</b>${P.idle!=null?` · idle ${idleTxt(P.idle)}`:""}${P.waiting!=null?` · ${P.waiting} waiting`:""}</div>`:""}${P&&!P.stalled&&(P.txt||P.stale)?`<div class="pace${P.off!=null&&P.off<=-3?" behind":""}">${P.stale?`<span class="stbadge">STALE</span> `:""}${esc(P.txt)}${P.tg!=null?` <span class="muted">· target ${Math.round(P.tg*100)}% now</span>`:""}</div>`:""}</div>${tip}</div>`}).join("")}</div>`;
 }
 function openPop(title,html){
   let d=document.getElementById("pop");
@@ -999,7 +1006,10 @@ function natNeeds(d){if(!d||!Array.isArray(d.needs)) return d; const seen=new Se
   const acts=(d.nat_actions||[]).filter(x=>x&&x.title).map(x=>({project:x.project||"fleet",title:x.title,detail:x.detail||"",url:x.url,issue:x.issue,options:x.options||[],from:"Your action"}));
   const dup=i=>acts.some(a=>(a.issue&&a.issue===i.url)||[...refs(i.title+" "+(i.detail||""))].some(r=>refs(a.title+" "+a.detail+" "+(a.url||"")).has(r)));
   const iss=(d.issues||[]).filter(own).filter(i=>!dup(i)).map(i=>({project:"fleet",title:i.title,detail:i.detail||"",url:i.url,options:[],from:"Fleet issue"}));
-  const add=acts.concat(iss).filter(n=>!seen.has(String(n.title||"").toLowerCase()));
+  const FP=fpOf(d), stall=[];
+  for(const a of d.agents||[]){const P=paceOf(FP,a); if(P&&P.stalled&&P.idle!=null&&P.idle>120)
+    stall.push({project:"fleet",title:`${a.name||a.key} hasn't run for ${idleTxt(P.idle)}; check its schedule`,detail:`${P.waiting!=null?P.waiting+" tasks waiting. ":""}It only wakes on its own app schedule${P.lastRun?`; last ran ${fmtT(P.lastRun)} PT`:""}.`,options:[],from:"Fleet"})}
+  const add=acts.concat(iss,stall).filter(n=>!seen.has(String(n.title||"").toLowerCase()));
   d.needs=d.needs.concat(add); return d}
 function load(){return fetch("data.json",{cache:"no-store"}).then(r=>r.json()).then(d=>{DATA=natNeeds(ghMirror(d));try{render()}catch(e){document.getElementById("view").innerHTML='<p class="empty">HQ hit a display error ('+esc(String(e&&e.message||e))+'). Ask the autopilot chat to fix it.</p>'}}).catch(()=>{if(DATA){try{render()}catch(_){}}else document.getElementById("view").innerHTML='<p class="empty">Couldn\'t load status data. Ask the autopilot chat to republish HQ.</p>'})}
 load().then(()=>{if(DATA&&typeof DATA.one_click==="boolean"){ONE=DATA.one_click;if(ONE)try{render()}catch(_){}}else probeOne()});
