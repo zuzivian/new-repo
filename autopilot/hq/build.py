@@ -586,7 +586,10 @@ def _merge_queue():
             sha = pr["head"]["sha"]
             st = _gh_json(f"repos/zuzivian/{repo}/commits/{sha}/status") or {}
             cr = (_gh_json(f"repos/zuzivian/{repo}/commits/{sha}/check-runs?per_page=100") or {}).get("check_runs", [])
-            states = [s.get("state") for s in (st.get("statuses") or [])]
+            # sinny-gate mirrors the review label (shown as `reviewed`), so leave it out of `checks` to keep real CI visible.
+            gate = lambda n: "sinny-gate" in (n or "")
+            states = [s.get("state") for s in (st.get("statuses") or []) if not gate(s.get("context"))]
+            cr = [c for c in cr if not gate(c.get("name"))]
             states += ["pending" if c.get("status") != "completed" else
                        ("success" if c.get("conclusion") in ("success", "neutral", "skipped") else "failure") for c in cr]
             checks = ("failing" if any(x in ("failure", "error") for x in states) else
