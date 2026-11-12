@@ -137,6 +137,7 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600;white-space:nowrap}.pop .spark{width:100%;height:64px}.spark.wk7{height:auto!important;max-height:110px}
 .cards{display:grid;gap:10px}
+.conseq{font-size:13px;font-weight:600;color:var(--warn);margin:2px 0}
 .goal .gk{position:relative;padding-right:18px}.goal .gchev{position:absolute;right:0;top:-2px;font-size:18px;line-height:1;color:var(--ink-2)}
 .goal:hover,.goal:focus-visible{border-color:var(--accent);border-top-color:var(--gs)}.goal:hover .gchev,.goal:focus-visible .gchev{color:var(--accent)}
 .since{margin:0 0 12px;font-size:14px;line-height:1.6}.since .linkbtn{min-height:28px;font-weight:600;color:var(--ink)}
@@ -468,7 +469,7 @@ function agentsHtml(list,fp){
       ${a.url?`<a href="${esc(a.url)}" target="_blank" rel="noopener" style="font-size:12px">Open ↗</a>`:""}</div>`;
     return `<div class="agent${u==null?" nofeed":""}" role="listitem" tabindex="0" data-s="${esc(a.status)}" style="--sc:${sc}" aria-describedby="tip-${k}">
       <div class="av">${ringSvg(u,col,P&&P.tg)}<div class="face">${avatar(a.key)}</div><span class="pip"></span><span class="pc mono${u==null?" nf":""}"${old?' style="color:var(--warn)"':""}>${pct}</span></div>
-      <div style="min-width:0"><div class="nm">${esc(a.name)} <span class="sx"${P&&P.stalled?' style="color:var(--bad)"':""}>${esc(P&&P.stalled?"stalled":a.status)}</span></div><div class="rl">${esc(a.role)}</div><div class="dg">${esc(a.doing||"—")}</div>${P&&P.stalled?`<div class="pace stalled">Idle ${P.idle!=null?idleTxt(P.idle):"a while"}${P.waiting!=null?` · ${P.waiting} in flight`:""}</div>`:""}${P&&!P.stalled&&(P.txt||P.stale)?`<div class="pace${P.off!=null&&P.off<=-3?" behind":""}">${P.stale?`<span class="stbadge">STALE</span> `:""}${esc(P.txt)}${P.tg!=null?` <span class="muted">· target ${Math.round(P.tg*100)}% now</span>`:""}</div>`:""}</div>${tip}</div>`}).join("")}</div>`;
+      <div style="min-width:0"><div class="nm">${esc(a.name)} <span class="sx"${P&&P.stalled?' style="color:var(--bad)"':""}>${esc(P&&P.stalled?"stalled":/^idle$/i.test(a.status||"")&&P&&num(P.waiting)>0?"between runs":a.status)}</span></div><div class="rl">${esc(a.role)}</div><div class="dg">${esc(a.doing||"—")}</div>${P&&P.stalled?`<div class="pace stalled">Idle ${P.idle!=null?idleTxt(P.idle):"a while"}${P.waiting!=null?` · ${P.waiting} in flight`:""}</div>`:""}${P&&!P.stalled&&(P.txt||P.stale)?`<div class="pace${P.off!=null&&P.off<=-3?" behind":""}">${P.stale?`<span class="stbadge">STALE</span> `:""}${esc(P.txt)}${P.tg!=null?` <span class="muted">· target ${Math.round(P.tg*100)}% now</span>`:""}</div>`:""}</div>${tip}</div>`}).join("")}</div>`;
 }
 function openPop(title,html){
   let d=document.getElementById("pop");
@@ -971,7 +972,7 @@ function home(d){
     const dh=detailHtml(n.detail||n.note||""), prList=dh.includes("/pull/")&&/github\.com\/[^/]+\/[^/]+\/pull\//.test(n.url||"");
     const openL=n.url&&!prList?`<a class="openlink" href="${esc(needUrl(n.url))}" target="_blank" rel="noopener">${esc(openOpt||(cls?"Open plan":"Open"))} ↗</a>`:"";
     const prev=n.preview?`<a class="openlink" href="${esc(n.preview)}" target="_blank" rel="noopener">▶ Preview</a>`:"";
-    return `<div class="card need${cls?" "+cls:""}">${cls?`<div class="wp-k">Week plan · your call</div>`:""}<div class="t">${cls?"":i+1+". "}${esc(n.title)}${n.from?` <span class="pill" style="font-size:10px;padding:1px 7px;vertical-align:middle">${esc(n.from)}</span>`:""}</div>${dh}
+    return `<div class="card need${cls?" "+cls:""}">${cls?`<div class="wp-k">Week plan · your call</div>`:""}<div class="t">${cls?"":i+1+". "}${esc(n.title)}${n.from?` <span class="pill" style="font-size:10px;padding:1px 7px;vertical-align:middle">${esc(n.from)}</span>`:""}</div>${(()=>{const c=n.consequence||n.risk||(/no more approval|standing (approval|authority)|auto-?merge|without asking|permission|always allow/i.test(String(n.title)+" "+String(n.detail||""))?"Changes standing authority for the fleet. Read the details before Done.":"");return c?`<div class="conseq">⚠ ${esc(c)}</div>`:""})()}${dh}
      ${openL||prev?`<div class="reply">${openL}${prev}</div>`:""}
      ${ans.length?`<div class="reply" aria-label="Answers"><span class="muted" style="font-size:12px">Answer:</span>${ans.map(o=>`<button class="code" data-copy="${esc((i+1)+" → "+o)}" data-title="${esc(n.title)}">${esc(o)}${o===n.recommend?" ★":""}</button>`).join("")}</div>`:""}</div>`};
   const dow=new Date(new Date().toLocaleString("en-US",PT)).getDay(), wpI=dow===0||dow===1?d.needs.findIndex(n=>n.project==="weekly-review"):-1;
@@ -994,8 +995,8 @@ function home(d){
        <div class="stat"><span class="muted">Target now</span><b>${t==null?"—":Math.round(t*100)+"%"}</b></div>
        <div class="stat"><span class="muted">Resets</span><b>${esc(fmtT(d.week.reset))}</b></div>
        <span class="pill ${state[0]}" title="Pace = share of the weekly limit the plan expects used by now">${gap>0.01?`${Math.round(gap*100)} pts over pace`:gap<-0.01?`${Math.round(-gap*100)} pts under pace`:state[1]}</span></div>
-     ${typeof d.week.u5==="number"&&isFinite(d.week.u5)?`<div class="muted" style="margin-top:10px">5-hour window · ${Math.round(d.week.u5*100)}%${typeof d.pacing.five_hour_ceiling==="number"?` <span class="mono">(ceiling ${Math.round(d.pacing.five_hour_ceiling*100)}%)</span>`:""}</div>
-     <div class="bar5"><i style="width:${Math.min(d.week.u5*100,100)}%"></i></div>`:`<div class="muted" style="margin-top:10px">5-hour window · <i>no reading yet</i></div>`}
+     ${typeof d.week.u5==="number"&&isFinite(d.week.u5)?`<div class="muted" style="margin-top:10px" title="Claude also limits usage per rolling 5-hour window. The pacer stops starting new workers above the ceiling.">Short-term limit (rolling 5 h) · ${Math.round(d.week.u5*100)}% used${typeof d.pacing.five_hour_ceiling==="number"?` · new workers pause above ${Math.round(d.pacing.five_hour_ceiling*100)}%`:""}</div>
+     <div class="bar5"><i style="width:${Math.min(d.week.u5*100,100)}%"></i></div>`:`<div class="muted" style="margin-top:10px">Short-term limit (rolling 5 h) · <i>no reading yet</i></div>`}
      ${PC?gaugeChart(d):""}${proChart(d)}</section>
    <section class="panel" aria-labelledby="pb"><h2 id="pb">Projects</h2>${boardHtml(d.board)}</section>
    <section class="panel" aria-labelledby="is"><h2 id="is">Fleet issues · ${(d.issues||[]).length}</h2>${issuesHtml(d.issues)}
@@ -1144,7 +1145,7 @@ function natNeeds(d){if(!d||!Array.isArray(d.needs)) return d; const seen=new Se
   // one card per thing: an action row wins over the fleet issue that tracks the same thing
   // (linked by x.issue, or sharing a distinctive ref: an ALL_CAPS name, "PR #N", or a file name like X.md)
   const refs=t=>new Set((String(t||"").match(/\b[A-Z][A-Z0-9]*_[A-Z0-9_]+\b|PR #\d+|\b[\w-]+\.(?:md|json|yml|py|js)\b/g)||[]).map(x=>x.toLowerCase()));
-  const acts=(d.nat_actions||[]).filter(x=>x&&x.title).map(x=>({project:x.project||"fleet",title:x.title,detail:x.detail||"",url:x.url,issue:x.issue,options:x.options||[],from:"Your action"}));
+  const acts=(d.nat_actions||[]).filter(x=>x&&x.title).map(x=>({project:x.project||"fleet",title:x.title,detail:x.detail||"",url:x.url,issue:x.issue,options:x.options||[],consequence:x.consequence||x.risk||"",from:"Your action"}));
   const dup=i=>acts.some(a=>(a.issue&&a.issue===i.url)||[...refs(i.title+" "+(i.detail||""))].some(r=>refs(a.title+" "+a.detail+" "+(a.url||"")).has(r)));
   const iss=(d.issues||[]).filter(own).filter(i=>!dup(i)).map(i=>({project:"fleet",title:i.title,detail:i.detail||"",url:i.url,options:[],from:"Fleet issue"}));
   const FP=fpOf(d), stall=[];
