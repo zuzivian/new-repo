@@ -137,6 +137,7 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600;white-space:nowrap}.pop .spark{width:100%;height:64px}.spark.wk7{height:auto!important;max-height:110px}
 .cards{display:grid;gap:10px}
+.agent[data-s="idle"] .sx,.agent[data-s="offline"] .sx,.tile[data-st="idle"] .st{color:var(--ink-2)}
 .ntier{margin-top:4px}.ntier summary{min-height:44px;display:flex;align-items:center;font-weight:600}.nminil{list-style:none;padding:0;margin:0}.nmini{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line)}.nmini>span:first-child{min-width:0;overflow-wrap:anywhere}.nmini>span:last-child{flex:none;font-size:13px}
 .hibadge{background:var(--bad);color:var(--panel);border-radius:8px;padding:0 6px;font-weight:700}
 .mql{list-style:none;padding:0;margin:0}.mq{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line)}.mq>div{min-width:0;overflow-wrap:anywhere}.mq .openlink{flex:none}
@@ -372,12 +373,12 @@ function boardHtml(b){
   const tile=p=>{
     const bits=[]; if(p.running) bits.push(p.running+" running"); if(p.queued) bits.push(p.queued+" queued");
     if(p.codex) bits.push(p.codex+" Codex"); if(p.needs) bits.push(p.needs+" for you"); if(!bits.length&&p.done) bits.push(p.done+" done this week");
-    return `<button type="button" class="tile" data-proj="${esc(p.project)}" style="--st:${ST_COLOR[p.status]}" aria-label="${esc(p.project)}: ${esc(p.status)}. Show details"><span class="nm">${esc(p.project)}</span><span class="st">${esc(p.status)}</span><span class="ct">${esc(bits.join(" · ")||"—")}${p.last_activity&&ago(p.last_activity)?` · <span title="${esc(p.last_activity)}">pushed ${esc(ago(p.last_activity))}</span>`:""}</span>${p.next_step?`<span class="nx">Next: ${esc(p.next_step)}</span>`:""}</button>`};
+    return `<button type="button" class="tile" data-proj="${esc(p.project)}" data-st="${esc(p.status)}" style="--st:${ST_COLOR[p.status]}" aria-label="${esc(p.project)}: ${esc(p.status)}. Show details"><span class="nm">${esc(p.project)}</span><span class="st">${esc(p.status)}</span><span class="ct">${esc(bits.join(" · ")||"—")}${p.last_activity&&ago(p.last_activity)?` · <span title="${esc(p.last_activity)}">pushed ${esc(ago(p.last_activity))}</span>`:""}</span>${p.next_step?`<span class="nx">Next: ${esc(p.next_step)}</span>`:""}</button>`};
   const tiles=live.map(tile).join("")+(sleep.length?`</div><details class="closed dorm"><summary class="muted">${sleep.length} dormant: ${esc(sleep.map(p=>p.project).join(", "))}</summary><div class="board">${sleep.map(tile).join("")}</div></details><div>`:"");
   const legend=Object.keys(ST_COLOR).filter(k=>counts[k]).map(k=>`<span style="--st:${ST_COLOR[k]}"><i></i>${counts[k]} ${esc(k)}</span>`).join("");
   return `<div class="board">${tiles}</div><div class="legend-st">${legend}</div>`;
 }
-const SEV_COLOR={critical:"var(--bad)",high:"var(--warn)",medium:"var(--core)",low:"var(--maint)"};
+const SEV_COLOR={critical:"var(--bad)",high:"var(--warn)",medium:"var(--core)",low:"var(--ink-2)"};
 function issuesHtml(list){
   if(!list||!list.length) return '<div class="empty">No open issues.</div>';
   const c={}; list.forEach(i=>c[i.severity]=(c[i.severity]||0)+1);
@@ -1058,7 +1059,7 @@ function home(d){
   const spend=d.spend.map(s=>`<div class="row"><span class="name">${esc(PALIAS[s.project]&&(d.board||[]).some(b=>b.project===PALIAS[s.project])?PALIAS[s.project]:s.project)}</span><span class="mono muted">$${s.usd.toFixed(0)}</span></div><div class="hbar"><i style="width:${(s.usd/maxc*100).toFixed(1)}%;background:${TIER_COLOR[s.tier]||"var(--maint)"}"></i></div>`).join("");
   const tab=curTab();
   const life=`${sinceHtml(d)}${wplan}${todayHtml(d)}
-   ${rest.length?`<section class="panel" aria-labelledby="n" style="margin-bottom:16px"><h2 id="n">Needs you now · ${TN.length}${TW.length+TL.length?` <span class="muted" style="font-size:12px;letter-spacing:0;text-transform:none">· ${rest.length} in all</span>`:""}</h2>
+   ${rest.length?`<section class="panel" aria-labelledby="n" style="margin-bottom:16px"><h2 id="n">Needs you now · ${TN.length}${(()=>{const m=TN.reduce((t,[n])=>t+(num(n.est_min)||0),0), all=TN.every(([n])=>num(n.est_min)!=null); return m?` <span class="muted" style="font-size:12px;letter-spacing:0;text-transform:none">· ${all?"":"≥"}${m} min</span>`:""})()}${TW.length+TL.length?` <span class="muted" style="font-size:12px;letter-spacing:0;text-transform:none">· ${rest.length} in all</span>`:""}</h2>
      ${rest.some(([n])=>!Array.isArray(n.options)||n.options.length)?`<p class="muted" style="margin:-4px 0 10px;font-size:13px"><span class="long">${ONE?"Tap an answer to send it to the autopilot in one tap. ":"Tap an answer to open a prefilled GitHub issue; Submit there sends it to the autopilot. "}</span><span class="short">${ONE?"One tap sends. ":"Opens GitHub → tap Submit. "}</span>★ = my pick.</p><p class="muted keyhint">Keys: <kbd>j</kbd>/<kbd>k</kbd> pick a need · <kbd>1</kbd>–<kbd>9</kbd> choose an answer, <kbd>Enter</kbd> sends · <kbd>?</kbd> all shortcuts</p>`:""}
      <div class="cards">${needs}</div>${waitHtml}
 </section>`:""}
