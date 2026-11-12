@@ -115,6 +115,17 @@ def _goals():
     except Exception:
         g["progress"] = None
     # Supervisor-measured values (e.g. calendar coffee-chat count, build slices) merged into progress by pillar.
+    # Gmail recruiting scan (Sinny, daily): application confirmations, interviews and rejections since Sep 1.
+    try:
+        ce = json.load(open("/home/user/ops-bus/goals/career_email.json"))
+        if g["progress"] is None: g["progress"] = {}
+        car = g["progress"].setdefault("career", {})
+        for k in ("applied", "interviews", "rejections", "offers"):
+            if k in (ce.get("counts") or {}): car["email_" + k] = ce["counts"][k]
+        car["email_scan_at"] = ce.get("at")
+        car["email_not_in_tracker"] = ce.get("not_in_tracker_count")
+    except Exception:
+        pass
     for pillar, vals in (g.pop("overrides", None) or {}).items():
         if g["progress"] is None: g["progress"] = {}
         g["progress"].setdefault(pillar, {}).update(vals)
