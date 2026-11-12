@@ -137,6 +137,8 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600;white-space:nowrap}.pop .spark{width:100%;height:64px}.spark.wk7{height:auto!important;max-height:110px}
 .cards{display:grid;gap:10px}
+.goal .gk{position:relative;padding-right:18px}.goal .gchev{position:absolute;right:0;top:-2px;font-size:18px;line-height:1;color:var(--ink-2)}
+.goal:hover,.goal:focus-visible{border-color:var(--accent);border-top-color:var(--gs)}.goal:hover .gchev,.goal:focus-visible .gchev{color:var(--accent)}
 .since{margin:0 0 12px;font-size:14px;line-height:1.6}.since .linkbtn{min-height:28px;font-weight:600;color:var(--ink)}
 #rl,#is{scroll-margin-top:76px}
 .wdog{margin:0 0 6px;font-size:13px}
@@ -476,12 +478,13 @@ function openPop(title,html){
     d.addEventListener("click",e=>{if(e.target===d)d.close()});}
   d.querySelector("#pop-t").textContent=title; d.querySelector(".bd").innerHTML=html;
   const wasOpen=d.open;
-  if(!wasOpen){if(d.showModal) d.showModal(); else d.setAttribute("open","");
+  if(!wasOpen){d._opener=document.activeElement&&document.activeElement!==document.body?document.activeElement:null;if(d.showModal) d.showModal(); else d.setAttribute("open","");
     try{history.pushState({hqpop:1},"",location.href)}catch(_){}}
 }
 /* A sheet owns one history entry: Back closes it; closing it any other way pops that entry. */
 addEventListener("popstate",()=>{const d=document.getElementById("pop"); if(d&&d.open){d.dataset.viaBack="1";d.close()}});
 document.addEventListener("close",e=>{const d=e.target; if(!d||d.id!=="pop") return;
+  const op=d._opener; d._opener=null; if(op&&op.isConnected){try{op.focus({preventScroll:true})}catch(_){}}
   if(d.dataset.viaBack){delete d.dataset.viaBack;return}
   if(history.state&&history.state.hqpop){try{history.back()}catch(_){}}},true);
 const link=(u,t)=>u?`<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t||u)} ↗</a>`:"";
@@ -666,7 +669,7 @@ function goalsHtml(d){
     const st={good:"on track",warn:"behind",bad:"well behind",nf:"no feed yet"}[r.state]||"";
     const al=`${pName(p)}: ${nf?"no feed yet":r.warm?`${r.cur} of ${r.warm.of} target companies warm`:r.target!=null?`${r.cur} of ${r.target} ${r.label}`:`${r.cur} ${r.label}`}${st&&!nf?", "+st:""}. ${r.m?r.pace:""}. Open details`;
     return `<button type="button" class="goal${nf?" nf":""}" data-goal="${i}" style="--gs:${GS[r.state]??GS[""]}" aria-label="${esc(al)}">
-      <span class="gk">${esc(pName(p))}</span>
+      <span class="gk">${esc(pName(p))}<span class="gchev" aria-hidden="true">›</span></span>
       <span class="gv">${nf?esc(((G.progress||{})[p.key]||{}).status_label||"no feed yet"):r.warm?`${r.cur}<small> of ${r.warm.of} target companies warm${r.target!=null?` · goal ${r.target}`:""}</small>`:/_pct$/.test(r.m||"")?`${r.cur}%<small>${r.target!=null&&r.target!==100?` of ${r.target}%`:" done"}</small>`:`${r.cur}<small>${r.target!=null?"/"+r.target:" "+esc(r.label.replace(/\s*\(.*\)\s*$/,""))}</small>`}</span>
       ${r.warm?`<span class="gm ctsum">${[r.warm.ident!=null?`${r.warm.ident} named contact${r.warm.ident===1?"":"s"}`:"",`${r.warm.open} to open`].filter(Boolean).join(" · ")}</span>`:""}
       ${r.warm?"":`<span class="gm"${r.funnel?' style="white-space:normal"':""}>${r.funnel&&r.mail?'<span class="src">Notion</span> ':""}${esc(r.funnel||(r.m?r.label:(p.goal||"")))}</span>`}
@@ -890,7 +893,7 @@ function weekHtml(d){
   let lastK=null;
   const row=x=>{const k=dayKey(x), later=isLater(x), hd=k!==lastK?`<li class="dh${k==="today"||k===today?" today":""}${k==="overdue"?" od":""}${later?" later":""}">${esc(dayLab(k))}</li>`:""; lastK=k;
     const ttl=x.href?`<a href="${esc(x.href)}">${esc(x.title)}</a>`:(typeof x.url==="string"&&/^https:\/\//.test(x.url))?link(x.url,x.title):esc(x.title);
-    return `${hd}<li${later?' class="later"':""}><span class="d">${x.time?esc(new Date(x.t).toLocaleTimeString("en-US",{...PT,hour:"numeric",minute:"2-digit"})):""}</span><span>${ttl}</span><span class="k">${x.k}</span></li>`};
+    return `${hd}<li${later?' class="later"':""}><span class="d${!x.time&&x.t?" muted":""}">${x.time?esc(new Date(x.t).toLocaleTimeString("en-US",{...PT,hour:"numeric",minute:"2-digit"})):x.t?"all day":""}</span><span>${ttl}</span><span class="k">${x.k}</span></li>`};
   return `<section class="panel" aria-labelledby="wk"><h2 id="wk">Coming up${sub?` · <span style="text-transform:none;letter-spacing:0;font-weight:500">${sub}</span>`:""}</h2>
     ${list.length?`<ul class="wk" id="wkl">${list.map(row).join("")}</ul>${nLater?`<button type="button" class="more" data-more>Show the next two weeks (${nLater} more)</button>`:""}`:`<div class="empty">Nothing dated in the next two weeks.</div>`}
     ${!G.progress?`<p class="muted" style="margin:8px 0 0;font-size:12px">Tasks and career deadlines appear once the Notion feed lands.</p>`
@@ -1082,7 +1085,7 @@ function keysPop(){openPop("Keyboard shortcuts",`<dl class="keys">
   <dt><kbd>j</kbd> <kbd>k</kbd></dt><dd>Next / previous need</dd>
   <dt><kbd>1</kbd>–<kbd>9</kbd></dt><dd>Pick that answer on the selected need (the first one if none); <kbd>Enter</kbd> sends it</dd>
   <dt><kbd>g</kbd> <kbd>l</kbd></dt><dd>Life tab</dd><dt><kbd>g</kbd> <kbd>f</kbd></dt><dd>Fleet tab</dd>
-  <dt><kbd>r</kbd></dt><dd>Refresh data</dd><dt><kbd>?</kbd></dt><dd>This help</dd><dt><kbd>Esc</kbd></dt><dd>Close a popup</dd></dl>`)}
+  <dt><kbd>/</kbd></dt><dd>Search research</dd><dt><kbd>r</kbd></dt><dd>Refresh data</dd><dt><kbd>?</kbd></dt><dd>This help</dd><dt><kbd>Esc</kbd></dt><dd>Close a popup</dd></dl>`)}
 addEventListener("keydown",e=>{
   if(!kOn()||e.metaKey||e.ctrlKey||e.altKey||e.isComposing) return;
   const t=e.target; if(t&&(t.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
@@ -1092,6 +1095,8 @@ addEventListener("keydown",e=>{
   gAt=0;
   if(k==="g"){gAt=now;return}
   if(k==="?"){e.preventDefault();keysPop();return}
+  if(k==="/"){const go=()=>{const q=document.getElementById("rq"); if(q){q.scrollIntoView({block:"center"});q.focus({preventScroll:true})}};
+    if(curTab()!=="life"){e.preventDefault();location.hash="life";setTimeout(go,60);return} if(document.getElementById("rq")){e.preventDefault();go()} return}
   if(k==="r"){e.preventDefault();load();toast("Refreshing…");return}
   const c=kNeeds(); if(!c.length) return;
   if(k==="j"||k==="k"){e.preventDefault();KF=KF<0?0:Math.max(0,Math.min(c.length-1,KF+(k==="j"?1:-1)));kMark(true);return}
