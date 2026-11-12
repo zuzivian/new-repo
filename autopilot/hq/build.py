@@ -595,15 +595,25 @@ def _merge_queue():
             checks = ("failing" if any(x in ("failure", "error") for x in states) else
                       "pending" if any(x == "pending" for x in states) else "green")
             rows.append({"repo": repo, "number": pr["number"], "title": pr["title"], "url": pr["html_url"],
+                         **({"waiting": "Nat review"} if "nat:review" in labels else {}),
                          "reviewed": "sinny:reviewed" in labels, "checks": checks, "draft": bool(pr.get("draft")),
                          "since": pr.get("updated_at") or pr.get("created_at"), "author": pr["user"]["login"]})
     try:
         extra = json.load(open("/home/user/ops-bus/supervisor/merge-queue.json"))
         for x in extra.get("rows", extra if isinstance(extra, list) else []):
             if x.get("repo") not in reached and x.get("url", "").startswith("https://github.com/"):
-                rows.append({k: x.get(k) for k in ("repo", "number", "title", "url", "reviewed", "checks", "draft", "since", "author")})
+                rows.append({k: x.get(k) for k in ("repo", "number", "title", "url", "reviewed", "checks", "draft", "since", "author", "waiting") if k in x})
     except Exception:
         pass
+    # waiting: explicit reason override, e.g. Sinny's own workflow PRs it can't self-merge -> "Nat review".
+    # Sources: label "nat:review", a fallback row's "waiting", or state.json merge_waiting {"repo#n": reason}.
+    try:
+        mw = state.get("merge_waiting", {})
+    except Exception:
+        mw = {}
+    for r in rows:
+        w = mw.get(f"{r['repo']}#{r['number']}") or r.get("waiting")
+        if w: r["waiting"] = w
     rows = [r for r in rows if not (r["draft"] and r.get("author", "").endswith("[bot]"))]
     return sorted(rows, key=lambda r: (not r["reviewed"], r["checks"] != "green", r["draft"], r["since"] or ""))
 
