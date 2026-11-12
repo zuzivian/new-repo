@@ -63,8 +63,16 @@ cost = {"providers": sorted(({"provider": k, "usd": round(sum(m["usd"] for m in 
         "other": usage.get("other", [])}
 cost["total"] = round(sum(p["usd"] for p in cost["providers"]), 2)
 
+# Spend by STRATEGY pillar (career / digigov / growth / relationships / fleet_hq) so HQ can compare effort to the split.
+PILLAR_OF = {"natwong-dev": "career", "ad-constellation": "career", "skyviu": "career", "jbooks": "career",
+             "career": "career", "digitizing-government": "digigov", "digigov": "digigov",
+             "relationships": "relationships", "growth": "growth", "exponent": "growth",
+             "derby-day": "growth", "temasek-1360": "growth", "ring-studio": "growth",
+             "HQ": "fleet_hq", "new-repo": "fleet_hq", "ops-bus": "fleet_hq", "fleet": "fleet_hq"}
 spend_rows = sorted(
-    ({"project": k, "usd": round(v, 2), "tier": tier_of.get(k, "maintenance")} for k, v in spend.items()),
+    ({"project": k, "usd": round(v, 2), "tier": tier_of.get(k, "maintenance"),
+      "pillar": PILLAR_OF.get(k, "fleet_hq" if tier_of.get(k, "maintenance") == "maintenance" else "growth")}
+     for k, v in spend.items()),
     key=lambda r: -r["usd"])
 
 # Project board: one tile per repo with a status derived from workers, needs and config.
@@ -470,10 +478,15 @@ def _done_stats(agents):
 
 def _blocked():
     rows = []
+    # Nat's own items live in Needs; this strip shows agent and external blockers only.
     try:
-        for r in state.get("nat_actions", []) or []:
-            rows.append({"agent": "nat", "title": r.get("title"), "since": r.get("at") or r.get("added") or None,
-                         "waiting_on": "nat", "url": r.get("url")})
+        w = load(f"{OPS}/usage/watchdog.json") or {}
+        for x in (w.get("stuck") or []):
+            rows.append({"agent": "fleet", "title": f"Stuck >6h: {x}", "since": None, "waiting_on": "agent", "url": None})
+        for x in (w.get("failed_runs") or []):
+            t = x if isinstance(x, str) else x.get("name", "failed run")
+            u = None if isinstance(x, str) else x.get("url")
+            rows.append({"agent": "actions", "title": f"Failed run: {t}", "since": None, "waiting_on": "external", "url": u})
     except Exception:
         pass
     try:
@@ -484,7 +497,7 @@ def _blocked():
             if fm_held or res_held:
                 at = _iso(re.search(r"^requested_at:\s*(\S+)", r["text"], re.M).group(1)) if re.search(r"^requested_at:\s*(\S+)", r["text"], re.M) else None
                 rows.append({"agent": RUNNER_BY.get(r["runner"], r["runner"] or "fleet"), "title": r["title"] or r["file"],
-                             "since": at.isoformat() if at else None, "waiting_on": "nat",
+                             "since": at.isoformat() if at else None, "waiting_on": "agent",
                              "url": "https://github.com/zuzivian/ops-bus/blob/main/requests/pending/" + r["file"]})
     except Exception:
         pass
@@ -492,8 +505,9 @@ def _blocked():
         for i in _gh_json("repos/zuzivian/ops-bus/issues?state=open&labels=fleet&per_page=100") or []:
             if "pull_request" in i: continue
             L = [l["name"] if isinstance(l, dict) else l for l in i.get("labels", [])]
-            if "owner:nat" in L:
-                rows.append({"agent": "nat", "title": i["title"], "since": i.get("created_at"), "waiting_on": "nat", "url": i["html_url"]})
+            if "owner:nat" not in L:
+                own = next((l.split(":", 1)[1] for l in L if l.startswith("owner:")), "fleet")
+                rows.append({"agent": own, "title": i["title"], "since": i.get("created_at"), "waiting_on": "agent", "url": i["html_url"]})
     except Exception:
         pass
     rows.sort(key=lambda r: (r["since"] is None, str(r["since"] or "")))
