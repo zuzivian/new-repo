@@ -5,6 +5,9 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 | # | Finding | Status | Round |
 |---|---------|--------|-------|
 | 58 | Keep-in-touch chip not openable; coffee-chat tile didn't say which count (Pinny #6, #2) | done: list from keep_in_touch, sorted by due, flags touched-since; "Other counts: Notion typed · all touchpoints" | R58 |
+| 66 | Merge panel said "Ready to merge · 0 / Nothing ready yet" for 3 waiting PRs; merge_queue `waiting` reason ignored | done R70: one folded "Merge queue · N waiting" line when none ready; `waiting` shown and blocks Merge | R70 |
+| 67 | Dark/light contrast: "off" status text in --line (1.3:1); red "1 high" on the dark active tab (2.4:1) | done R70: off uses --ink-2; "N high" is a filled badge | R70 |
+| 68 | Overnight card: highlight says "94 research files" while the list says "6 research files" | needs data (Fleet Ops) | R70 |
 | 65 | Phone: Overnight buried under 11 Needs; prep briefs not linked; since-line research-only; Career tile led with warm; warm paths dead end (Binny phone critique 1-5) | done R67: top 3 Needs + Show all; Prep ↗ from prep_link; since-line adds decisions (→ Overnight) and new needs (needs `since`); "Apply this week: N · M eligible live" first; "next: ask via …" from the bridge note | R67 |
 | 62 | Fleet: pace gap hid capacity about to expire; no done counts; no blocked list (Pinny Fleet #1-3) | done R61: "N pts unused · resets in X" within 24 h of reset + summary; done_24h/last_done line and Blocked strip render when the data has them | R61 |
 | 63 | Fleet: allocation vs STRATEGY split, watchdog fixes list (Pinny Fleet #4, #6) | done R63: plan by pillar (percent), tier spend rolled up to pillars; fixes list was already wired | R61 |

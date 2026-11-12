@@ -137,6 +137,7 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600;white-space:nowrap}.pop .spark{width:100%;height:64px}.spark.wk7{height:auto!important;max-height:110px}
 .cards{display:grid;gap:10px}
+.hibadge{background:var(--bad);color:var(--panel);border-radius:8px;padding:0 6px;font-weight:700}
 .mql{list-style:none;padding:0;margin:0}.mq{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line)}.mq>div{min-width:0;overflow-wrap:anywhere}.mq .openlink{flex:none}
 .needs-more{display:grid;gap:10px}.needs-more[hidden]{display:none}.needs-all{width:100%;min-height:44px}
 .blk{border:1px solid var(--line);border-left:3px solid var(--bad);border-radius:10px;padding:8px 12px;margin:0 0 10px}.blk .lst{margin:4px 0 0}
@@ -359,7 +360,7 @@ function proChart(d){ // Pro account: cumulative new tokens over the same Sat-Sa
   <div class="muted" style="font-size:13px">Pro plan % isn't visible from the Pro runner, so this is token volume, not share of the weekly limit.</div>`;
 }
 
-const ST_COLOR={"needs you":"var(--bad)","running":"var(--good)","queued":"var(--core)","paused":"var(--warn)","idle":"var(--maint)","off":"var(--line)"};
+const ST_COLOR={"needs you":"var(--bad)","running":"var(--good)","queued":"var(--core)","paused":"var(--warn)","idle":"var(--maint)","off":"var(--ink-2)"};
 function ago(iso){const t=new Date(iso);if(!iso||isNaN(t))return "";const m=Math.max(0,(Date.now()-t)/60000);
   return m<60?Math.round(m)+"m ago":m<48*60?Math.round(m/60)+"h ago":Math.round(m/1440)+"d ago"}
 function boardHtml(b){
@@ -747,10 +748,11 @@ function sinceHtml(d){if(!SEEN_BEFORE) return ""; const t0=new Date(SEEN_BEFORE)
   return bits.length?`<p class="since"><span class="muted">Since you last looked (${esc(fmtT(SEEN_BEFORE))}):</span> ${bits.join(" · ")}</p>`:""}
 function mergeHtml(d){const Q=(Array.isArray(d.merge_queue)?d.merge_queue:[]).filter(x=>x&&x.repo&&num(x.number)!=null&&/^https:\/\/github\.com\//.test(x.url||""));
   if(!Q.length) return "";
-  const ok=x=>x.reviewed===true&&String(x.checks).toLowerCase()==="green"&&x.draft!==true;
-  const why=x=>[x.draft===true?"draft":"",x.reviewed!==true?"needs Sinny's review":"",String(x.checks).toLowerCase()==="pending"?"checks running":String(x.checks).toLowerCase()==="failing"?"checks failing":String(x.checks).toLowerCase()!=="green"?"checks unknown":""].filter(Boolean).join(" · ");
+  const ok=x=>x.reviewed===true&&String(x.checks).toLowerCase()==="green"&&x.draft!==true&&!x.waiting;
+  const why=x=>[x.waiting?String(x.waiting).slice(0,60):"",x.draft===true?"draft":"",x.reviewed!==true?"needs Sinny's review":"",String(x.checks).toLowerCase()==="pending"?"checks running":String(x.checks).toLowerCase()==="failing"?"checks failing":String(x.checks).toLowerCase()!=="green"?"checks unknown":""].filter(Boolean).join(" · ");
   const R=Q.filter(ok), W=Q.filter(x=>!ok(x));
   const row=x=>`<li class="mq"><div><b>${esc(x.title||"PR")}</b><div class="muted" style="font-size:12px">${esc(x.repo)} #${num(x.number)}${isDate(x.since)?` · ${esc(fmtT(x.since))}`:""}</div></div>${ok(x)?`<a class="openlink" href="${esc(x.url)}#partial-pull-merging" target="_blank" rel="noopener">Merge on GitHub ↗</a>`:`<span class="muted" style="font-size:12px">${esc(why(x))}</span>`}</li>`;
+  if(!R.length) return `<section class="panel" aria-labelledby="mq" style="margin-bottom:16px"><details class="closed"><summary><h2 id="mq" style="display:inline;margin:0">Merge queue · ${W.length} waiting</h2></summary><ul class="lst mql">${W.map(row).join("")}</ul></details></section>`;
   return `<section class="panel" aria-labelledby="mq" style="margin-bottom:16px"><h2 id="mq">Ready to merge · ${R.length}</h2>
     ${R.length?`<p class="muted" style="margin:-4px 0 8px;font-size:13px">Sinny reviewed, checks green. Opens the PR; tap Squash and merge, then Confirm. Or comment /merge.</p><ul class="lst mql">${R.map(row).join("")}</ul>`:`<p class="muted" style="margin:0">Nothing ready yet.</p>`}
     ${W.length?`<details class="closed"><summary class="muted">Waiting · ${W.length}</summary><ul class="lst mql">${W.map(row).join("")}</ul></details>`:""}</section>`}
@@ -1007,7 +1009,7 @@ function curTab(){const h=location.hash.slice(1);
 function tabsHtml(d,tab,u,state){
   const nn=(d.needs||[]).length, hi=(d.issues||[]).filter(i=>i.severity==="critical"||i.severity==="high").length;
   const t=(k,l,extra)=>`<a role="tab" href="#${k}" class="tab${tab===k?" on":""}" aria-selected="${tab===k}">${l}${extra||""}</a>`;
-  return `<nav class="tabs" role="tablist" aria-label="HQ views">${t("life","Life")}${t("fleet","Fleet",`<span class="tx">${Math.round(u*100)}% used${hi?` · <b style="color:var(--bad)">${hi} high</b>`:""}</span>`)}
+  return `<nav class="tabs" role="tablist" aria-label="HQ views">${t("life","Life")}${t("fleet","Fleet",`<span class="tx">${Math.round(u*100)}% used${hi?` · <b class="hibadge">${hi} high</b>`:""}</span>`)}
     ${nn?`<button type="button" class="nb" data-goneeds>${nn} need${nn===1?"s":""} you</button>`:""}</nav>`;
 }
 function home(d){
