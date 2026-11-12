@@ -133,8 +133,8 @@ def _md_table(path):
         r["is_posted"] = r["posted"].upper().startswith("Y")
         r["applied"] = bool(re.search(r"applied|interview|rejected|offer", r["status"], re.I))
         # Posting-text flag only; personal filters live in a private file (see _career_filter).
-        e = r["eligibility"].lower()
-        r["us_person_required"] = True if re.search(r"itar|u\.?s\.? ?(citizen|person|national)|citizenship|clearance|export|permanent resident|green card|lpr", e) else None
+        e = re.sub(r"\b(no|not|without)\b[^.;]{0,40}?\b(citizenship|clearance|export|itar|u\.?s\.? person)[^.;]*", "", r["eligibility"].lower())
+        r["us_person_required"] = None if re.search(r"sentence only|boilerplate", e) else True if re.search(r"itar|u\.?s\.? ?(citizen|person|national)|citizenship|clearance|export|permanent resident|green card|lpr", e) else None
         rows.append(r)
     flt = _career_filter()
     for r in rows:
