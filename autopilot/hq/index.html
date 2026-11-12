@@ -137,6 +137,7 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600;white-space:nowrap}.pop .spark{width:100%;height:64px}.spark.wk7{height:auto!important;max-height:110px}
 .cards{display:grid;gap:10px}
+.wdog{margin:0 0 6px;font-size:13px}
 .rq{font:inherit;font-size:15px;width:100%;min-height:40px;padding:0 12px;margin:0 0 8px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}.rq:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .agsum{margin:0 0 6px;font-size:13px}.agsum .hint{display:none}@media (max-width:640px){.agsum .hint{display:inline}}
 .sev.zero{color:var(--ink-2);opacity:.7}
@@ -695,6 +696,15 @@ function decHtml(d,where){const D=decs(d); if(!D.length) return "";
   if(!fresh.length) return `<p class="muted decnone">No new decisions since your last visit · <button type="button" class="linkbtn" data-decall>see all ${D.length}</button></p>`;
   return `<section class="panel decs" aria-labelledby="dc"><h2 id="dc">Decided for you${SEEN_BEFORE?` · ${fresh.length} new`:""}</h2><ul class="decl">${fresh.slice(0,3).map(x=>decRow(x,D.indexOf(x))).join("")}</ul>
     <div class="dec-act"><button type="button" class="more" data-decall>See all ${D.length}</button><button type="button" class="more" data-decok>Got it</button></div></section>`}
+/* Watchdog (data.watchdog {fixes_24h, at?, fixes?[{at, what, link?}]}): what the fleet repaired on its own */
+function watchHtml(d){const W=d&&d.watchdog; if(!W||num(W.fixes_24h)==null) return "";
+  const asItem=x=>typeof x==="string"?{what:x.replace(/\s*https?:\/\/\S+/,"").trim()||x,link:(x.match(/https:\/\/\S+/)||[""])[0]}:x&&{what:x.what||x.title||x.action,link:x.link||x.url,at:x.at};
+  const F=(Array.isArray(W.fixes)?W.fixes:Array.isArray(W.actions)?W.actions:[]).map(asItem).filter(x=>x&&x.what).slice(0,10), n=num(W.fixes_24h);
+  const bad=[].concat((W.failed_runs||[]).map(asItem).map(x=>x&&{...x,kind:"failed run"}),(W.stuck||[]).map(asItem).map(x=>x&&{...x,kind:"stuck"})).filter(x=>x&&x.what);
+  const it=x=>`<li>${/^https:\/\//.test(x.link||"")?link(x.link,x.what):esc(x.what)}${x.kind?` <span class="muted">· ${x.kind}</span>`:""}${isDate(x.at)?` <span class="muted">· ${esc(fmtT(x.at))}</span>`:""}</li>`;
+  const line=`Self-healing: ${n} fix${n===1?"":"es"} in the last 24h${bad.length?` · <span style="color:var(--warn)">${bad.length} need${bad.length===1?"s":""} a look</span>`:""}${isDate(W.at)?` · checked ${esc(fmtT(W.at))} PT`:""}`;
+  return F.length||bad.length?`<details class="closed wdog"><summary class="muted"><span>${line}</span></summary><ul class="lst2">${bad.map(it).join("")}${F.map(it).join("")}</ul></details>`
+    :`<p class="muted wdog">${line}</p>`}
 function nightHtml(d){const ov=overnightHtml(d); if(!ov) return decHtml(d);
   const inner=decHtml(d,"inner"); return inner?ov.replace(/<\/section>$/,inner+"</section>"):ov}
 function decAllPop(){const D=decs(DATA); openPop("Decided for you",`<p class="muted" style="margin:0;font-size:13px">Calls the orchestrator made on your behalf, newest first. Tap Reverse? to ask for one to be undone.</p><ul class="decl">${D.map((x,i)=>decRow(x,i,1)).join("")}</ul>`);
@@ -965,7 +975,7 @@ function home(d){
      <div class="cards">${needs}</div>
      ${rest.some(([n])=>!Array.isArray(n.options)||n.options.length)?`<p class="muted" style="margin:10px 0 0;font-size:13px"><span class="long">${ONE?"Tap an answer to send it to the autopilot in one tap. ":"Tap an answer to open a prefilled GitHub issue; Submit there sends it to the autopilot. "}</span><span class="short">${ONE?"One tap sends. ":"Opens GitHub → tap Submit. "}</span>★ = my pick.</p><p class="muted keyhint">Keys: <kbd>j</kbd>/<kbd>k</kbd> pick a need · <kbd>1</kbd>–<kbd>9</kbd> choose an answer, <kbd>Enter</kbd> sends · <kbd>?</kbd> all shortcuts</p>`:""}</section>`:""}
    ${nightHtml(d)}${goalsHtml(d)}<div style="margin-bottom:16px">${weekHtml(d)}</div>${researchHtml(d)}${alignHtml(d,"build")}`;
-  const fleet=()=>`${agentsHtml(d.agents,fpOf(d))}${decHtml(d,"fleet")?`<div style="margin:16px 0">${decHtml(d,"fleet")}</div>`:""}${alignHtml(d)}<div class="grid" style="margin-top:16px">
+  const fleet=()=>`${watchHtml(d)}${agentsHtml(d.agents,fpOf(d))}${decHtml(d,"fleet")?`<div style="margin:16px 0">${decHtml(d,"fleet")}</div>`:""}${alignHtml(d)}<div class="grid" style="margin-top:16px">
    <section class="panel" aria-labelledby="g"><h2 id="g">Weekly fuel · Stanford account</h2>
      <div class="gauge-top"><div class="big mono">${Math.round(u*100)}%<span class="muted" style="font-size:14px;font-weight:600;margin-left:6px">used</span></div>
        <div class="stat"><span class="muted">Target now</span><b>${t==null?"—":Math.round(t*100)+"%"}</b></div>
