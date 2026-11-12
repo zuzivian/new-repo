@@ -612,6 +612,7 @@ def _merge_queue():
     except Exception:
         mw = {}
     for r in rows:
+        if r.get("checks") not in ("green", "pending", "failing"): r["checks"] = "pending"
         w = mw.get(f"{r['repo']}#{r['number']}") or r.get("waiting")
         if w: r["waiting"] = w
     rows = [r for r in rows if not (r["draft"] and r.get("author", "").endswith("[bot]"))]
