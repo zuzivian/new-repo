@@ -708,7 +708,8 @@ function watchHtml(d){const W=d&&d.watchdog; if(!W||num(W.fixes_24h)==null) retu
   const F=(Array.isArray(W.fixes)?W.fixes:Array.isArray(W.actions)?W.actions:[]).map(asItem).filter(x=>x&&x.what).slice(0,10), n=num(W.fixes_24h);
   const bad=[].concat((W.failed_runs||[]).map(asItem).map(x=>x&&{...x,kind:"failed run"}),(W.stuck||[]).map(asItem).map(x=>x&&{...x,kind:"stuck"})).filter(x=>x&&x.what);
   const it=x=>`<li>${/^https:\/\//.test(x.link||"")?link(x.link,x.what):esc(x.what)}${x.kind?` <span class="muted">· ${x.kind}</span>`:""}${isDate(x.at)?` <span class="muted">· ${esc(fmtT(x.at))}</span>`:""}</li>`;
-  const line=`Self-healing: ${n} fix${n===1?"":"es"} in the last 24h${bad.length?` · <span style="color:var(--warn)">${bad.length} need${bad.length===1?"s":""} a look</span>`:""}${isDate(W.at)?` · checked ${esc(fmtT(W.at))} PT`:""}`;
+  const fw=num(W.fixes_watchdog_24h), fo=num(W.fixes_fleet_ops_24h), split=fw!=null&&fo!=null&&n?` (${fw} watchdog · ${fo} Fleet Ops)`:"";
+  const line=`Self-healing: ${n} fix${n===1?"":"es"} in the last 24h${split}${bad.length?` · <span style="color:var(--warn)">${bad.length} need${bad.length===1?"s":""} a look</span>`:""}${isDate(W.at)?` · checked ${esc(fmtT(W.at))} PT`:""}`;
   return F.length||bad.length?`<details class="closed wdog"><summary class="muted"><span>${line}</span></summary><ul class="lst2">${bad.map(it).join("")}${F.map(it).join("")}</ul></details>`
     :`<p class="muted wdog">${line}</p>`}
 /* "Since you last looked": one line of counts, each a jump to where the new things are */
@@ -1150,7 +1151,7 @@ function natNeeds(d){if(!d||!Array.isArray(d.needs)) return d; const seen=new Se
   // one card per thing: an action row wins over the fleet issue that tracks the same thing
   // (linked by x.issue, or sharing a distinctive ref: an ALL_CAPS name, "PR #N", or a file name like X.md)
   const refs=t=>new Set((String(t||"").match(/\b[A-Z][A-Z0-9]*_[A-Z0-9_]+\b|PR #\d+|\b[\w-]+\.(?:md|json|yml|py|js)\b/g)||[]).map(x=>x.toLowerCase()));
-  const acts=(d.nat_actions||[]).filter(x=>x&&x.title).map(x=>({project:x.project||"fleet",title:x.title,detail:x.detail||"",url:x.url,issue:x.issue,options:x.options||[],consequence:x.consequence||x.risk||"",from:"Your action"}));
+  const acts=(d.nat_actions||[]).filter(x=>x&&x.title).map(x=>({project:x.project||"fleet",title:x.title,detail:x.detail||"",url:x.url,issue:x.issue,options:x.options||[],consequence:x.consequence||x.risk||"",state:x.state||x.status||"",from:"Your action"}));
   const dup=i=>acts.some(a=>(a.issue&&a.issue===i.url)||[...refs(i.title+" "+(i.detail||""))].some(r=>refs(a.title+" "+a.detail+" "+(a.url||"")).has(r)));
   const iss=(d.issues||[]).filter(own).filter(i=>!dup(i)).map(i=>({project:"fleet",title:i.title,detail:i.detail||"",url:i.url,options:[],from:"Fleet issue"}));
   const FP=fpOf(d), stall=[];
