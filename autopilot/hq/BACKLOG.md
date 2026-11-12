@@ -14,7 +14,7 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 | 3 | "2 overdue" shows twice but the overdue tasks aren't listed or tappable | needs data: tasks.overdue_items[] (title, due, url) | R20 |
 | 5 | Career: 8 applied (tile), 12 (chart, applications sent), 17 (Gmail); "≈4 not in tracker" ≠ 17 − 8; no target number | needs data: reconcile sources, expose the target | R20 |
 | 7 | Growth tile "2/2 reached" but the popup note says slice 2 is in progress | needs data: stale note | R20 |
-| 8 | Relationships mixes 39/40, 39 of 100 for the year and 4 this wk; the popup charts classmates logged, not chats | open | R20 |
+| 8 | Relationships mixes 39/40, 39 of 100 for the year and 4 this wk; the popup charts classmates logged, not chats | partly done R21: "Year: 39/100", "1 to go by 12/12"; popup chart needs a coffee-chat history series (data) | R20 |
 | 6 | Life Focus says "All goals on track" while Fleet effort is far off plan | open (decide whether Focus should cover the fleet) | R20 |
 | — | Week plan need on Sun/Mon gets its own card | done | R18 |
 | — | Gmail scan counts beside the Notion funnel | done | R18 |

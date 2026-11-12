@@ -490,7 +490,7 @@ function pillarRead(p,prog,d){
   let cal=false; if(cur==null&&num(g[base+"_scheduled_done"])!=null){cur=num(g[base+"_scheduled_done"]);cal=true}
   // second numeric target with a reported value, e.g. classmates logged
   const yk=keys.find(k=>k!==m&&/year/i.test(k)&&tnum(T[k])!=null);
-  const k2=yk?null:keys.find(k=>k!==m&&num(g[k])!=null), sec=yk&&cur!=null?`${cur} of ${tnum(T[yk])} for the year`:k2?`${k2.replace(/_/g," ")} ${num(g[k2])}/${tnum(T[k2])}`.replace(/^(\w)/,c=>c.toUpperCase()):"";
+  const k2=yk?null:keys.find(k=>k!==m&&num(g[k])!=null), sec=yk&&cur!=null?`Year: ${cur}/${tnum(T[yk])}`:k2?`${k2.replace(/_/g," ")} ${num(g[k2])}/${tnum(T[k2])}`.replace(/^(\w)/,c=>c.toUpperCase()):"";
   // funnel (no numeric target): show the stages that are reported
   const FUN=["tracked","applied","interviewing","offers"], funnel=target==null&&FUN.some(k=>num(g[k])!=null)?FUN.filter(k=>num(g[k])!=null).map(k=>`${num(g[k])} ${k}`).join(" · "):"";
   const EM=[["email_applied","applied"],["email_interviews","interviews"],["email_rejections","rejections"],["email_offers","offers"]].filter(([k])=>num(g[k])!=null);
@@ -511,7 +511,7 @@ function pillarRead(p,prog,d){
       const wk=Math.max((new Date(asDay(dl))-now)/(7*dayMs),.1); need=(target-cur)/wk;
       rate=num(g[m+"_this_week"])??num(g[base+"_this_week"]);
       state=rate==null?"":rate>=need?"good":"warn";
-      pace=(state==="good"&&cur>=0.9*target?`Almost there · ${target-cur} to go`:`needs ${need.toFixed(1)}/wk · ${wk.toFixed(1)} wk left`)+(rate==null?"":` · ${rate} this wk`);
+      pace=(state==="good"&&cur>=0.9*target?`Almost there · ${target-cur} to go by ${fmtD(asDay(dl)).replace(/^\w+, /,"")}`:`needs ${need.toFixed(1)}/wk · ${wk.toFixed(1)} wk left`)+(rate==null?"":` · ${rate} this wk`);
     } else {state="";pace=`${Math.round(cur/target*100)}% of target`}
   }
   const booked=Object.keys(g).filter(k=>/_booked$|_upcoming$/.test(k)&&num(g[k])).map(k=>`${num(g[k])} more booked`);
