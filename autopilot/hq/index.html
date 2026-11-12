@@ -137,6 +137,7 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600;white-space:nowrap}.pop .spark{width:100%;height:64px}.spark.wk7{height:auto!important;max-height:110px}
 .cards{display:grid;gap:10px}
+details.closed{margin-top:8px}details.closed summary{cursor:pointer;font-size:13px;min-height:36px;display:flex;align-items:center}details.closed .row a{color:var(--ink-2);text-decoration:none}
 .asof-c{font-size:12px;font-weight:400}
 .ctl.wp li{display:block}.ctl.wp .pill{font-size:10px;padding:1px 7px;vertical-align:middle}
 .goal .gm.ctsum{color:var(--ink);font-weight:600}
@@ -840,7 +841,9 @@ function home(d){
      <div class="bar5"><i style="width:${Math.min(d.week.u5*100,100)}%"></i></div>`:`<div class="muted" style="margin-top:10px">5-hour window · <i>no reading yet</i></div>`}
      ${PC?gaugeChart(d):""}${proChart(d)}</section>
    <section class="panel" aria-labelledby="pb"><h2 id="pb">Projects</h2>${boardHtml(d.board)}</section>
-   <section class="panel" aria-labelledby="is"><h2 id="is">Fleet issues · ${(d.issues||[]).length}</h2>${issuesHtml(d.issues)}</section>
+   <section class="panel" aria-labelledby="is"><h2 id="is">Fleet issues · ${(d.issues||[]).length}</h2>${issuesHtml(d.issues)}
+     ${(d.issues_closed||[]).length?`<details class="closed"><summary class="muted">Closed this week · ${d.issues_closed.length}</summary>${d.issues_closed.map(i=>`<div class="row"><a href="${esc(i.url)}" target="_blank" rel="noopener" class="name"><s>${esc(i.title)}</s></a><span class="muted" style="font-size:12px">${esc(i.detail.split(" · ").pop())}</span></div>`).join("")}</details>`:""}
+     <p class="muted" style="margin:8px 0 0;font-size:12px">${d.issues_at?`Live from GitHub (${esc(((d.gh_issues||{}).repos||[]).map(r=>r.split("/").pop()).join(", "))}) · read ${esc(fmtT(d.issues_at))} PT. Close an issue on GitHub and it leaves here.`:`From the supervisor's list${d.updated?` · ${esc(fmtT(d.updated))} PT`:""}. Not yet mirrored from GitHub.`}</p></section>
    <section class="panel" aria-labelledby="c"><h2 id="c">Crew</h2><div class="rows">${crew}</div></section>
    <section class="panel" aria-labelledby="c"><h2 id="c">API-equivalent cost · this week · $${(d.cost&&d.cost.total||0).toFixed(0)}</h2>
      ${costHtml(d.cost,d.updated)}
@@ -955,13 +958,21 @@ addEventListener("hashchange",()=>{const h=location.hash.slice(1), from=LASTH; L
   else if(h==="life"||h==="fleet")window.scrollTo(0,0)});
 /* Anything in the data that waits on Nat becomes a Need, wherever it was filed: fleet issues owned by Nat,
    and items flagged needs_nat (e.g. a PR to merge, a secret to add). They carry a link, never answer buttons. */
+function ghMirror(d){const G=d&&d.gh_issues; if(!G||!Array.isArray(G.items)) return d;
+  const SEV=["critical","high","medium","low"], ago=t=>t&&!isNaN(new Date(t))?fmtD(t).replace(/^\w+, /,""):"";
+  const map=i=>({severity:SEV.includes(i.severity)?i.severity:"medium",area:i.area||(i.queue?"chinny":i.repo),title:i.title,
+    detail:[`${i.repo} #${i.number}`,i.queue?i.queue.replace("codex:","Chinny ")+"":"",i.state==="closed"&&i.closed?"closed "+ago(i.closed):"opened "+ago(i.since)].filter(Boolean).join(" · "),
+    url:/^https:\/\/github\.com\//.test(i.url||"")?i.url:"",owner:/^zuzivian$/i.test(i.owner||"")?"Nat":i.owner,since:ago(i.since),closed:i.closed,gh:1,queue:i.queue});
+  const open=G.items.filter(i=>i.state==="open"), shut=G.items.filter(i=>i.state==="closed");
+  d.issues_sup=d.issues||[]; d.issues=open.map(map).sort((a,b)=>SEV.indexOf(a.severity)-SEV.indexOf(b.severity));
+  d.issues_closed=shut.map(map).sort((a,b)=>String(b.closed).localeCompare(String(a.closed))); d.issues_at=G.at; return d}
 function natNeeds(d){if(!d||!Array.isArray(d.needs)) return d; const seen=new Set(d.needs.map(n=>String(n.title||"").toLowerCase()));
-  const own=x=>/^nat\b/i.test(String(x&&x.owner||""))||x&&(x.needs_nat===true||/^nat$/i.test(String(x.needs||"")));
+  const own=x=>/^(nat\b|zuzivian$)/i.test(String(x&&x.owner||""))||x&&(x.needs_nat===true||/^nat$/i.test(String(x.needs||"")));
   const add=[].concat((d.issues||[]).filter(own).map(i=>({project:"fleet",title:i.title,detail:i.detail||"",url:i.url,options:[],from:"Fleet issue"})),
     (d.nat_actions||[]).filter(x=>x&&x.title).map(x=>({project:x.project||"fleet",title:x.title,detail:x.detail||"",url:x.url,options:x.options||[],from:"Fleet"})))
     .filter(n=>!seen.has(String(n.title||"").toLowerCase()));
   d.needs=d.needs.concat(add); return d}
-function load(){return fetch("data.json",{cache:"no-store"}).then(r=>r.json()).then(d=>{DATA=natNeeds(d);try{render()}catch(e){document.getElementById("view").innerHTML='<p class="empty">HQ hit a display error ('+esc(String(e&&e.message||e))+'). Ask the autopilot chat to fix it.</p>'}}).catch(()=>{if(DATA){try{render()}catch(_){}}else document.getElementById("view").innerHTML='<p class="empty">Couldn\'t load status data. Ask the autopilot chat to republish HQ.</p>'})}
+function load(){return fetch("data.json",{cache:"no-store"}).then(r=>r.json()).then(d=>{DATA=natNeeds(ghMirror(d));try{render()}catch(e){document.getElementById("view").innerHTML='<p class="empty">HQ hit a display error ('+esc(String(e&&e.message||e))+'). Ask the autopilot chat to fix it.</p>'}}).catch(()=>{if(DATA){try{render()}catch(_){}}else document.getElementById("view").innerHTML='<p class="empty">Couldn\'t load status data. Ask the autopilot chat to republish HQ.</p>'})}
 load().then(()=>{if(DATA&&typeof DATA.one_click==="boolean"){ONE=DATA.one_click;if(ONE)try{render()}catch(_){}}else probeOne()});
 /* Refresh every 5 min while the tab is visible (not while a popup is open), and on return to the tab. */
 setInterval(()=>{const pop=document.getElementById("pop");if(document.visibilityState==="visible"&&!(pop&&pop.open))load()},5*60e3);
