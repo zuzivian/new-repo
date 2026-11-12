@@ -106,8 +106,9 @@ for b in board.values():
     elif b["paused"]: b["status"] = "paused"
     elif b["running"]: b["status"] = "running"
     elif b["queued"] or b["codex"]: b["status"] = "queued"
+    elif not (b["done"] or b["running"] or b["queued"] or b["codex"]): b["status"] = "not attached"  # no session ever touched it
     else: b["status"] = "idle"
-ORDER = {"needs you": 0, "running": 1, "queued": 2, "paused": 3, "idle": 4, "off": 5}
+ORDER = {"needs you": 0, "running": 1, "queued": 2, "paused": 3, "idle": 4, "not attached": 5, "off": 6}
 
 def _career_filter():
     """Private, owner-maintained filter (ops-bus context/career-filter.json): exclude_companies, exclude_us_person_roles."""
@@ -193,6 +194,104 @@ def _gh_issues():
                           "since": i["created_at"], "closed": i.get("closed_at")})
     return {"at": dt.datetime.now(dt.timezone.utc).isoformat(), "repos": ["ops-bus", "new-repo", "skyviu", "ad-constellation", "natwong-dev"], "items": items}
 
+OPS = "/home/user/ops-bus"
+RUNNER_BY = {"pro": "pinny", "instinct": "binny", "muse": "minny"}
+
+def _requests(sub):
+    """Parse requests/<sub>/*.md front-matter + body -> [{file, runner, title, text}] (skips unreadable files)."""
+    import glob as _g
+    rows = []
+    for f in sorted(_g.glob(f"{OPS}/requests/{sub}/*.md")):
+        try:
+            text = open(f).read()
+        except Exception:
+            continue
+        fm = {}
+        m = re.match(r"---\n(.*?)\n---", text, re.S)
+        for line in (m.group(1).splitlines() if m else []):
+            k, _, v = line.partition(":")
+            fm[k.strip()] = v.strip()
+        rows.append({"file": os.path.basename(f), "runner": fm.get("runner", ""), "title": fm.get("title", ""), "text": text})
+    return rows
+
+def _short(title):
+    t = re.sub(r"^(\(retry[^)]*\)\s*)?((Binny|Minny|Pinny)(\s*\([^)]*\))?|Research)\s*[-:\u2013]\s*", "", title or "").strip()
+    return t if len(t) <= 40 else t[:40].rsplit(" ", 1)[0] + "\u2026"
+
+def _doing_from_requests(agents):
+    """(a) Replace generic Pinny/Binny/Minny `doing` text with a summary of their pending requests."""
+    try:
+        pend = _requests("pending")
+        for a in agents:
+            runner = next((k for k, v in RUNNER_BY.items() if v == a.get("key")), None)
+            if not runner: continue
+            mine = [r for r in pend if r["runner"] == runner]
+            if not mine: continue
+            noun = {"binny": "browser", "minny": "browser", "pinny": "research"}[a["key"]]
+            titles = ", ".join(_short(r["title"]) for r in mine[:3] if r["title"])
+            a["doing"] = f"{len(mine)} {noun} task{'s' if len(mine) != 1 else ''} in flight: {titles}" + ("\u2026" if len(mine) > 3 and not titles.endswith("\u2026") else "")
+    except Exception:
+        pass
+    return agents
+
+def _truncate(s, n=60):
+    s = s or ""
+    if len(s) <= n: return s
+    cut = s[:n - 1].rsplit(" ", 1)[0].rstrip(" ,;:-\u2013") if " " in s[:n - 1] else s[:n - 1]
+    return cut + "\u2026"
+
+def _research_by(rows):
+    """(b) Attribute each research row to an agent: requests/done mention first, then commit-subject hint, else sinny."""
+    import subprocess as sp
+    reqs = _requests("done") + _requests("pending") + _requests("failed")
+    for r in rows:
+        by = None
+        try:
+            base = os.path.basename(r["path"])
+            for q in reqs:
+                if r["path"] in q["text"] or base in q["text"] or (r["title"] and len(r["title"]) > 12 and r["title"].lower() in q["text"].lower()):
+                    by = RUNNER_BY.get(q["runner"])
+                    if by: break
+            if not by:
+                s = sp.run(["git", "-C", OPS, "log", "-1", "--format=%s", "--", r["path"]], capture_output=True, text=True, timeout=15).stdout
+                if "(muse)" in s: by = "minny"
+                elif "(instinct)" in s: by = "binny"
+                elif "ops-bus run" in s: by = "pinny"
+        except Exception:
+            pass
+        r["by"] = by or "sinny"
+    return rows
+
+def _watchdog():
+    """(f) usage/watchdog.json plus fixes_24h = actions with an `at` in the last 24h (or all actions if untimed)."""
+    w = load(f"{OPS}/usage/watchdog.json")
+    if not isinstance(w, dict): return None
+    cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=24)
+    n = 0
+    for a in w.get("actions") or []:
+        at = a.get("at") if isinstance(a, dict) else None
+        try:
+            ts = dt.datetime.fromisoformat(str(at).replace("Z", "+00:00"))
+            if ts.tzinfo is None: ts = ts.replace(tzinfo=dt.timezone.utc)
+            n += ts >= cutoff
+        except Exception:
+            n += 1  # untimed entry: the file only keeps the latest run, so count it
+    return {**w, "fixes_24h": n}
+
+def _nat_actions():
+    """(g) Pass through issue/options; default options."""
+    rows = []
+    for r in state.get("nat_actions", []) or []:
+        r = dict(r)
+        if not r.get("options"): r["options"] = ["Done", "Snooze 1 day"]
+        rows.append(r)
+    return rows
+
+def _decisions():
+    """(c) decision headline <=60 chars; the detail lives in `why`."""
+    rows = sorted(state.get("decisions", []), key=lambda d: d.get("at", ""), reverse=True)[:30]
+    return [{**d, "decision": _truncate(d.get("decision"))} for d in rows]
+
 def _research():
     """Research library: every markdown file under ops-bus research/, newest first, with ops-bus blob links."""
     import subprocess as sp, glob as _g
@@ -210,7 +309,7 @@ def _research():
         area = rel.split("/")[1] if rel.count("/") >= 2 else "other"
         rows.append({"title": title or os.path.basename(f)[:-3], "area": area, "path": rel, "at": at,
                      "url": f"https://github.com/zuzivian/ops-bus/blob/main/{rel}"})
-    return sorted(rows, key=lambda x: x["at"], reverse=True)
+    return _research_by(sorted(rows, key=lambda x: x["at"], reverse=True))
 
 def _goals():
     g = dict(state.get("goals") or {})
@@ -278,6 +377,12 @@ for b in board.values():
         b["last_activity"] = out if out.startswith("20") else None
     except Exception:
         b["last_activity"] = None
+try:  # (e) HQ has no repo of its own: use the newest commit on the HQ branch
+    _hq = _sp.run(["gh", "api", "repos/zuzivian/new-repo/branches/claude/token-usage-auto-allocation-1hmsvv",
+                   "--jq", ".commit.commit.committer.date"], capture_output=True, text=True, timeout=15).stdout.strip()
+    if _hq.startswith("20") and "HQ" in board: board["HQ"]["last_activity"] = _hq
+except Exception:
+    pass
 projects_board = sorted(board.values(), key=lambda b: (ORDER[b["status"]], b["project"]))
 
 now = dt.datetime.now(dt.timezone.utc)
@@ -301,11 +406,12 @@ out = {
     # Career targets: Pinny's research/career/internship-timelines.md table (ops-bus, private) as rows.
     "career_targets": (lambda: _md_table("/home/user/ops-bus/research/career/internship-timelines.md"))(),
     "gh_issues": _gh_issues(),
-    "nat_actions": state.get("nat_actions", []),
+    "nat_actions": _nat_actions(),
+    "watchdog": _watchdog(),
     # Key decisions the supervisor made on Nat's behalf (newest first), so he can review or reverse them.
     "research": _research(),
-    "overnight": state.get("overnight"),
-    "decisions": sorted(state.get("decisions", []), key=lambda d: d.get("at", ""), reverse=True)[:30],
+    "overnight": state["overnight"] if isinstance(state.get("overnight"), dict) else None,
+    "decisions": _decisions(),
     "fleet_pacing": (lambda: (json.load(open("/home/user/ops-bus/usage/pacing.json")) if os.path.exists("/home/user/ops-bus/usage/pacing.json") else None))(),
     "workers": [w for w in state.get("workers", []) if not str(w.get("status","")).startswith("done")]
                + [w for w in state.get("workers", []) if str(w.get("status","")).startswith("done")][:6],
@@ -315,7 +421,7 @@ out = {
     "supervisor": state.get("supervisor"),
     "cost": cost,
     "board": projects_board,
-    "agents": state.get("agents", []),
+    "agents": _doing_from_requests(state.get("agents", [])),
     "issues": sorted(state.get("issues", []), key=lambda i: ({"critical": 0, "high": 1, "medium": 2, "low": 3}.get(i.get("severity"), 4), i.get("since", ""))),
 }
 with open(os.path.join(HERE, "data.json"), "w") as fh:
