@@ -371,6 +371,17 @@ import subprocess as _sp
 _ns = state.get("next_steps", {})
 for b in board.values():
     b["next_step"] = _ns.get(b["project"], "")
+    if b["project"] == "ops-bus":
+        # Derive from the live queue instead of a hand-written line (it said "nothing queued" with work pending).
+        import glob as _g, re as _re
+        _names = {"pro": "Pinny", "instinct": "Binny", "muse": "Minny"}
+        _cnt = {}
+        for _f in _g.glob("/home/user/ops-bus/requests/pending/*.md"):
+            _m = _re.search(r"^runner:\s*(\S+)", open(_f).read(), _re.M)
+            if _m: _cnt[_names.get(_m.group(1), _m.group(1))] = _cnt.get(_names.get(_m.group(1), _m.group(1)), 0) + 1
+        _q = {k: len(_g.glob(f"/home/user/ops-bus/queue/{d}/*.md")) for k, d in (("Pinny", "pinny"), ("Binny", "binny"), ("Minny", "minny"), ("shared", "shared"))}
+        _inf = ", ".join(f"{k} {v}" for k, v in sorted(_cnt.items())) or "none"
+        b["next_step"] = f"In flight: {_inf} · queued: " + ", ".join(f"{k} {v}" for k, v in _q.items() if v)
     try:
         out = _sp.run(["gh", "api", f"repos/zuzivian/{b['project']}", "--jq", ".pushed_at"],
                       capture_output=True, text=True, timeout=15).stdout.strip()
