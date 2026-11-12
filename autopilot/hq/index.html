@@ -800,7 +800,7 @@ function ctHtml(d){const R=ctRows(d); if(!R||!R.length) return "";
   const W=watch.map(r=>li(r,{body:cell(r.window)?`<div class="ct-el muted">Typically opens: ${esc(cell(r.window))}</div>`:""})).join("");
   const src=d.career_targets.source?`<p class="muted" style="margin:0;font-size:12px">From ${esc(String(d.career_targets.source).split("/").pop())} (${R.length} companies researched).</p>`:"";
   // warm paths: data.career_warm[{company, state: warm|identified|none, contacts?, note?}]; matched by company name
-  const CW=Array.isArray(d.career_warm)?d.career_warm.filter(x=>x&&x.company):null, key=x=>cell(x).toLowerCase().replace(/[^a-z0-9]/g,"");
+  const CW=Array.isArray(d.career_warm)&&d.career_warm.some(x=>x&&x.company)?d.career_warm.filter(x=>x&&x.company):null, key=x=>cell(x).toLowerCase().replace(/[^a-z0-9]/g,"");
   const wOf=r=>CW&&CW.find(x=>key(x.company)===key(r.company));
   const WS={warm:["good","warm"],identified:["warn","contact named"],none:["bad","no path yet"]};
   const wp=CW&&apply.length?`<h4>Warm paths for this week's applications</h4><ul class="ctl wp">${apply.map(r=>{const x=wOf(r), st=x&&WS[String(x.state||"").toLowerCase()]||WS.none;
