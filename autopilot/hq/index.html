@@ -137,6 +137,7 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600;white-space:nowrap}.pop .spark{width:100%;height:64px}.spark.wk7{height:auto!important;max-height:110px}
 .cards{display:grid;gap:10px}
+.mql{list-style:none;padding:0;margin:0}.mq{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line)}.mq>div{min-width:0;overflow-wrap:anywhere}.mq .openlink{flex:none}
 .needs-more{display:grid;gap:10px}.needs-more[hidden]{display:none}.needs-all{width:100%;min-height:44px}
 .blk{border:1px solid var(--line);border-left:3px solid var(--bad);border-radius:10px;padding:8px 12px;margin:0 0 10px}.blk .lst{margin:4px 0 0}
 .conseq{font-size:13px;font-weight:600;color:var(--warn);margin:2px 0}
@@ -744,6 +745,15 @@ function sinceHtml(d){if(!SEEN_BEFORE) return ""; const t0=new Date(SEEN_BEFORE)
   const bits=[D?`<button type="button" class="linkbtn" data-go="ov">${D} decision${D===1?"":"s"}</button>`:"",N?`<button type="button" class="linkbtn" data-go="n">${N} new need${N===1?"":"s"}</button>`:"",R?`<button type="button" class="linkbtn" data-go="rl">${R} research file${R===1?"":"s"}</button>`:"",
     M?`<span>${M} PR${M===1?"":"s"} merged</span>`:"",C?`<button type="button" class="linkbtn" data-go="is" data-tab="fleet">${C} issue${C===1?"":"s"} closed</button>`:""].filter(Boolean);
   return bits.length?`<p class="since"><span class="muted">Since you last looked (${esc(fmtT(SEEN_BEFORE))}):</span> ${bits.join(" · ")}</p>`:""}
+function mergeHtml(d){const Q=(Array.isArray(d.merge_queue)?d.merge_queue:[]).filter(x=>x&&x.repo&&num(x.number)!=null&&/^https:\/\/github\.com\//.test(x.url||""));
+  if(!Q.length) return "";
+  const ok=x=>x.reviewed===true&&String(x.checks).toLowerCase()==="green"&&x.draft!==true;
+  const why=x=>[x.draft===true?"draft":"",x.reviewed!==true?"needs Sinny's review":"",String(x.checks).toLowerCase()==="pending"?"checks running":String(x.checks).toLowerCase()==="failing"?"checks failing":String(x.checks).toLowerCase()!=="green"?"checks unknown":""].filter(Boolean).join(" · ");
+  const R=Q.filter(ok), W=Q.filter(x=>!ok(x));
+  const row=x=>`<li class="mq"><div><b>${esc(x.title||"PR")}</b><div class="muted" style="font-size:12px">${esc(x.repo)} #${num(x.number)}${isDate(x.since)?` · ${esc(fmtT(x.since))}`:""}</div></div>${ok(x)?`<a class="openlink" href="${esc(x.url)}#partial-pull-merging" target="_blank" rel="noopener">Merge on GitHub ↗</a>`:`<span class="muted" style="font-size:12px">${esc(why(x))}</span>`}</li>`;
+  return `<section class="panel" aria-labelledby="mq" style="margin-bottom:16px"><h2 id="mq">Ready to merge · ${R.length}</h2>
+    ${R.length?`<p class="muted" style="margin:-4px 0 8px;font-size:13px">Sinny reviewed, checks green. Opens the PR; tap Squash and merge, then Confirm. Or comment /merge.</p><ul class="lst mql">${R.map(row).join("")}</ul>`:`<p class="muted" style="margin:0">Nothing ready yet.</p>`}
+    ${W.length?`<details class="closed"><summary class="muted">Waiting · ${W.length}</summary><ul class="lst mql">${W.map(row).join("")}</ul></details>`:""}</section>`}
 function nightHtml(d){const ov=overnightHtml(d); if(!ov) return decHtml(d);
   const inner=decHtml(d,"inner"); return inner?ov.replace(/<\/section>$/,inner+"</section>"):ov}
 function decAllPop(){const D=decs(DATA); openPop("Decided for you",`<p class="muted" style="margin:0;font-size:13px">Calls the orchestrator made on your behalf, newest first. Tap Reverse? to ask for one to be undone.</p><ul class="decl">${D.map((x,i)=>decRow(x,i,1)).join("")}</ul>`);
@@ -1038,7 +1048,7 @@ function home(d){
      ${rest.some(([n])=>!Array.isArray(n.options)||n.options.length)?`<p class="muted" style="margin:-4px 0 10px;font-size:13px"><span class="long">${ONE?"Tap an answer to send it to the autopilot in one tap. ":"Tap an answer to open a prefilled GitHub issue; Submit there sends it to the autopilot. "}</span><span class="short">${ONE?"One tap sends. ":"Opens GitHub → tap Submit. "}</span>★ = my pick.</p><p class="muted keyhint">Keys: <kbd>j</kbd>/<kbd>k</kbd> pick a need · <kbd>1</kbd>–<kbd>9</kbd> choose an answer, <kbd>Enter</kbd> sends · <kbd>?</kbd> all shortcuts</p>`:""}
      <div class="cards">${needs}</div>${waitHtml}
 </section>`:""}
-   ${nightHtml(d)}${goalsHtml(d)}<div style="margin-bottom:16px">${weekHtml(d)}</div>${researchHtml(d)}${alignHtml(d,"build")}`;
+   ${mergeHtml(d)}${nightHtml(d)}${goalsHtml(d)}<div style="margin-bottom:16px">${weekHtml(d)}</div>${researchHtml(d)}${alignHtml(d,"build")}`;
   const fleet=()=>`${watchHtml(d)}${agentsHtml(d.agents,fpOf(d))}${decHtml(d,"fleet")?`<div style="margin:16px 0">${decHtml(d,"fleet")}</div>`:""}${alignHtml(d)}<div class="grid" style="margin-top:16px">
    <section class="panel" aria-labelledby="g"><h2 id="g">Weekly fuel · Stanford account</h2>
      <div class="gauge-top"><div class="big mono">${Math.round(u*100)}% <span class="muted" style="font-size:14px;font-weight:600">used</span></div>
