@@ -142,6 +142,32 @@ def _md_table(path):
         r["eligible"] = "no" if (excluded or (flt.get("exclude_us_person_roles") and r["us_person_required"])) else "check"
     return {"source": "research/career/internship-timelines.md", "rows": rows}
 
+def _gh_issues():
+    """Fleet issues mirrored from GitHub: ops-bus issues labelled `fleet` (open + closed in 7 days) and open Chinny
+    codex:* issues in the Chinny repos. GitHub is the source of truth; close an issue there and it leaves HQ."""
+    import subprocess as sp
+    since = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    def api(path):
+        r = sp.run(["gh", "api", path], capture_output=True, text=True, timeout=30)
+        return json.loads(r.stdout) if r.returncode == 0 and r.stdout.strip() else []
+    items, seen = [], set()
+    queries = [("ops-bus", f"state=all&labels=fleet&since={since}&per_page=100")]
+    queries += [(r, "state=open&per_page=100") for r in ("new-repo", "skyviu", "ad-constellation", "natwong-dev")]
+    for repo, q in queries:
+        for i in api(f"repos/zuzivian/{repo}/issues?{q}"):
+            if "pull_request" in i or i["html_url"] in seen: continue
+            L = [l["name"] if isinstance(l, dict) else l for l in i.get("labels", [])]
+            codex = next((l for l in L if l.startswith("codex:")), None)
+            if "fleet" not in L and not codex: continue
+            if codex == "codex:backlog": continue  # the backlog is the pacer's queue, not an issue
+            lab = lambda pre: next((l[len(pre):] for l in L if l.startswith(pre)), None)
+            seen.add(i["html_url"])
+            items.append({"repo": repo, "number": i["number"], "title": i["title"], "url": i["html_url"], "state": i["state"],
+                          "severity": lab("sev:") or ("low" if codex else "medium"), "owner": lab("owner:"),
+                          "area": lab("area:") or ("chinny" if codex else None), "queue": codex,
+                          "since": i["created_at"], "closed": i.get("closed_at")})
+    return {"at": dt.datetime.now(dt.timezone.utc).isoformat(), "repos": ["ops-bus", "new-repo", "skyviu", "ad-constellation", "natwong-dev"], "items": items}
+
 def _goals():
     g = dict(state.get("goals") or {})
     try:
@@ -230,6 +256,8 @@ out = {
     # Fleet pacer (scratchpad pace_fleet.py → ops-bus usage/pacing.json): Pinny/Minny/Chinny vs a 92%-by-reset line.
     # Career targets: Pinny's research/career/internship-timelines.md table (ops-bus, private) as rows.
     "career_targets": (lambda: _md_table("/home/user/ops-bus/research/career/internship-timelines.md"))(),
+    "gh_issues": _gh_issues(),
+    "nat_actions": state.get("nat_actions", []),
     "fleet_pacing": (lambda: (json.load(open("/home/user/ops-bus/usage/pacing.json")) if os.path.exists("/home/user/ops-bus/usage/pacing.json") else None))(),
     "workers": [w for w in state.get("workers", []) if not str(w.get("status","")).startswith("done")]
                + [w for w in state.get("workers", []) if str(w.get("status","")).startswith("done")][:6],
