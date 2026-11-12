@@ -283,6 +283,8 @@ out = {
     "career_targets": (lambda: _md_table("/home/user/ops-bus/research/career/internship-timelines.md"))(),
     "gh_issues": _gh_issues(),
     "nat_actions": state.get("nat_actions", []),
+    # Key decisions the supervisor made on Nat's behalf (newest first), so he can review or reverse them.
+    "decisions": sorted(state.get("decisions", []), key=lambda d: d.get("at", ""), reverse=True)[:30],
     "fleet_pacing": (lambda: (json.load(open("/home/user/ops-bus/usage/pacing.json")) if os.path.exists("/home/user/ops-bus/usage/pacing.json") else None))(),
     "workers": [w for w in state.get("workers", []) if not str(w.get("status","")).startswith("done")]
                + [w for w in state.get("workers", []) if str(w.get("status","")).startswith("done")][:6],
