@@ -109,6 +109,11 @@ for b in board.values():
     else: b["status"] = "idle"
 ORDER = {"needs you": 0, "running": 1, "queued": 2, "paused": 3, "idle": 4, "off": 5}
 
+def _career_filter():
+    """Private, owner-maintained filter (ops-bus context/career-filter.json): exclude_companies, exclude_us_person_roles."""
+    try: return json.load(open("/home/user/ops-bus/context/career-filter.json"))
+    except Exception: return {}
+
 def _md_table(path):
     """First markdown table in a file → list of dicts keyed by short column names. None if missing."""
     try:
@@ -127,7 +132,14 @@ def _md_table(path):
         r["url"] = m.group(1) if m else None
         r["is_posted"] = r["posted"].upper().startswith("Y")
         r["applied"] = bool(re.search(r"applied|interview|rejected|offer", r["status"], re.I))
+        # Posting-text flag only; personal filters live in a private file (see _career_filter).
+        e = r["eligibility"].lower()
+        r["us_person_required"] = True if re.search(r"itar|u\.?s\.? ?(citizen|person|national)|citizenship|clearance|export|permanent resident|green card|lpr", e) else None
         rows.append(r)
+    flt = _career_filter()
+    for r in rows:
+        excluded = any(k in r["company"].lower() for k in flt.get("exclude_companies", []))
+        r["eligible"] = "no" if (excluded or (flt.get("exclude_us_person_roles") and r["us_person_required"])) else "check"
     return {"source": "research/career/internship-timelines.md", "rows": rows}
 
 def _goals():
