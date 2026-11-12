@@ -410,6 +410,130 @@ except Exception:
     pass
 projects_board = sorted(board.values(), key=lambda b: (ORDER[b["status"]], b["project"]))
 
+# ---- HQ strip data: done counts, blocked, allocation, watchdog fixes (all defensive) ----
+def _iso(x):
+    try:
+        t = dt.datetime.fromisoformat(str(x).replace("Z", "+00:00"))
+        return t if t.tzinfo else t.replace(tzinfo=dt.timezone.utc)
+    except Exception:
+        return None
+
+def _gh_json(path):
+    try:
+        r = _sp.run(["gh", "api", path], capture_output=True, text=True, timeout=30)
+        return json.loads(r.stdout) if r.returncode == 0 and r.stdout.strip() else []
+    except Exception:
+        return []
+
+def _done_stats(agents):
+    try:
+        t24 = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=24)
+        t7 = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=7)
+        landed, cur = {}, None
+        try:
+            log = _sp.run(["git", "-C", OPS, "log", "--diff-filter=A", "--name-only", "--format=%cI", "--since=8.days",
+                           "--", "requests/done"], capture_output=True, text=True, timeout=60).stdout
+            for line in log.splitlines():
+                line = line.strip()
+                if not line: continue
+                if line.startswith("requests/"):
+                    landed.setdefault(line, cur)  # log is newest first; keep the newest add
+                else:
+                    cur = line
+        except Exception:
+            pass
+        by = {"pinny": [], "binny": [], "minny": []}
+        for r in _requests("done"):
+            a = RUNNER_BY.get(r["runner"])
+            at = _iso(landed.get("requests/done/" + r["file"]))
+            if a and at:
+                title = re.sub(r"^(Pinny|Binny|Research)\s*[-\u2013:]\s*", "", r["title"] or r["file"]).strip()
+                by[a].append((at, {"title": title, "at": at.isoformat(),
+                                   "url": "https://github.com/zuzivian/ops-bus/blob/main/requests/done/" + r["file"]}))
+        chin = []
+        for repo in ("natwong-dev", "new-repo"):
+            for pr in _gh_json(f"repos/zuzivian/{repo}/pulls?state=closed&per_page=50") or []:
+                at = _iso(pr.get("merged_at"))
+                if at and str((pr.get("head") or {}).get("ref", "")).startswith("codex/"):
+                    chin.append((at, {"title": pr.get("title"), "at": at.isoformat(), "url": pr.get("html_url")}))
+        for a in agents:
+            k = a.get("key")
+            rows = chin if k in ("chinny", "cinny") else by.get(k)
+            if rows is None: continue
+            rows.sort(key=lambda x: x[0], reverse=True)
+            a["done_24h"] = sum(1 for t, _ in rows if t >= t24)
+            a["done_7d"] = sum(1 for t, _ in rows if t >= t7)
+            a["last_done"] = rows[0][1] if rows else None
+    except Exception:
+        pass
+    return agents
+
+def _blocked():
+    rows = []
+    try:
+        for r in state.get("nat_actions", []) or []:
+            rows.append({"agent": "nat", "title": r.get("title"), "since": r.get("at") or r.get("added") or None,
+                         "waiting_on": "nat", "url": r.get("url")})
+    except Exception:
+        pass
+    try:
+        for r in _requests("pending"):
+            fm_held = re.search(r"^status:\s*held", r["text"], re.M | re.I)
+            res = re.split(r"^## Result\s*$", r["text"], maxsplit=1, flags=re.M)
+            res_held = len(res) > 1 and re.search(r"\bheld\b", res[1], re.I)
+            if fm_held or res_held:
+                at = _iso(re.search(r"^requested_at:\s*(\S+)", r["text"], re.M).group(1)) if re.search(r"^requested_at:\s*(\S+)", r["text"], re.M) else None
+                rows.append({"agent": RUNNER_BY.get(r["runner"], r["runner"] or "fleet"), "title": r["title"] or r["file"],
+                             "since": at.isoformat() if at else None, "waiting_on": "nat",
+                             "url": "https://github.com/zuzivian/ops-bus/blob/main/requests/pending/" + r["file"]})
+    except Exception:
+        pass
+    try:
+        for i in _gh_json("repos/zuzivian/ops-bus/issues?state=open&labels=fleet&per_page=100") or []:
+            if "pull_request" in i: continue
+            L = [l["name"] if isinstance(l, dict) else l for l in i.get("labels", [])]
+            if "owner:nat" in L:
+                rows.append({"agent": "nat", "title": i["title"], "since": i.get("created_at"), "waiting_on": "nat", "url": i["html_url"]})
+    except Exception:
+        pass
+    rows.sort(key=lambda r: (r["since"] is None, str(r["since"] or "")))
+    return rows[:14]
+
+def _allocation():
+    try:
+        line = next(l for l in open(OPS + "/STRATEGY.md") if re.match(r"\s*Career\s+\d+", l))
+        keys = {"career": "career", "digitizing government": "digigov", "growth": "growth",
+                "relationships": "relationships", "fleet/hq": "fleet_hq"}
+        al = {}
+        for name, n in re.findall(r"([A-Za-z/ ]+?)\s+(\d+)\s*%?", line.split("(")[0].replace("\u00b7", " ")):
+            k = keys.get(name.strip().lower())
+            if k: al[k] = int(n)
+        return al or None
+    except Exception:
+        return None
+
+def _fixes():
+    rows = []
+    try:
+        for d in state.get("decisions", []):
+            if d.get("kind") == "fix":
+                rows.append({"at": d.get("at"), "agent": "fleet-ops", "what": d.get("decision"), "link": d.get("link")})
+    except Exception:
+        pass
+    try:
+        w = load(f"{OPS}/usage/watchdog.json")
+        if isinstance(w, dict):
+            for a in w.get("actions") or []:
+                if isinstance(a, dict):
+                    rows.append({"at": a.get("at") or w.get("at"), "agent": "watchdog", "what": a.get("what") or a.get("action") or json.dumps(a), "link": a.get("link")})
+                else:
+                    rows.append({"at": w.get("at"), "agent": "watchdog", "what": str(a), "link": None})
+    except Exception:
+        pass
+    rows.sort(key=lambda r: (_iso(r["at"]) or dt.datetime.min.replace(tzinfo=dt.timezone.utc)), reverse=True)
+    return rows[:20]
+
+
 now = dt.datetime.now(dt.timezone.utc)
 meetings = []
 for p in primers.get("primers", []):
@@ -450,9 +574,16 @@ out = {
     "supervisor": state.get("supervisor"),
     "cost": cost,
     "board": projects_board,
-    "agents": _doing_from_requests(state.get("agents", [])),
+    "agents": _done_stats(_doing_from_requests(state.get("agents", []))),
+    "blocked": _blocked(),
     "issues": sorted(state.get("issues", []), key=lambda i: ({"critical": 0, "high": 1, "medium": 2, "low": 3}.get(i.get("severity"), 4), i.get("since", ""))),
 }
+_al = _allocation()
+if _al: out["allocation"] = _al
+try:
+    out["watchdog"] = {**(out.get("watchdog") or {}), "fixes": _fixes()}
+except Exception:
+    pass
 with open(os.path.join(HERE, "data.json"), "w") as fh:
     json.dump(out, fh, indent=1)
 print(f"data.json: {len(spend_rows)} projects, {len(meetings)} meetings, {len(out['needs'])} needs")
