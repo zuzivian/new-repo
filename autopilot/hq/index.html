@@ -137,6 +137,7 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600;white-space:nowrap}.pop .spark{width:100%;height:64px}.spark.wk7{height:auto!important;max-height:110px}
 .cards{display:grid;gap:10px}
+.blk{border:1px solid var(--line);border-left:3px solid var(--bad);border-radius:10px;padding:8px 12px;margin:0 0 10px}.blk .lst{margin:4px 0 0}
 .conseq{font-size:13px;font-weight:600;color:var(--warn);margin:2px 0}
 .goal .gk{position:relative;padding-right:18px}.goal .gchev{position:absolute;right:0;top:-2px;font-size:18px;line-height:1;color:var(--ink-2)}
 .goal:hover,.goal:focus-visible{border-color:var(--accent);border-top-color:var(--gs)}.goal:hover .gchev,.goal:focus-visible .gchev{color:var(--accent)}
@@ -440,20 +441,28 @@ function paceOf(fp,a){const A=fp&&fp.agents||{}, x=A[a.key]||A[{cinny:"chinny",c
   const past=isDate(x.reset)&&new Date(x.reset)<Date.now()&&(!isDate(x.read_at)||new Date(x.read_at)<new Date(x.reset));
   const off=!past&&used!=null&&tg!=null?Math.round((used-tg)*100):null;
   const nolimit=x.used===null&&x.target===null;
+  const tEnd=utilOf((fp||{}).target_end)??1, toReset=isDate(x.reset)&&!past?(new Date(x.reset)-Date.now())/60000:null;
+  const unused=num(x.unused_pts_at_reset)??(toReset!=null&&toReset<24*60&&used!=null?Math.max(0,Math.round((tEnd-used)*100)):null);
+  const expire=unused!=null&&unused>5&&toReset!=null&&toReset<24*60?`${unused} pts ${x.unused_pts_at_reset!=null?"will expire":"unused"} · resets in ${(m=>m<60?m+" min":`${Math.floor(m/60)} h${m%60?` ${m%60} min`:""}`)(Math.round(toReset))}`:"";
   const bits=nolimit?["no limit",fl!=null?`${fl} in flight`:"",q!=null?`${q} queued`:""].filter(Boolean)
-    :[past?"reset since last read":off==null?"":off<=-3?`${-off} pts under pace`:off>=3?`${off} pts over pace`:"on pace", q!=null?`${q} queued`:"", fl!=null?`${fl} in flight`:""].filter(Boolean);
+    :[past?"reset since last read":expire?expire:off==null?"":off<=-3?`${-off} pts under pace`:off>=3?`${off} pts over pace`:"on pace", q!=null?`${q} queued`:"", fl!=null?`${fl} in flight`:""].filter(Boolean);
   // stalled: tasks waiting and the runner hasn't run for a while (it only wakes on its own app schedule)
   const idle=num(x.idle_min)??(isDate(x.last_run)?Math.round((Date.now()-new Date(x.last_run))/60000):null);
   return {used,tg:past?null:tg,off,past,stale:!!x.stale,txt:bits.join(" · "),reset:isDate(x.reset)?x.reset:null,note:x.target_note||"",nolimit,
-    stalled:x.stalled===true,idle,waiting:fl,lastRun:isDate(x.last_run)?x.last_run:null}}
+    stalled:x.stalled===true,idle,waiting:fl,lastRun:isDate(x.last_run)?x.last_run:null,expire,unused:expire?unused:null,
+    done24:num(x.done_24h),done7:num(x.done_7d),lastDone:x.last_done&&x.last_done.title?x.last_done:null}}
 const idleTxt=m=>m==null?"":m<120?`${m} min`:m<1440?`${Math.floor(m/60)} h${m%60?` ${m%60} min`:""}`:`${Math.round(m/1440*10)/10} days`;
 function agentsHtml(list,fp){
   if(!list||!list.length) return "";
   const rank=a=>{const P=paceOf(fp,a);return P&&P.stalled?0:/work|run/i.test(a.status||"")?1:P&&num(P.waiting)>0?2:3};
   list=list.slice().sort((a,b)=>rank(a)-rank(b));
   const cnt=[0,0,0,0]; list.forEach(a=>cnt[rank(a)]++);
-  const summ=[cnt[0]?`<b style="color:var(--bad)">${cnt[0]} stalled</b>`:"",cnt[1]?`${cnt[1]} working`:"",cnt[2]?`${cnt[2]} between runs`:"",cnt[3]?`${cnt[3]} idle`:""].filter(Boolean).join(" · ");
-  return `<p class="agsum muted">${summ}<span class="hint"> · swipe for all ${list.length}</span></p><div class="agents" role="list" aria-label="Agents">${list.map((a,k)=>{const sc=AGENT_STATUS[a.status]||"var(--maint)";
+  const exp=list.map(a=>paceOf(fp,a)).filter(P=>P&&P.expire);
+  const summ=[exp.length?`<b style="color:var(--warn)">${exp.length} agent${exp.length===1?"":"s"} near reset with ${exp.reduce((t,P)=>t+P.unused,0)} pts unused</b>`:"",cnt[0]?`<b style="color:var(--bad)">${cnt[0]} stalled</b>`:"",cnt[1]?`${cnt[1]} working`:"",cnt[2]?`${cnt[2]} between runs`:"",cnt[3]?`${cnt[3]} idle`:""].filter(Boolean).join(" · ");
+  const BL=(Array.isArray(DATA.blocked)?DATA.blocked:Array.isArray((fp||{}).blocked)?fp.blocked:[]).filter(b=>b&&b.title).slice().sort((a,b)=>String(a.since||"").localeCompare(String(b.since||"")));
+  const WO={nat:"you",agent:"an agent",external:"outside"};
+  const blk=BL.length?`<div class="blk"><b>Blocked · ${BL.length}</b><ul class="lst">${BL.map(b=>`<li>${/^https:\/\//.test(b.url||"")?link(b.url,b.title):esc(b.title)} <span class="muted">· ${[b.agent?esc(b.agent):"",b.waiting_on?"waiting on "+esc(WO[b.waiting_on]||b.waiting_on):"",isDate(b.since)?idleTxt(Math.round((Date.now()-new Date(b.since))/60000))+" old":""].filter(Boolean).join(" · ")}</span></li>`).join("")}</ul></div>`:"";
+  return `${blk}<p class="agsum muted">${summ}<span class="hint"> · swipe for all ${list.length}</span></p><div class="agents" role="list" aria-label="Agents">${list.map((a,k)=>{const sc=AGENT_STATUS[a.status]||"var(--maint)";
     const col=(AGENT_LOOK[a.key]||{c:"#8795a6"}).c, P=paceOf(fp,a), u=utilOf(a.util)??(P?P.used:null);
     const pct=u==null?(P&&P.nolimit?"no limit":"no feed"):Math.round(u*100)+"%";
     const ser=(a.series||[]).filter(s=>s&&utilOf(s.u)!=null&&!isNaN(new Date(s.t))).map(s=>({t:s.t,u:utilOf(s.u)}));
@@ -469,7 +478,7 @@ function agentsHtml(list,fp){
       ${a.url?`<a href="${esc(a.url)}" target="_blank" rel="noopener" style="font-size:12px">Open ↗</a>`:""}</div>`;
     return `<div class="agent${u==null?" nofeed":""}" role="listitem" tabindex="0" data-s="${esc(a.status)}" style="--sc:${sc}" aria-describedby="tip-${k}">
       <div class="av">${ringSvg(u,col,P&&P.tg)}<div class="face">${avatar(a.key)}</div><span class="pip"></span><span class="pc mono${u==null?" nf":""}"${old?' style="color:var(--warn)"':""}>${pct}</span></div>
-      <div style="min-width:0"><div class="nm">${esc(a.name)} <span class="sx"${P&&P.stalled?' style="color:var(--bad)"':""}>${esc(P&&P.stalled?"stalled":/^idle$/i.test(a.status||"")&&P&&num(P.waiting)>0?"between runs":a.status)}</span></div><div class="rl">${esc(a.role)}</div><div class="dg">${esc(a.doing||"—")}</div>${P&&P.stalled?`<div class="pace stalled">Idle ${P.idle!=null?idleTxt(P.idle):"a while"}${P.waiting!=null?` · ${P.waiting} in flight`:""}</div>`:""}${P&&!P.stalled&&(P.txt||P.stale)?`<div class="pace${P.off!=null&&P.off<=-3?" behind":""}">${P.stale?`<span class="stbadge">STALE</span> `:""}${esc(P.txt)}${P.tg!=null?` <span class="muted">· target ${Math.round(P.tg*100)}% now</span>`:""}</div>`:""}</div>${tip}</div>`}).join("")}</div>`;
+      <div style="min-width:0"><div class="nm">${esc(a.name)} <span class="sx"${P&&P.stalled?' style="color:var(--bad)"':""}>${esc(P&&P.stalled?"stalled":/^idle$/i.test(a.status||"")&&P&&num(P.waiting)>0?"between runs":a.status)}</span></div><div class="rl">${esc(a.role)}</div><div class="dg">${esc(a.doing||"—")}</div>${P&&(P.done24!=null||P.lastDone)?`<div class="muted" style="font-size:12px">${[P.done24!=null?`${P.done24} done today`:"",P.done7!=null?`${P.done7} this week`:"",P.lastDone?`last: ${/^https:\/\//.test(P.lastDone.url||"")?link(P.lastDone.url,String(P.lastDone.title).slice(0,50)):esc(String(P.lastDone.title).slice(0,50))}${isDate(P.lastDone.at)?`, ${idleTxt(Math.max(1,Math.round((Date.now()-new Date(P.lastDone.at))/60000)))} ago`:""}`:""].filter(Boolean).join(" · ")}</div>`:""}${P&&P.stalled?`<div class="pace stalled">Idle ${P.idle!=null?idleTxt(P.idle):"a while"}${P.waiting!=null?` · ${P.waiting} in flight`:""}${P.expire?` · ${esc(P.expire)}`:""}</div>`:""}${P&&!P.stalled&&(P.txt||P.stale)?`<div class="pace${P.off!=null&&P.off<=-3?" behind":""}">${P.stale?`<span class="stbadge">STALE</span> `:""}${esc(P.txt)}${P.tg!=null?` <span class="muted">· target ${Math.round(P.tg*100)}% now</span>`:""}</div>`:""}</div>${tip}</div>`}).join("")}</div>`;
 }
 function openPop(title,html){
   let d=document.getElementById("pop");
