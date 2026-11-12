@@ -137,6 +137,9 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600;white-space:nowrap}.pop .spark{width:100%;height:64px}.spark.wk7{height:auto!important;max-height:110px}
 .cards{display:grid;gap:10px}
+.wk li.dh{display:block;min-height:0;padding:10px 0 2px;border-top:0;font-family:var(--f-display);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.wk li.dh:first-child{padding-top:0}.wk li.dh.today{color:var(--accent)}.wk li.dh.od{color:var(--bad)}.wk li.dh+li{border-top:0}
+.wk:not(.all) li.dh.later{display:none}.wk.all li.dh.later{display:block}
 .decs{margin-bottom:16px;border-left:4px solid var(--core)}.decl{margin:0;padding:0;list-style:none;display:grid;gap:10px}
 .dec{display:grid;gap:2px;border-top:1px solid var(--line);padding-top:8px}.dec:first-child{border-top:0;padding-top:0}
 .dec-d{font-weight:600;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
@@ -833,13 +836,18 @@ function weekHtml(d){
   const inWin=items.filter(x=>!x.t||(new Date(x.t)<=end&&(ptDay(x.t)>=today||x.k==="task")));
   inWin.sort((a,b)=>(a.t?new Date(a.t):Infinity)-(b.t?new Date(b.t):Infinity));
   const seen=new Set(), list=inWin.filter(x=>{const key=(x.t||"").slice(0,10)+"|"+x.title;if(seen.has(key))return false;seen.add(key);return true}).slice(0,14);
-  const wk7=now.getTime()+7*dayMs, nLater=list.filter(x=>x.t&&new Date(x.t)>wk7).length;
+  // by default: overdue, today and tomorrow; the rest of the fortnight is one tap away
+  const tmEnd=ptDay(now.getTime()+dayMs), isLater=x=>x.t&&ptDay(x.t)>tmEnd, wk7=null, nLater=list.filter(isLater).length;
   const sub=[num(tk.due_this_week)!=null?`${(tk.top||[]).length&&(tk.top||[]).length<tk.due_this_week?`top ${(tk.top||[]).length} of `:""}${tk.due_this_week} Notion tasks due this week`:"",num(tk.overdue)?(Array.isArray(tk.overdue_items)&&tk.overdue_items.length?`<button type="button" class="linkbtn od" data-overdue>${tk.overdue} overdue</button>`:`<span class="od">${tk.overdue} overdue</span>`):""].filter(Boolean).join(" · ");
-  const row=x=>{const od=x.t&&ptDay(x.t)<today, dd=x.t?(ptDay(x.t)===today?"Today":fmtD(x.t)):"—";
+  // one header per PT day ("Today", "Tomorrow", "Sun 11/15"; past-due tasks under "Overdue"); rows carry only the time
+  const tmrw=ptDay(now.getTime()+dayMs), dayKey=x=>!x.t?"none":ptDay(x.t)<today?"overdue":ptDay(x.t);
+  const dayLab=k=>k==="none"?"No date":k==="overdue"?"Overdue":k===today?"Today":k===tmrw?"Tomorrow":new Date(k+"T12:00:00-08:00").toLocaleDateString("en-US",{...PT,weekday:"short",month:"numeric",day:"numeric"}).replace(",","");
+  let lastK=null;
+  const row=x=>{const k=dayKey(x), later=isLater(x), hd=k!==lastK?`<li class="dh${k==="today"||k===today?" today":""}${k==="overdue"?" od":""}${later?" later":""}">${esc(dayLab(k))}</li>`:""; lastK=k;
     const ttl=x.href?`<a href="${esc(x.href)}">${esc(x.title)}</a>`:(typeof x.url==="string"&&/^https:\/\//.test(x.url))?link(x.url,x.title):esc(x.title);
-    return `<li${x.t&&new Date(x.t)>wk7?' class="later"':""}><span class="d${dd==="Today"?" today":""}${od?" od":""}">${esc(dd)}${x.time?`<br>${esc(new Date(x.t).toLocaleTimeString("en-US",{...PT,hour:"numeric",minute:"2-digit"}))}`:""}</span><span>${ttl}</span><span class="k">${x.k}</span></li>`};
-  return `<section class="panel" aria-labelledby="wk"><h2 id="wk">Next 7 days${sub?` · <span style="text-transform:none;letter-spacing:0;font-weight:500">${sub}</span>`:""}</h2>
-    ${list.length?`<ul class="wk" id="wkl">${list.map(row).join("")}</ul>${nLater?`<button type="button" class="more" data-more>Show the following week (${nLater})</button>`:""}`:`<div class="empty">Nothing dated in the next two weeks.</div>`}
+    return `${hd}<li${later?' class="later"':""}><span class="d">${x.time?esc(new Date(x.t).toLocaleTimeString("en-US",{...PT,hour:"numeric",minute:"2-digit"})):""}</span><span>${ttl}</span><span class="k">${x.k}</span></li>`};
+  return `<section class="panel" aria-labelledby="wk"><h2 id="wk">Coming up${sub?` · <span style="text-transform:none;letter-spacing:0;font-weight:500">${sub}</span>`:""}</h2>
+    ${list.length?`<ul class="wk" id="wkl">${list.map(row).join("")}</ul>${nLater?`<button type="button" class="more" data-more>Show the next two weeks (${nLater} more)</button>`:""}`:`<div class="empty">Nothing dated in the next two weeks.</div>`}
     ${!G.progress?`<p class="muted" style="margin:8px 0 0;font-size:12px">Tasks and career deadlines appear once the Notion feed lands.</p>`
       :P.career&&Array.isArray(P.career.next_deadlines)&&!P.career.next_deadlines.length?`<p class="muted" style="margin:8px 0 0;font-size:13px">No dated career deadlines in the next 3 weeks.</p>`:""}</section>`;
 }

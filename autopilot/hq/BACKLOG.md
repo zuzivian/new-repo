@@ -11,7 +11,7 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 | 32 | Decision headlines 2-4 lines; 15 px Details/Reverse targets | done: 2-line clamp, 36 px targets | R41 |
 | 33 | Research library ~650 px in the morning read | done: 3 newest + "new" pills, Show all | R41 |
 | 34 | Phone header time looked like "now" | done: "Updated 12:39 AM" | R41 |
-| 35 | Next 7 days repeats Today rows; date stamps long | queued: Chinny #5 (day headers) | R41 |
+| 35 | Next 7 days repeats Today rows; date stamps long | done R42: day headers, time-only rows, overdue/today/tomorrow by default | R41 |
 | 27 | Career sheet: Apply this week / In progress / Watch from career_targets; tile count line | done | R28 |
 | 20 | Phone back gesture left HQ while a sheet was open | done: Back closes the sheet | R27 |
 | 21 | "Year: 39/100", "7 more booked", "8 overdue keep-in-touch" looked like buttons | done: plain facts list | R27 |
