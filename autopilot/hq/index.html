@@ -136,6 +136,8 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600}.pop .spark{width:100%;height:64px}
 .cards{display:grid;gap:10px}
+.agent .pace{font-size:12px;margin-top:2px;color:var(--ink-2)}.agent .pace.behind{color:var(--warn);font-weight:600}
+.stbadge{font-size:10px;font-weight:700;letter-spacing:.06em;padding:0 5px;border-radius:4px;border:1px solid var(--warn);color:var(--warn)}
 a.prep{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;margin:2px 0 0 4px;border-radius:999px;border:1px solid var(--core);color:var(--core);font-weight:600;text-decoration:none;vertical-align:middle}
 a.prep:hover{background:color-mix(in srgb,var(--core) 10%,var(--panel))}a.prep:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @media (max-width:640px){header{flex-wrap:nowrap;gap:8px}header h1{font-size:22px;white-space:nowrap}
@@ -256,6 +258,8 @@ const PT={timeZone:"America/Los_Angeles"};
 const fmtT=iso=>new Date(iso).toLocaleString("en-US",{...PT,weekday:"short",hour:"numeric",minute:"2-digit"});
 let DATA=null;
 
+const cfgOf=d=>d.pacing&&typeof d.pacing.weekly_target==="number"&&typeof d.pacing.ramp_start_hours_before_reset==="number"?d.pacing:null;
+const fpOf=d=>d.fleet_pacing&&d.fleet_pacing.agents?d.fleet_pacing:d.pacing&&d.pacing.agents?d.pacing:null;
 function target(hLeft,p){ // mirrors autopilot/pace.py
   if(hLeft<=p.final_sweep_hours) return p.weekly_target;
   const ramp=p.ramp_start_hours_before_reset, slow=p.slow_phase_target;
@@ -346,12 +350,14 @@ const AGENT_STATUS={working:"var(--good)",queued:"var(--core)",blocked:"var(--ba
 /* Agent card: avatar inside a utilization ring (share of that agent's plan used this week).
    Hover, focus or tap shows a small bubble with the usage trend. No feed = dashed grey ring. */
 AGENT_LOOK.chinny=AGENT_LOOK.cinny;
-function ringSvg(u,col){
+function ringTick(tg){if(typeof tg!=="number"||!isFinite(tg))return "";const a=(Math.max(0,Math.min(1,tg))*360-90)*Math.PI/180;
+  return `<line x1="${(24+17*Math.cos(a)).toFixed(1)}" y1="${(24+17*Math.sin(a)).toFixed(1)}" x2="${(24+25*Math.cos(a)).toFixed(1)}" y2="${(24+25*Math.sin(a)).toFixed(1)}" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"/>`}
+function ringSvg(u,col,tg){
   const r=21,c=2*Math.PI*r;
   if(u==null) return `<svg class="ring" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="${r}" fill="none" stroke="var(--track)" stroke-width="3"/><circle cx="24" cy="24" r="${r}" fill="none" stroke="${col}" stroke-opacity=".45" stroke-width="3" stroke-linecap="round" stroke-dasharray="0.1 6.5"/></svg>`;
   const v=Math.max(0,Math.min(1,u)), hot=v>=.9?"var(--bad)":v>=.7?"var(--warn)":col;
   return `<svg class="ring" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="${r}" fill="none" stroke="var(--track)" stroke-width="3"/>
-    <circle cx="24" cy="24" r="${r}" fill="none" stroke="${hot}" stroke-width="3" stroke-linecap="round" stroke-dasharray="${(v*c).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 24 24)"/></svg>`;
+    <circle cx="24" cy="24" r="${r}" fill="none" stroke="${hot}" stroke-width="3" stroke-linecap="round" stroke-dasharray="${(v*c).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 24 24)"/>${ringTick(tg)}</svg>`;
 }
 function spark(series,col){
   if(!series||series.length<2) return "";
@@ -365,21 +371,27 @@ function spark(series,col){
 /* util may arrive as 0..1, as a percent (0..100), or as a string; anything else is "no feed". */
 function utilOf(v){if(typeof v==="string"&&v.trim()!=="")v=Number(v.replace("%",""));
   if(typeof v!=="number"||!isFinite(v)||v<0)return null; return v>1.5?Math.min(v/100,1):Math.min(v,1)}
-function agentsHtml(list){
+function paceOf(fp,a){const A=fp&&fp.agents||{}, x=A[a.key]||A[{cinny:"chinny",chinny:"cinny"}[a.key]]; if(!x) return null;
+  const used=utilOf(x.used), tg=utilOf(x.target), q=num(x.queue), fl=num(x.in_flight);
+  const off=used!=null&&tg!=null?Math.round((used-tg)*100):null;
+  const bits=[off==null?"":off<=-3?`behind by ${-off} pts`:off>=3?`${off} pts ahead`:"on pace", q!=null?`${q} queued`:"", fl!=null?`${fl} in flight`:""].filter(Boolean);
+  return {used,tg,off,stale:!!x.stale,txt:bits.join(" · "),reset:isDate(x.reset)?x.reset:null,note:x.target_note||""}}
+function agentsHtml(list,fp){
   if(!list||!list.length) return "";
   return `<div class="agents" role="list" aria-label="Agents">${list.map((a,k)=>{const sc=AGENT_STATUS[a.status]||"var(--maint)";
-    const col=(AGENT_LOOK[a.key]||{c:"#8795a6"}).c, u=utilOf(a.util);
+    const col=(AGENT_LOOK[a.key]||{c:"#8795a6"}).c, P=paceOf(fp,a), u=utilOf(a.util)??(P?P.used:null);
     const pct=u==null?"no feed":Math.round(u*100)+"%";
     const at=a.util_at&&!isNaN(new Date(a.util_at))?new Date(a.util_at):null, old=at&&(Date.now()-at)>6*3600e3;
     const asof=u==null?"":`<div class="muted asof${old?" stale":""}">${at?(old?"Stale · ":"")+"reading "+esc(fmtT(at.toISOString()))+" PT":"reading time not reported"}${a.util_reset?" · resets "+esc(fmtT(a.util_reset)):""}</div>`;
     const tip=`<div class="tip" role="tooltip" id="tip-${k}"><div class="tt"><b>${esc(a.name)}</b><span class="mono">${u==null?"—":pct}</span></div>
       <div class="muted" style="font-size:12px">${esc(a.util_label||(u==null?"Plan usage":"Share of plan used this week"))}</div>
+      ${P&&P.tg!=null?`<div style="font-size:12px">Tick = pace line: ${Math.round(P.tg*100)}% now, ${Math.round(((fpOf(DATA)||{}).target_end||.92)*100)}% by ${P.reset?esc(fmtT(P.reset)):"reset"}${P.note?" ("+esc(P.note)+")":""}</div>`:""}
       ${u==null?`<div class="nf-note">No usage feed yet. The ring fills in once this agent reports its plan usage.</div>`:asof}
       ${spark((a.series||[]).filter(s=>utilOf(s&&s.u)!=null).map(s=>({t:s.t,u:utilOf(s.u)})),col)}${a.usage_note?`<div style="font-size:12px">${esc(a.usage_note)}</div>`:""}
       ${a.url?`<a href="${esc(a.url)}" target="_blank" rel="noopener" style="font-size:12px">Open ↗</a>`:""}</div>`;
     return `<div class="agent${u==null?" nofeed":""}" role="listitem" tabindex="0" data-s="${esc(a.status)}" style="--sc:${sc}" aria-describedby="tip-${k}">
-      <div class="av">${ringSvg(u,col)}<div class="face">${avatar(a.key)}</div><span class="pip"></span><span class="pc mono${u==null?" nf":""}"${old?' style="color:var(--warn)"':""}>${pct}</span></div>
-      <div style="min-width:0"><div class="nm">${esc(a.name)} <span class="sx">${esc(a.status)}</span></div><div class="rl">${esc(a.role)}</div><div class="dg">${esc(a.doing||"—")}</div></div>${tip}</div>`}).join("")}</div>`;
+      <div class="av">${ringSvg(u,col,P&&P.tg)}<div class="face">${avatar(a.key)}</div><span class="pip"></span><span class="pc mono${u==null?" nf":""}"${old?' style="color:var(--warn)"':""}>${pct}</span></div>
+      <div style="min-width:0"><div class="nm">${esc(a.name)} <span class="sx">${esc(a.status)}</span></div><div class="rl">${esc(a.role)}</div><div class="dg">${esc(a.doing||"—")}</div>${P&&(P.txt||P.stale)?`<div class="pace${P.off!=null&&P.off<=-3?" behind":""}">${P.stale?`<span class="stbadge">STALE</span> `:""}${esc(P.txt)}${P.tg!=null?` <span class="muted">· target ${Math.round(P.tg*100)}% now</span>`:""}</div>`:""}</div>${tip}</div>`}).join("")}</div>`;
 }
 function openPop(title,html){
   let d=document.getElementById("pop");
@@ -699,8 +711,8 @@ function tabsHtml(d,tab,u,state){
     ${nn?`<button type="button" class="nb" data-goneeds>${nn} need${nn===1?"s":""} you</button>`:""}</nav>`;
 }
 function home(d){
-  const u=d.week.u7, t=target((new Date(d.week.reset)-new Date(d.updated))/3600e3,d.pacing), gap=u-t;
-  const state=gap>=-0.03?["good","On pace"]:gap>=-0.10?["warn","Behind"]:["bad","Well behind"];
+  const PC=cfgOf(d), u=d.week.u7, t=PC?target((new Date(d.week.reset)-new Date(d.updated))/3600e3,PC):null, gap=t==null?0:u-t;
+  const state=t==null?["","No pace line"]:gap>=-0.03?["good","On pace"]:gap>=-0.10?["warn","Behind"]:["bad","Well behind"];
   /* Needs: reading the context (title, "Open ↗", preview) never files an answer. An option that is really a
      link ("Open …", "View …", "Review …") renders as a link to n.url, not as an answer button. */
   const isOpen=o=>/^(open|view|see|read|review)\b/i.test(String(o||""))&&!/\b(later|skip|done|no)\b/i.test(String(o||""));
@@ -726,15 +738,15 @@ function home(d){
      ${d.needs.length?`<p class="muted" style="margin:10px 0 0;font-size:13px"><span class="long">${ONE?"Tap an answer to send it to the autopilot in one tap. ":"Tap an answer to open a prefilled GitHub issue; Submit there sends it to the autopilot. "}</span>★ = my pick.</p><p class="muted keyhint">Keys: <kbd>j</kbd>/<kbd>k</kbd> pick a need · <kbd>1</kbd>–<kbd>9</kbd> choose an answer, <kbd>Enter</kbd> sends · <kbd>?</kbd> all shortcuts</p>`:""}</section>`:""}
    ${weekHtml(d)}
   </div>${alignHtml(d,"build")}`;
-  const fleet=()=>`${agentsHtml(d.agents)}${alignHtml(d)}<div class="grid" style="margin-top:16px">
+  const fleet=()=>`${agentsHtml(d.agents,fpOf(d))}${alignHtml(d)}<div class="grid" style="margin-top:16px">
    <section class="panel" aria-labelledby="g"><h2 id="g">Weekly fuel · Stanford account</h2>
      <div class="gauge-top"><div class="big mono">${Math.round(u*100)}%<span class="muted" style="font-size:14px;font-weight:600;margin-left:6px">used</span></div>
-       <div class="stat"><span class="muted">Target now</span><b>${Math.round(t*100)}%</b></div>
+       <div class="stat"><span class="muted">Target now</span><b>${t==null?"—":Math.round(t*100)+"%"}</b></div>
        <div class="stat"><span class="muted">Resets</span><b>${esc(fmtT(d.week.reset))}</b></div>
        <span class="pill ${state[0]}">${gap>0.01?`${Math.round(gap*100)} pts ahead of pace`:state[1]}</span></div>
      ${typeof d.week.u5==="number"&&isFinite(d.week.u5)?`<div class="muted" style="margin-top:10px">5-hour window · ${Math.round(d.week.u5*100)}%${typeof d.pacing.five_hour_ceiling==="number"?` <span class="mono">(ceiling ${Math.round(d.pacing.five_hour_ceiling*100)}%)</span>`:""}</div>
      <div class="bar5"><i style="width:${Math.min(d.week.u5*100,100)}%"></i></div>`:`<div class="muted" style="margin-top:10px">5-hour window · <i>no reading yet</i></div>`}
-     ${gaugeChart(d)}${proChart(d)}</section>
+     ${PC?gaugeChart(d):""}${proChart(d)}</section>
    <section class="panel" aria-labelledby="pb"><h2 id="pb">Projects</h2>${boardHtml(d.board)}</section>
    <section class="panel" aria-labelledby="is"><h2 id="is">Fleet issues · ${(d.issues||[]).length}</h2>${issuesHtml(d.issues)}</section>
    <section class="panel" aria-labelledby="c"><h2 id="c">Crew</h2><div class="rows">${crew}</div></section>
