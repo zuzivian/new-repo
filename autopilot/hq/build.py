@@ -405,6 +405,8 @@ out = {
     # Fleet pacer (scratchpad pace_fleet.py → ops-bus usage/pacing.json): Pinny/Minny/Chinny vs a 92%-by-reset line.
     # Career targets: Pinny's research/career/internship-timelines.md table (ops-bus, private) as rows.
     "career_targets": (lambda: _md_table("/home/user/ops-bus/research/career/internship-timelines.md"))(),
+    # Warm leads per eligible target company (Pinny, ops-bus goals/career_warm.json; counts only, no names).
+    "career_warm": (lambda: (lambda f: json.load(open(f)) if os.path.exists(f) else [])("/home/user/ops-bus/goals/career_warm.json"))(),
     "gh_issues": _gh_issues(),
     "nat_actions": _nat_actions(),
     "watchdog": _watchdog(),
