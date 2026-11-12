@@ -5,6 +5,13 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 | # | Finding | Status | Round |
 |---|---------|--------|-------|
 | 28 | Career metric is warm target companies (Nat): tile headline, contacts line; warm paths in the sheet once career_warm lands | done | R29 |
+| 29 | Morning view put Next 1100 px down under Overnight + Decided | done: Today → Needs → Overnight (decisions folded in) → goals | R41 |
+| 30 | "Tap an answer / ★" footer shown when no card had answers | done: only when a card has answer buttons | R41 |
+| 31 | Needs count shown 3 times (pill, Today row, header) | done: Today's Needs row only for "None waiting ✓" | R41 |
+| 32 | Decision headlines 2-4 lines; 15 px Details/Reverse targets | done: 2-line clamp, 36 px targets | R41 |
+| 33 | Research library ~650 px in the morning read | done: 3 newest + "new" pills, Show all | R41 |
+| 34 | Phone header time looked like "now" | done: "Updated 12:39 AM" | R41 |
+| 35 | Next 7 days repeats Today rows; date stamps long | queued: Chinny #5 (day headers) | R41 |
 | 27 | Career sheet: Apply this week / In progress / Watch from career_targets; tile count line | done | R28 |
 | 20 | Phone back gesture left HQ while a sheet was open | done: Back closes the sheet | R27 |
 | 21 | "Year: 39/100", "7 more booked", "8 overdue keep-in-touch" looked like buttons | done: plain facts list | R27 |

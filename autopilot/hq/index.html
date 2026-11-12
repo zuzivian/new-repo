@@ -139,7 +139,9 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 .cards{display:grid;gap:10px}
 .decs{margin-bottom:16px;border-left:4px solid var(--core)}.decl{margin:0;padding:0;list-style:none;display:grid;gap:10px}
 .dec{display:grid;gap:2px;border-top:1px solid var(--line);padding-top:8px}.dec:first-child{border-top:0;padding-top:0}
-.dec-d{font-weight:600}.dec-w{font-size:13px}.dec-m{font-size:12px}.dec-act{display:flex;gap:8px;flex-wrap:wrap}.decnone{margin:0 0 12px;font-size:13px}
+.dec-d{font-weight:600;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.dec-m{display:flex;flex-wrap:wrap;align-items:center;gap:0 6px}.dec-m a,.dec-m .linkbtn{display:inline-flex;align-items:center;min-height:36px;padding:0 4px}
+.ov-dec{border-top:1px solid var(--line);margin-top:10px;padding-top:10px}.ov-dec h3{margin:0 0 6px;font-family:var(--f-display);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}.dec-w{font-size:13px}.dec-m{font-size:12px}.dec-act{display:flex;gap:8px;flex-wrap:wrap}.decnone{margin:0 0 12px;font-size:13px}
 .overnight{margin-bottom:16px;border-left:4px solid var(--accent);background:color-mix(in srgb,var(--accent) 6%,var(--panel))}
 .ovh{margin:0 0 8px;padding-left:18px;display:grid;gap:4px}.ovg{display:grid;gap:4px;font-size:14px}.ovg summary{cursor:pointer;min-height:36px;display:flex;align-items:center;font-weight:600}.ovg summary::after{content:"▸";margin-left:6px;color:var(--ink-2)}.ovg details[open] summary::after{content:"▾"}.lst2{margin:4px 0 0;padding-left:18px;display:grid;gap:4px}.ova{font-size:13px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}.chip{font:inherit;font-size:13px;min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}.chip.on{background:var(--ink);color:var(--panel);border-color:var(--ink)}.chip.on .muted{color:inherit;opacity:.7}
@@ -610,7 +612,7 @@ function todayHtml(d){
   if(due.length||od) row("Due today",[...due.slice(0,3).map(x=>/^https:\/\//.test(x.url||"")?link(x.url,x.title):esc(x.title)),
     due.length>3?`<span class="muted">+${due.length-3} more</span>`:"", od?(odl?`<button type="button" class="linkbtn hot" data-overdue>${od} overdue</button>`:`<span class="hot">${od} overdue</span>`):""].filter(Boolean).join(" · "));
   // needs
-  const nn=(d.needs||[]).length; if(Array.isArray(d.needs)) row("Needs you",nn?`<a href="#life" class="hot" data-goneeds>${nn} waiting</a>`:`<span class="muted">None waiting ✓</span>`);
+  const nn=(d.needs||[]).length; if(Array.isArray(d.needs)&&!nn) row("Needs you",`<span class="muted">None waiting ✓</span>`);
   // focus: goals.nudge, else the first behind pillar (priority order) with its action
   let n=G.nudge&&G.nudge.text?{text:G.nudge.text,detail:G.nudge.detail||"",url:G.nudge.url||"",i:-1}:null;
   if(!n) (G.pillars||[]).some((p,i)=>{n=nudgeFor(d,i);return !!n});
@@ -665,9 +667,14 @@ function decRow(x,i,full){return `<li class="dec"><div class="dec-d">${esc(x.dec
 function decHtml(d,where){const D=decs(d); if(!D.length) return "";
   if(where==="fleet") return `<section class="panel" aria-labelledby="dcf"><h2 id="dcf">Decided for you · ${D.length}</h2><ul class="decl">${D.slice(0,6).map((x,i)=>decRow(x,i)).join("")}</ul>${D.length>6?`<button type="button" class="more" data-decall>See all ${D.length}</button>`:""}</section>`;
   const fresh=SEEN_BEFORE?D.filter(x=>isDate(x.at)&&new Date(x.at)>new Date(SEEN_BEFORE)):D;
+  if(where==="inner") return fresh.length?`<div class="ov-dec"><h3>Decided for you${SEEN_BEFORE?` · ${fresh.length} new`:""}</h3><ul class="decl">${fresh.slice(0,3).map(x=>decRow(x,D.indexOf(x))).join("")}</ul>
+    <div class="dec-act"><button type="button" class="more" data-decall>See all ${D.length}</button><button type="button" class="more" data-decok>Got it</button></div></div>`
+    :`<p class="muted decnone" style="margin:8px 0 0">No new decisions · <button type="button" class="linkbtn" data-decall>see all ${D.length}</button></p>`;
   if(!fresh.length) return `<p class="muted decnone">No new decisions since your last visit · <button type="button" class="linkbtn" data-decall>see all ${D.length}</button></p>`;
   return `<section class="panel decs" aria-labelledby="dc"><h2 id="dc">Decided for you${SEEN_BEFORE?` · ${fresh.length} new`:""}</h2><ul class="decl">${fresh.slice(0,3).map(x=>decRow(x,D.indexOf(x))).join("")}</ul>
     <div class="dec-act"><button type="button" class="more" data-decall>See all ${D.length}</button><button type="button" class="more" data-decok>Got it</button></div></section>`}
+function nightHtml(d){const ov=overnightHtml(d); if(!ov) return decHtml(d);
+  const inner=decHtml(d,"inner"); return inner?ov.replace(/<\/section>$/,inner+"</section>"):ov}
 function decAllPop(){const D=decs(DATA); openPop("Decided for you",`<p class="muted" style="margin:0;font-size:13px">Calls the orchestrator made on your behalf, newest first. Tap Reverse? to ask for one to be undone.</p><ul class="decl">${D.map((x,i)=>decRow(x,i,1)).join("")}</ul>`);
   document.querySelectorAll("#pop [data-reverse]").forEach(b=>b.addEventListener("click",()=>reversePop(+b.dataset.reverse)))}
 function reversePop(i){const x=decs(DATA)[i]; if(!x) return; const t=("HQ idea: Reverse: "+x.decision).slice(0,230);
@@ -704,8 +711,8 @@ function researchHtml(d){const R=(Array.isArray(d&&d.research)?d.research:[]).fi
   const chip=(k,l,n)=>`<button type="button" class="chip${(k||null)===f?" on":""}" data-rf="${esc(k||"")}" aria-pressed="${(k||null)===f}">${esc(l)} <span class="muted">${n}</span></button>`;
   return `<section class="panel" aria-labelledby="rl"><h2 id="rl">Research library · ${R.length}</h2>
     <div class="chips" role="group" aria-label="Filter by area">${chip("","All",R.length)}${areas.map(a=>chip(a,a.replace(/^./,c=>c.toUpperCase()),R.filter(x=>String(x.area||"other").toLowerCase()===a).length)).join("")}</div>
-    <ul class="rlist" id="rlist">${L.map((x,i)=>`<li${i>=8?' class="later"':""}>${url(x)?`<a href="${esc(url(x))}" target="_blank" rel="noopener">${esc(x.title)} ↗</a>`:esc(x.title)}<span class="muted">${esc([x.area&&!f?x.area:"",x.by,isDate(x.at)?fmtD(x.at).replace(/^\w+, /,""):""].filter(Boolean).join(" · "))}</span></li>`).join("")}</ul>
-    ${L.length>8?`<button type="button" class="more" data-rmore>Show all ${L.length}</button>`:""}</section>`}
+    <ul class="rlist" id="rlist">${L.map((x,i)=>`<li${i>=3?' class="later"':""}>${SEEN_BEFORE&&isDate(x.at)&&new Date(x.at)>new Date(SEEN_BEFORE)?'<span class="pill good" style="font-size:10px;padding:0 6px;justify-self:start">new</span>':""}${url(x)?`<a href="${esc(url(x))}" target="_blank" rel="noopener">${esc(x.title)} ↗</a>`:esc(x.title)}<span class="muted">${esc([x.area&&!f?x.area:"",x.by,isDate(x.at)?fmtD(x.at).replace(/^\w+, /,""):""].filter(Boolean).join(" · "))}</span></li>`).join("")}</ul>
+    ${L.length>3?`<button type="button" class="more" data-rmore>Show all ${L.length}</button>`:""}</section>`}
 /* Growth plan (goals.growth_plan): week-by-week Exponent plan. Current week = latest start <= today (PT). */
 function gpNow(d){const P=d&&d.goals&&d.goals.growth_plan; if(!P||!Array.isArray(P.weeks)||!P.weeks.length) return null;
   const W=P.weeks.filter(w=>w&&/^\d{4}-\d{2}-\d{2}/.test(w.start||"")).sort((a,b)=>a.start.localeCompare(b.start)); if(!W.length) return null;
@@ -920,11 +927,11 @@ function home(d){
   const maxc=Math.max(...d.spend.map(s=>s.usd),1);
   const spend=d.spend.map(s=>`<div class="row"><span class="name">${esc(s.project)}</span><span class="mono muted">$${s.usd.toFixed(0)}</span></div><div class="hbar"><i style="width:${(s.usd/maxc*100).toFixed(1)}%;background:${TIER_COLOR[s.tier]||"var(--maint)"}"></i></div>`).join("");
   const tab=curTab();
-  const life=`${overnightHtml(d)}${decHtml(d)}${wplan}${todayHtml(d)}
+  const life=`${wplan}${todayHtml(d)}
    ${rest.length?`<section class="panel" aria-labelledby="n" style="margin-bottom:16px"><h2 id="n">Needs you · ${rest.length}</h2>
      <div class="cards">${needs}</div>
-     ${d.needs.length?`<p class="muted" style="margin:10px 0 0;font-size:13px"><span class="long">${ONE?"Tap an answer to send it to the autopilot in one tap. ":"Tap an answer to open a prefilled GitHub issue; Submit there sends it to the autopilot. "}</span><span class="short">${ONE?"One tap sends. ":"Opens GitHub → tap Submit. "}</span>★ = my pick.</p><p class="muted keyhint">Keys: <kbd>j</kbd>/<kbd>k</kbd> pick a need · <kbd>1</kbd>–<kbd>9</kbd> choose an answer, <kbd>Enter</kbd> sends · <kbd>?</kbd> all shortcuts</p>`:""}</section>`:""}
-   ${goalsHtml(d)}<div style="margin-bottom:16px">${weekHtml(d)}</div>${researchHtml(d)}${alignHtml(d,"build")}`;
+     ${rest.some(([n])=>!Array.isArray(n.options)||n.options.length)?`<p class="muted" style="margin:10px 0 0;font-size:13px"><span class="long">${ONE?"Tap an answer to send it to the autopilot in one tap. ":"Tap an answer to open a prefilled GitHub issue; Submit there sends it to the autopilot. "}</span><span class="short">${ONE?"One tap sends. ":"Opens GitHub → tap Submit. "}</span>★ = my pick.</p><p class="muted keyhint">Keys: <kbd>j</kbd>/<kbd>k</kbd> pick a need · <kbd>1</kbd>–<kbd>9</kbd> choose an answer, <kbd>Enter</kbd> sends · <kbd>?</kbd> all shortcuts</p>`:""}</section>`:""}
+   ${nightHtml(d)}${goalsHtml(d)}<div style="margin-bottom:16px">${weekHtml(d)}</div>${researchHtml(d)}${alignHtml(d,"build")}`;
   const fleet=()=>`${agentsHtml(d.agents,fpOf(d))}${decHtml(d,"fleet")?`<div style="margin:16px 0">${decHtml(d,"fleet")}</div>`:""}${alignHtml(d)}<div class="grid" style="margin-top:16px">
    <section class="panel" aria-labelledby="g"><h2 id="g">Weekly fuel · Stanford account</h2>
      <div class="gauge-top"><div class="big mono">${Math.round(u*100)}%<span class="muted" style="font-size:14px;font-weight:600;margin-left:6px">used</span></div>
@@ -976,7 +983,7 @@ function staleHtml(d){
 }
 function render(){
   const v=document.getElementById("view"); if(!DATA){v.innerHTML='<p class="empty">Loading the latest status…</p>';return}
-  document.getElementById("updated").textContent=(matchMedia("(max-width:640px)").matches?"":"Updated ")+fmtT(DATA.updated)+" PT";
+  document.getElementById("updated").textContent="Updated "+(matchMedia("(max-width:640px)").matches&&ptDay(DATA.updated)===ptDay(Date.now())?new Date(DATA.updated).toLocaleTimeString("en-US",{...PT,hour:"numeric",minute:"2-digit"}):fmtT(DATA.updated)+" PT");
   const h=location.hash.slice(1);
   v.innerHTML=staleHtml(DATA)+(h.startsWith("m-")?primer((DATA.meetings||[]).find(m=>"m-"+m.id===(()=>{try{return decodeURIComponent(h)}catch(_){return h}})())):home(DATA));
   v.querySelectorAll(".agent").forEach(el=>el.addEventListener("click",e=>{
