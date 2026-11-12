@@ -69,8 +69,8 @@ jobs:
           printf 'cli_auth_credentials_store = "file"\n' >> ~/.codex/config.toml
           codex --version
           # Shape check only: prints key names and whether tokens are present, never values.
-          jq -r '"auth.json keys: \(keys|join(","))  auth_mode=\(.auth_mode // "unset")  has_tokens=\((.tokens.access_token // "") != "")  has_refresh=\((.tokens.refresh_token // "") != "")  api_key_set=\((.OPENAI_API_KEY // "") != "")"' ~/.codex/auth.json || echo "::warning::CODEX_AUTH_JSON is not valid JSON"
-          codex login status || true
+          jq -r 'if type=="object" then "auth.json keys: \(keys|join(","))  auth_mode=\(.auth_mode // "unset")  has_tokens=\((.tokens.access_token // "") != "")  has_refresh=\((.tokens.refresh_token // "") != "")  api_key_set=\((.OPENAI_API_KEY // "") != "")" else "auth.json top-level type: \(type)" end' ~/.codex/auth.json 2>/dev/null || echo "::warning::CODEX_AUTH_JSON is not valid JSON"
+          codex login status >/dev/null 2>&1 && echo "codex login status: ok" || echo "codex login status: rc=$?"
       - name: Install project dependencies (Codex's sandbox has no network)
         if: steps.gate.outputs.skip != '1'
         run: |
