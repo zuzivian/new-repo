@@ -163,7 +163,7 @@ out = {
     # Nat's goals (targets from Binny gsb-year1-goals; live counts from Pinny's Notion feed in ops-bus goals/progress.json).
     "goals": _goals(),
     # Fleet pacer (scratchpad pace_fleet.py → ops-bus usage/pacing.json): Pinny/Minny/Chinny vs a 92%-by-reset line.
-    "pacing": (lambda: (json.load(open("/home/user/ops-bus/usage/pacing.json")) if os.path.exists("/home/user/ops-bus/usage/pacing.json") else None))(),
+    "fleet_pacing": (lambda: (json.load(open("/home/user/ops-bus/usage/pacing.json")) if os.path.exists("/home/user/ops-bus/usage/pacing.json") else None))(),
     "workers": [w for w in state.get("workers", []) if not str(w.get("status","")).startswith("done")]
                + [w for w in state.get("workers", []) if str(w.get("status","")).startswith("done")][:6],
     "spend": spend_rows,
