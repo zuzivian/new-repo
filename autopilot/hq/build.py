@@ -115,31 +115,56 @@ def _career_filter():
     except Exception: return {}
 
 def _md_table(path):
-    """First markdown table in a file → list of dicts keyed by short column names. None if missing."""
+    """Header-driven parse of every '| # | Company | ...' table in Pinny's internship-timelines.md → rows."""
     try:
-        lines = [l.strip() for l in open(path) if l.strip().startswith("|")]
+        text = open(path).read().splitlines()
     except Exception:
         return None
-    if len(lines) < 3: return None
-    cells = lambda l: [c.strip().replace("**", "") for c in l.strip("|").split("|")]
-    keys = ["n", "company", "roles", "posted", "window", "eligibility", "location", "status", "source"]
-    rows = []
-    for l in lines[2:]:
+    cells = lambda l: [c.strip().replace("**", "") for c in l.strip().strip("|").split("|")]
+    def colkey(h):
+        h = h.lower()
+        if h == "#": return "n"
+        if h.startswith("company"): return "company"
+        if "posted" in h: return "posted"
+        if "open–close" in h or "open-close" in h or "typical" in h: return "window"
+        if "open / check / closed" in h or h == "eligibility": return "elig_class"
+        if "visa" in h or "evidence" in h: return "eligibility"
+        if "location" in h: return "location"
+        if "status" in h: return "status"
+        if "source" in h: return "source"
+        if "role" in h: return "roles"
+        if "fit" in h: return "fit"
+        return h[:20]
+    rows, keys = [], None
+    for l in text:
+        if not l.strip().startswith("|"):
+            keys = None; continue
         c = cells(l)
-        if len(c) < 9: continue
-        r = dict(zip(keys, c[:9]))
+        if c and c[0] == "#":
+            keys = [colkey(h) for h in c]; continue
+        if keys is None or not c or not re.fullmatch(r"N?\d+", c[0].strip()): continue
+        r = {k: "" for k in ("company", "roles", "posted", "window", "eligibility", "elig_class", "location", "status", "source")}
+        r.update(dict(zip(keys, c)))
+        if " (" in r["company"]:
+            r["company_note"] = r["company"].split(" (", 1)[1].rstrip(")"); r["company"] = r["company"].split(" (", 1)[0]
         m = re.search(r"\((https?://[^)\s]+)\)", r["posted"]) or re.search(r"(https?://\S+)", r["posted"])
         r["url"] = m.group(1) if m else None
         r["is_posted"] = r["posted"].upper().startswith("Y")
-        r["applied"] = bool(re.search(r"applied|interview|rejected|offer", r["status"], re.I))
-        # Posting-text flag only; personal filters live in a private file (see _career_filter).
+        r["applied"] = bool(re.search(r"applied|interview|rejected|offer|screen", r["status"], re.I))
         e = re.sub(r"\b(no|not|without)\b[^.;]{0,40}?\b(citizenship|clearance|export|itar|u\.?s\.? person)[^.;]*", "", r["eligibility"].lower())
-        r["us_person_required"] = None if re.search(r"sentence only|boilerplate", e) else True if re.search(r"itar|u\.?s\.? ?(citizen|person|national)|citizenship|clearance|export|permanent resident|green card|lpr", e) else None
+        r["us_person_required"] = None if re.search(r"sentence only|boilerplate", e) else True if re.search(
+            r"itar|u\.?s\.? ?(citizen|person|national)|citizenship|clearance|export|permanent resident|green card|lpr", e) else None
         rows.append(r)
     flt = _career_filter()
     for r in rows:
+        ec = r["elig_class"].lower()
         excluded = any(k in r["company"].lower() for k in flt.get("exclude_companies", []))
-        r["eligible"] = "no" if (excluded or (flt.get("exclude_us_person_roles") and r["us_person_required"])) else "check"
+        if excluded or ec.startswith("closed") or (not ec and flt.get("exclude_us_person_roles") and r["us_person_required"]):
+            r["eligible"] = "no"
+        elif ec.startswith("open"):
+            r["eligible"] = "yes"
+        else:
+            r["eligible"] = "check"
     return {"source": "research/career/internship-timelines.md", "rows": rows}
 
 def _gh_issues():
