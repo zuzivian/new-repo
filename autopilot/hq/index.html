@@ -612,7 +612,8 @@ function pillarRead(p,prog,d){
   const EM=[["email_applied","applied"],["email_interviews","interviews"],["email_rejections","rejections"],["email_offers","offers"]].filter(([k])=>num(g[k])!=null);
   const mail=EM.length?{txt:EM.map(([k,l])=>`${num(g[k])} ${num(g[k])===1?l.replace(/s$/,""):l}`).join(" · "),at:isDate(g.email_scan_at)?g.email_scan_at:null,gap:num(g.email_not_in_tracker)||0}:null;
   const pend=keys.filter(k=>k!==m&&!/_by$/.test(k)&&!/year/i.test(k)&&num(g[k])==null&&k in g).map(k=>`goal ${tnum(T[k])} ${k.replace(/_/g," ")} · not tracked yet`);
-  const warm=m==="warm_companies"&&num(g.target_companies)!=null&&cur!=null?{of:num(g.target_companies),ident:num(g.identified_companies),open:Math.max(0,num(g.target_companies)-cur-(num(g.identified_companies)||0))}:null;
+  const warm=m==="warm_companies"&&num(g.target_companies)!=null&&cur!=null?{of:num(g.target_companies),ident:num(g.identified_companies),open:Math.max(0,num(g.target_companies)-cur-(num(g.identified_companies)||0)-((d&&d.career_warm)||[]).filter(x=>x&&String(x.state).toLowerCase()==="closed").length),
+    closed:((d&&d.career_warm)||[]).filter(x=>x&&String(x.state).toLowerCase()==="closed").length}:null;
   const dl=[T[m]&&T[m].by,T[m+"_by"],T.by,T.deadline,p.deadline,T.fall_end].find(isDate);
   const now=new Date(d.updated||Date.now());
   if(target==null) return {m,label,target,cur,state:cur==null?"nf":"",pace:cur==null?(g.note?String(g.note):"Not reported yet"):"No target set"+(dl?" · deadline "+fmtD(asDay(dl)).replace(/^\w+, /,""):""),dl,sec,funnel,cal,mail,warm,pend};
@@ -689,7 +690,7 @@ function goalsHtml(d){
       ${p.key==="career"&&ctSummary(d)?(()=>{const todo=(ctSummary(d).match(/(\d+) to apply/)||[])[1], lv=num((((G.progress||{}).career)||{}).live_roles);
         return todo!=null?`<span class="gm gact"><b>Apply this week: ${todo}</b>${lv!=null?` · ${lv} eligible live`:""}</span>`:""})():""}
       <span class="gv">${nf?esc(((G.progress||{})[p.key]||{}).status_label||"no feed yet"):r.warm?`${r.cur}<small> warm of ${r.warm.of} targets${r.target!=null?` · goal ${r.target}`:""}</small>`:/_pct$/.test(r.m||"")?`${r.cur}%<small>${r.target!=null&&r.target!==100?` of ${r.target}%`:" done"}</small>`:`${r.cur}<small>${r.target!=null?"/"+r.target+(r.dl&&!r.weekly&&/^Year goal/.test(r.sec||"")?` by ${esc(fmtD(asDay(r.dl)).replace(/^\w+, /,""))}`:""):" "+esc(r.label.replace(/\s*\(.*\)\s*$/,""))}</small>`}</span>
-      ${r.warm?`<span class="gm ctsum">${[r.warm.ident!=null?`${r.warm.ident} named contact${r.warm.ident===1?"":"s"}`:"",`${r.warm.open} to open`].filter(Boolean).join(" · ")}</span>`:""}
+      ${r.warm?`<span class="gm ctsum">${[r.warm.ident!=null?`${r.warm.ident} named contact${r.warm.ident===1?"":"s"}`:"",`${r.warm.open} to open`,r.warm.closed?`${r.warm.closed} closed, swap pending`:""].filter(Boolean).join(" · ")}</span>`:""}
       ${r.warm||(nf&&((G.progress||{})[p.key]||{}).status_label&&!r.funnel)?"":`<span class="gm"${r.funnel?' style="white-space:normal"':""}>${r.funnel&&r.mail?'<span class="src">Notion</span> ':""}${esc(r.funnel||(r.m?r.label:(p.goal||"")))}</span>`}
       ${p.key==="relationships"&&r.m==="coffee_chats_calendar"?(()=>{const g=(G.progress||{}).relationships||{}, t=num(g.coffee_chats_typed), a=num(g.coffee_chats_all_excl_orientation);
         return t!=null||a!=null?`<span class="gm ctsum">Other counts: ${[t!=null?`Notion typed ${t}`:"",a!=null?`all touchpoints ${a}`:""].filter(Boolean).join(" · ")}</span>`:""})():""}
@@ -834,11 +835,15 @@ function ctHtml(d){const R=ctRows(d); if(!R||!R.length) return "";
   // warm paths: data.career_warm[{company, state: warm|identified|none, contacts?, note?}]; matched by company name
   const CW=Array.isArray(d.career_warm)&&d.career_warm.some(x=>x&&x.company)?d.career_warm.filter(x=>x&&x.company):null, key=x=>cell(x).toLowerCase().replace(/[^a-z0-9]/g,"");
   const wOf=r=>CW&&CW.find(x=>key(x.company)===key(r.company));
-  const WS={warm:["good","warm"],identified:["warn","contact named"],none:["bad","no path yet"]};
+  const WS={warm:["good","warm"],identified:["warn","contact named"],none:["bad","no path yet"],closed:["","closed · swap pending"]};
   const wp=CW&&apply.length?`<h4>Warm paths for this week's applications</h4><ul class="ctl wp">${apply.map(r=>{const x=wOf(r), st0=x&&WS[String(x.state||"").toLowerCase()]||WS.none;
-      const br=x&&(x.bridge_action||(String(x.note||"").match(/bridges? via ([^.;]+)/i)||[])[1]), st=st0===WS.none&&br?["warn","next: ask via "+String(br).replace(/^ask\s+/i,"").slice(0,40)]:st0;
-      return `<li><b>${esc(cell(r.company))}</b> <span class="pill ${st[0]}">${st[1]}</span>${x&&num(x.contacts)?` <span class="muted">· ${num(x.contacts)} contact${num(x.contacts)===1?"":"s"}</span>`:""}${x&&x.note?`<div class="ct-el muted">${esc(cell(x.note))}</div>`:""}</li>`}).join("")}</ul>`:"";
-  return `<div class="ct">${wp}
+      const ba=x&&x.bridge_action?String(x.bridge_action):"", br=!ba&&x&&(String(x.note||"").match(/bridges? via ([^.;]+)/i)||[])[1];
+      const st=st0===WS.none&&ba?["warn","next step"]:st0===WS.none&&br?["warn","next: ask via "+String(br).slice(0,40)]:st0;
+      return `<li${st0===WS.closed?' class="dim"':""}><b>${esc(cell(r.company))}</b> <span class="pill ${st[0]}">${st[1]}</span>${ba&&st0!==WS.closed?`<div class="ct-el"><b>Next:</b> ${esc(ba)}</div>`:""}${x&&num(x.contacts)?` <span class="muted">· ${num(x.contacts)} contact${num(x.contacts)===1?"":"s"}</span>`:""}${x&&x.note?`<div class="ct-el muted">${esc(cell(x.note))}</div>`:""}</li>`}).join("")}</ul>`:"";
+  const ord={warm:0,identified:1,none:2,closed:3};
+  const allW=CW&&CW.length>apply.length?`<details><summary>All warm paths · ${CW.length}</summary><ul class="ctl wp">${CW.slice().sort((a,b)=>(ord[String(a.state).toLowerCase()]??2)-(ord[String(b.state).toLowerCase()]??2)).map(x=>{const k=String(x.state||"").toLowerCase(), st=WS[k]||WS.none, ba=x.bridge_action&&k!=="closed"?String(x.bridge_action):"";
+      return `<li${k==="closed"?' class="dim"':""}><b>${esc(cell(x.company))}</b> <span class="pill ${st[0]}">${ba&&k==="none"?"next step":st[1]}</span>${num(x.contacts)?` <span class="muted">· ${num(x.contacts)} contact${num(x.contacts)===1?"":"s"}</span>`:""}${ba?`<div class="ct-el"><b>Next:</b> ${esc(ba)}</div>`:""}</li>`}).join("")}</ul></details>`:"";
+  return `<div class="ct">${wp}${allW}
     <h4>Apply this week · ${apply.length}</h4>${apply.length?`<ul class="ctl">${A}</ul>`:`<p class="muted" style="margin:0">Every live posting open to you has an application ✓</p>`}
     <details><summary>In progress · ${prog.length}</summary><ul class="ctl">${Pg}</ul></details>
     ${offT.length?`<details><summary>Posted, no PM/TPM role · ${offT.length}</summary><ul class="ctl">${offT.map(r=>li(r,{body:r.reason?`<div class="ct-el clamp muted">${esc(cell(r.reason))}</div>`:""})).join("")}</ul></details>`:""}
