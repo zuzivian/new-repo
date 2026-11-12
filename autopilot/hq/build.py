@@ -126,6 +126,15 @@ def _goals():
         car["email_not_in_tracker"] = ce.get("not_in_tracker_count")
     except Exception:
         pass
+    # One career headline: applications sent = the larger of Notion (applied-or-later) and the Gmail scan.
+    try:
+        car = (g.get("progress") or {}).get("career") or {}
+        notion_sent = sum(int(car.get(k) or 0) for k in ("applied", "interviewing", "offers", "rejected"))
+        car["applied_total"] = max(notion_sent, int(car.get("email_applied") or 0))
+        car["applied_total_note"] = f"max of Notion {notion_sent} (applied+interviewing+offers+rejected) and Gmail scan {car.get('email_applied')}"
+        car["email_not_in_tracker"] = max(0, int(car.get("email_applied") or 0) - notion_sent) if car.get("email_applied") is not None else car.get("email_not_in_tracker")
+    except Exception:
+        pass
     for pillar, vals in (g.pop("overrides", None) or {}).items():
         if g["progress"] is None: g["progress"] = {}
         g["progress"].setdefault(pillar, {}).update(vals)
