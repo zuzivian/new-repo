@@ -9,6 +9,7 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 | 10 | Prep link was a 33×19 px inline word | done: 44 px "Prep →" button | R20 |
 | 4a | "25 tasks due" didn't match the list (meetings and dates mixed in) | done: "25 Notion tasks due this week" | R20 |
 | 9 | "44% fuel" read as fuel left; "ON PACE" while above target looked contradictory | done: "44% used", "N pts ahead of pace" | R20 |
+| 11 | A dataset missing Fleet fields (e.g. week.timeline) threw a display error on Life too | done: Fleet built only when shown, its errors stay in Fleet | R20 |
 | 4b | Timeline date column stacks 2–3 lines on phones and only the first row says "Today" | queued for Chinny: day headers, time-only rows | R20 |
 | 3 | "2 overdue" shows twice but the overdue tasks aren't listed or tappable | needs data: tasks.overdue_items[] (title, due, url) | R20 |
 | 5 | Career: 8 applied (tile), 12 (chart, applications sent), 17 (Gmail); "≈4 not in tracker" ≠ 17 − 8; no target number | needs data: reconcile sources, expose the target | R20 |

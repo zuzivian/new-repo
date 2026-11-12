@@ -726,7 +726,7 @@ function home(d){
      ${d.needs.length?`<p class="muted" style="margin:10px 0 0;font-size:13px"><span class="long">${ONE?"Tap an answer to send it to the autopilot in one tap. ":"Tap an answer to open a prefilled GitHub issue; Submit there sends it to the autopilot. "}</span>★ = my pick.</p><p class="muted keyhint">Keys: <kbd>j</kbd>/<kbd>k</kbd> pick a need · <kbd>1</kbd>–<kbd>9</kbd> choose an answer, <kbd>Enter</kbd> sends · <kbd>?</kbd> all shortcuts</p>`:""}</section>`:""}
    ${weekHtml(d)}
   </div>${alignHtml(d,"build")}`;
-  const fleet=`${agentsHtml(d.agents)}${alignHtml(d)}<div class="grid" style="margin-top:16px">
+  const fleet=()=>`${agentsHtml(d.agents)}${alignHtml(d)}<div class="grid" style="margin-top:16px">
    <section class="panel" aria-labelledby="g"><h2 id="g">Weekly fuel · Stanford account</h2>
      <div class="gauge-top"><div class="big mono">${Math.round(u*100)}%<span class="muted" style="font-size:14px;font-weight:600;margin-left:6px">used</span></div>
        <div class="stat"><span class="muted">Target now</span><b>${Math.round(t*100)}%</b></div>
@@ -743,7 +743,9 @@ function home(d){
      <p class="muted" style="margin:10px 0 0;font-size:13px">What these tokens would cost at API list prices (Claude Code's own estimate per session). Plan usage, not a bill.</p></section>
    <section class="panel" aria-labelledby="s"><h2 id="s">Burn by project · sessions started this week</h2><div class="rows">${spend}</div></section>
   </div>`;
-  return tabsHtml(d,tab,u,state)+(tab==="fleet"?fleet:life);
+  // Fleet is built only when shown, and a Fleet data gap can't take Life down with it
+  let body=life; if(tab==="fleet"){try{body=fleet()}catch(e){body=`<p class="empty">The Fleet view hit a data gap (${esc(String(e&&e.message||e))}). Life still works.</p>`}}
+  return tabsHtml(d,tab,u,state)+body;
 }
 
 function primer(m){
