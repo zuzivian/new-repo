@@ -763,7 +763,8 @@ function overnightHtml(d){const O=d&&d.overnight; if(!O) return "";
   const rs=x=>typeof x==="string"?esc(x):(/^https:\/\//.test(x.link||x.url||"")?link(x.link||x.url,x.title):esc(x.title));
   if(!H.length&&!M.length&&!R.length&&!A.length) return "";
   return `<section class="panel overnight" aria-labelledby="ov"><h2 id="ov">Overnight${since?` · since ${esc(fmtT(O.since))} PT`:""}</h2>
-    ${H.length?`<ul class="ovh">${H.map(x=>`<li>${esc(typeof x==="string"?x:x.text||"")}</li>`).join("")}</ul>`:""}
+    ${H.length?`<ul class="ovh">${H.map(x=>{const t=typeof x==="string"?x:x.text||"", m=t.match(/\s*\(((?:research|goals|hq)\/[\w./-]+\.md)\)/);
+      return `<li>${m?`${esc(t.replace(m[0],""))} <a href="https://github.com/zuzivian/ops-bus/blob/main/${esc(m[1])}" target="_blank" rel="noopener">Read ↗</a>`:esc(t)}</li>`}).join("")}</ul>`:""}
     <div class="ovg">${M.length?`<details><summary>${M.length} PR${M.length===1?"":"s"} merged</summary><ul class="lst2">${M.map(x=>`<li>${pr(x)}</li>`).join("")}</ul></details>`:""}
     ${R.length?`<details><summary>${R.length} research file${R.length===1?"":"s"}</summary><ul class="lst2">${R.map(x=>`<li>${rs(x)}</li>`).join("")}</ul></details>`:""}
     ${A.length?`<div class="muted ova">${A.map(([k,v])=>`${esc(k.replace(/^./,c=>c.toUpperCase()))} ${num(v)??num(v.done)}`).join(" · ")} tasks done</div>`:""}</div></section>`}
