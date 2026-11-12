@@ -137,6 +137,14 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600;white-space:nowrap}.pop .spark{width:100%;height:64px}
 .cards{display:grid;gap:10px}
+.goal .gm.ctsum{color:var(--ink);font-weight:600}
+.ct{display:grid;gap:8px;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.ct h4{margin:0;font-family:var(--f-display);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.ct summary{cursor:pointer;font-family:var(--f-display);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);min-height:36px;display:flex;align-items:center}
+.ctl{margin:0;padding:0;list-style:none;display:grid;gap:8px}.ctl li{border-top:1px solid var(--line);padding-top:8px;min-width:0}.ctl li:first-child{border-top:0;padding-top:0}
+.ctl li.dim{opacity:.6}.ctl a{text-decoration:none;color:var(--ink)}.ctl a:hover{color:var(--accent)}
+.ct-roles{font-size:13px;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.ct-el{font-size:12px;overflow-wrap:anywhere;margin-top:2px}.ct-el.clamp{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}.ct-el.warn{color:var(--warn);font-weight:600}
 .dlist{margin:6px 0 0;padding-left:18px;display:grid;gap:6px;font-size:14px}.dlist a{font-weight:600;white-space:nowrap}
 .linkbtn{font:inherit;background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:2px;min-height:32px}
 .linkbtn.hot,.linkbtn.od{color:var(--warn);font-weight:600}.linkbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -593,11 +601,36 @@ function goalsHtml(d){
       <span class="gk">${esc(pName(p))}</span>
       <span class="gv">${nf?"no feed yet":`${r.cur}<small>${r.target!=null?"/"+r.target:" "+esc(r.label.replace(/\s*\(.*\)\s*$/,""))}</small>`}</span>
       <span class="gm"${r.funnel?' style="white-space:normal"':""}>${r.funnel&&r.mail?'<span class="src">Notion</span> ':""}${esc(r.funnel||(r.m?r.label:(p.goal||"")))}</span>
+      ${p.key==="career"&&ctSummary(d)?`<span class="gm ctsum">${esc(ctSummary(d))}</span>`:""}
       ${r.mail?`<span class="gm" style="white-space:normal">${r.mail.gap>0?`<span class="flag">≈${r.mail.gap} not in tracker</span> · `:""}<span class="src">Gmail scan</span> ${esc(r.mail.txt)}</span>`:""}
       ${r.funnel?"":`<span class="gbar"><i style="width:${pct.toFixed(0)}%"></i></span>`}
       ${r.sec?`<span class="gm">${esc(r.sec)}</span>`:""}
       <span class="gp">${esc(r.m?r.pace:"No metric set")}</span></button>`}).join("")}</section>`;
 }
+/* Career targets: Pinny's internship-timeline research, one row per company. Cells may carry markdown/URLs; strip them. */
+const yes=v=>v===true||/^(true|y|yes|1)$/i.test(String(v==null?"":v).trim());
+const cell=v=>String(v==null?"":v).replace(/\[([^\]]+)\]\([^)]*\)/g,"$1").replace(/\*\*|__|`/g,"").replace(/https?:\/\/\S+/g,"").replace(/\s*\[(pattern|est\.?)\]/gi,"").replace(/\s+/g," ").replace(/[\s;:,(]+$/,"").trim();
+const ctRows=d=>{const C=d&&d.career_targets; return C&&Array.isArray(C.rows)?C.rows.filter(r=>r&&r.company):null};
+function ctSummary(d){const R=ctRows(d); if(!R||!R.length) return "";
+  const live=R.filter(r=>yes(r.is_posted)).length, todo=R.filter(r=>yes(r.is_posted)&&!yes(r.applied)).length;
+  return `${live} live posting${live===1?"":"s"} · ${todo} not yet applied`}
+function ctHtml(d){const R=ctRows(d); if(!R||!R.length) return "";
+  const warn=t=>/citizen|clearance|itar|export/i.test(t);
+  const co=r=>/^https:\/\//.test(r.url||"")?`<a href="${esc(r.url)}" target="_blank" rel="noopener"><b>${esc(cell(r.company))}</b> ↗</a>`:`<b>${esc(cell(r.company))}</b>`;
+  const roles=r=>{const x=cell(r.roles); return x&&!/^(none|no )/i.test(x)?`<div class="ct-roles">${esc(x)}</div>`:""};
+  const apply=R.filter(r=>yes(r.is_posted)&&!yes(r.applied)), prog=R.filter(r=>yes(r.applied)), watch=R.filter(r=>!yes(r.is_posted)&&!yes(r.applied));
+  const rej=r=>/reject|declin|withdr/i.test(String(r.status||""));
+  prog.sort((a,b)=>rej(a)-rej(b));
+  const li=(r,extra)=>`<li${extra&&extra.dim?' class="dim"':""}>${co(r)}${roles(r)}${extra&&extra.body||""}</li>`;
+  const A=apply.map(r=>{const e=cell(r.eligibility), w=warn(e);
+    return li(r,{body:e&&!/^not stated/i.test(e)?`<div class="ct-el clamp${w?" warn":""}" title="${esc(e)}">${w?"⚠ ":""}${esc(e)}</div>`:`<div class="ct-el muted">Eligibility not stated</div>`})}).join("");
+  const Pg=prog.map(r=>li(r,{dim:rej(r),body:`<div class="ct-el muted">${esc(cell(r.status)||"applied")}</div>`})).join("");
+  const W=watch.map(r=>li(r,{body:cell(r.window)?`<div class="ct-el muted">Typically opens: ${esc(cell(r.window))}</div>`:""})).join("");
+  const src=d.career_targets.source?`<p class="muted" style="margin:0;font-size:12px">From ${esc(String(d.career_targets.source).split("/").pop())} (${R.length} target companies).</p>`:"";
+  return `<div class="ct">
+    <h4>Apply this week · ${apply.length}</h4>${apply.length?`<ul class="ctl">${A}</ul>`:`<p class="muted" style="margin:0">Every live posting has an application ✓</p>`}
+    <details><summary>In progress · ${prog.length}</summary><ul class="ctl">${Pg}</ul></details>
+    <details><summary>Watch (not posted yet) · ${watch.length}</summary><ul class="ctl">${W}</ul></details>${src}</div>`}
 /* Pillar popup = "what to do next": where you are, the pace you need, a projection, the last weeks, related counts. */
 function histBars(H,key,opt){
   const rows=(H||[]).filter(h=>h&&isDate(h.week_start)&&num(h[key])!=null).slice(-6);
@@ -637,6 +670,7 @@ function goalPop(i){
   const k2=p.key==="relationships"&&H?histBars(H,"classmates_logged",{col:"var(--core)",title:"classmates logged",curWeek:PW}):"";
   const nd=nudgeFor(DATA,i);
   openPop(pName(p),`${p.goal?`<p style="margin:0">${esc(p.goal)}</p>`:""}
+    ${p.key==="career"?ctHtml(DATA):""}
     ${r.m?`<div class="tt"><span class="mono" style="font-size:22px;font-weight:600">${r.cur==null?"—":esc(r.target!=null?r.cur+" / "+r.target:String(r.cur))}</span><span class="muted" style="align-self:center">${esc(r.label)}</span></div>
       <div style="color:${col};font-weight:600;font-size:14px">${esc(r.pace)}</div>`:""}
     ${nd?`<div class="nudge" style="margin:0"><span class="ar" aria-hidden="true">→</span><b>${esc(nd.text)}</b>${nd.detail?`<span class="muted">${esc(nd.detail)}</span>`:""}</div>`:""}
