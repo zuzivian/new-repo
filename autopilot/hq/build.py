@@ -34,7 +34,7 @@ primers = load(os.path.join(scratch, "primers.json"), {"primers": []})
 reset = dt.datetime.fromisoformat(state["week"]["reset"])
 week_start = reset - dt.timedelta(days=7)
 tier_of = {p["name"]: p.get("tier", "maintenance") for p in cfg["projects"]}
-tier_of.update({"temasek-1360": "growth", "new-repo": "maintenance"})
+tier_of.update({"temasek-1360": "growth", "new-repo": "maintenance", "career": "career-core"})  # career = Nat's #1 goal
 
 spend = {}
 for s in usage.get("sessions", []):
@@ -276,7 +276,16 @@ def _watchdog():
             n += ts >= cutoff
         except Exception:
             n += 1  # untimed entry: the file only keeps the latest run, so count it
-    return {**w, "fixes_24h": n}
+    # Self-healing also counts fixes Fleet Ops logs as decisions with kind "fix" (watchdog.json keeps only its last run).
+    m = 0
+    for d in state.get("decisions", []):
+        if d.get("kind") != "fix": continue
+        try:
+            ts = dt.datetime.fromisoformat(str(d.get("at")).replace("Z", "+00:00"))
+            m += ts >= cutoff
+        except Exception:
+            pass
+    return {**w, "fixes_24h": n + m, "fixes_watchdog_24h": n, "fixes_fleet_ops_24h": m}
 
 def _nat_actions():
     """(g) Pass through issue/options; default options."""
