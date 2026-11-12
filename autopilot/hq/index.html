@@ -298,7 +298,7 @@ a{color:var(--core)}
 
 <script>
 const TIER_COLOR={career:"var(--core)",digigov:"#7a5cc4",relationships:"#d0698a",fleet_hq:"var(--maint)","career-core":"var(--core)","career-surface":"var(--surface)","growth":"var(--growth)","maintenance":"var(--maint)"};
-const TIER_LABEL={career:"Career",digigov:"Digitizing gov",relationships:"Relationships",fleet_hq:"Fleet / HQ","career-core":"Career core","career-surface":"Career surface","growth":"Growth & joy","maintenance":"Maintenance"};
+const TIER_LABEL={other:"Other",career:"Career",digigov:"Digitizing gov",relationships:"Relationships",fleet_hq:"Fleet / HQ","career-core":"Career core","career-surface":"Career surface","growth":"Growth & joy","maintenance":"Maintenance"};
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const PT={timeZone:"America/Los_Angeles"};
 const fmtT=iso=>new Date(iso).toLocaleString("en-US",{...PT,weekday:"short",hour:"numeric",minute:"2-digit"});
@@ -933,6 +933,10 @@ function alignHtml(d,part){
   const plan={}; Object.entries(d.allocation||{}).forEach(([k,v])=>{const n=num(v); if(n!=null) plan[k]=n>1?n/100:n});
   const byPillar=plan.career!=null&&plan["career-core"]==null, T2P={"career-core":"career","career-surface":"career",maintenance:"fleet_hq"};
   const tot={}; (d.spend||[]).forEach(s=>{if(num(s.usd)!=null){const k=byPillar?(s.pillar||T2P[s.tier]||s.tier):s.tier; tot[k]=(tot[k]||0)+s.usd}});
+  // prefer done-task counts by pillar (all agents) over the spend ledger (Sinny sessions only)
+  const AG=(d.agents||[]).filter(a=>a&&a.done_7d_by_pillar&&typeof a.done_7d_by_pillar==="object"), byTask=byPillar&&AG.length>0;
+  const spendTot={...tot}, spendSum=Object.values(spendTot).reduce((a,b)=>a+b,0);
+  if(byTask){Object.keys(tot).forEach(k=>delete tot[k]); AG.forEach(a=>Object.entries(a.done_7d_by_pillar).forEach(([k,v])=>{if(num(v)) tot[k]=(tot[k]||0)+num(v)}))}
   const sum=Object.values(tot).reduce((a,b)=>a+b,0);
   const ORD=byPillar?["career","digigov","growth","relationships","fleet_hq"]:TIER_ORDER, CK=byPillar?"career":"career-core";
   const tiers=[...ORD,...Object.keys({...plan,...tot}).filter(k=>!ORD.includes(k))].filter(k=>plan[k]!=null||tot[k]);
@@ -940,10 +944,10 @@ function alignHtml(d,part){
   if(!sum) say=`<p class="say muted">No fleet spend recorded this week yet.</p>`;
   else{
     const a=(tot[CK]||0)/sum, pl=plan[CK];
-    const top=Object.entries(tot).sort((x,y)=>y[1]-x[1])[0], topProj=(d.spend||[]).filter(s=>(byPillar?(s.pillar||T2P[s.tier]||s.tier):s.tier)===top[0]).sort((x,y)=>y.usd-x.usd)[0];
+    const top=Object.entries(tot).sort((x,y)=>y[1]-x[1])[0], topProj=byTask?null:(d.spend||[]).filter(s=>(byPillar?(s.pillar||T2P[s.tier]||s.tier):s.tier)===top[0]).sort((x,y)=>y.usd-x.usd)[0];
     const gap=pl!=null?a-pl:0, col=pl==null?"inherit":gap>=-0.1?"var(--good)":gap>=-0.25?"var(--warn)":"var(--bad)";
-    say=`<p class="say">${byPillar?"Career":"Career-core"} got <b style="color:${col}">${Math.round(a*100)}%</b> of ${byPillar?"Sinny-session spend":"fleet effort"} this week${pl!=null?` vs a <b>${Math.round(pl*100)}%</b> plan`:""}.`+
-      (pl!=null&&gap<-0.1&&top[0]!==CK?` Most went to ${esc(TIER_LABEL[top[0]]||top[0])} (${Math.round(top[1]/sum*100)}%${topProj?`, mostly ${esc(topProj.project)}`:""}).`:pl!=null?" On plan.":"")+`</p>`+(byPillar?`<p class="muted" style="margin:0;font-size:12px">Spend covers Sinny sessions only; Pinny and Binny research runs free and isn't counted, so career and digigov read low.</p>`:"");
+    say=`<p class="say">${byPillar?"Career":"Career-core"} got <b style="color:${col}">${Math.round(a*100)}%</b> of ${byTask?`fleet work this week (${tot[CK]||0} of ${sum} done tasks)`:byPillar?"Sinny-session spend this week":"fleet effort this week"}${pl!=null?` vs a <b>${Math.round(pl*100)}%</b> plan`:""}.`+
+      (pl!=null&&gap<-0.1&&top[0]!==CK?` Most went to ${esc(TIER_LABEL[top[0]]||top[0])} (${Math.round(top[1]/sum*100)}%${topProj?`, mostly ${esc(topProj.project)}`:""}).`:pl!=null?" On plan.":"")+`</p>`+(byTask?`<p class="muted" style="margin:0;font-size:12px">Counted from tasks every agent finished in 7 days, sorted by goal from title and path.${spendSum?` Sinny-session spend: career ${Math.round((spendTot[CK]||0)/spendSum*100)}%.`:""}</p>`:byPillar?`<p class="muted" style="margin:0;font-size:12px">Spend covers Sinny sessions only; Pinny and Binny research runs free and isn't counted, so career and digigov read low.</p>`:"");
   }
   const seg=(src,den)=>tiers.map(k=>{const v=(src[k]||0)/(den||1);return v>0?`<i style="width:${(v*100).toFixed(1)}%;background:${TIER_COLOR[k]||"var(--maint)"}" title="${esc((TIER_LABEL[k]||k)+" "+Math.round(v*100)+"%")}"></i>`:""}).join("");
   const psum=Object.values(plan).reduce((a,b)=>a+(num(b)||0),0);
