@@ -674,6 +674,8 @@ function goalsHtml(d){
       <span class="gv">${nf?esc(((G.progress||{})[p.key]||{}).status_label||"no feed yet"):r.warm?`${r.cur}<small> warm of ${r.warm.of} targets${r.target!=null?` · goal ${r.target}`:""}</small>`:/_pct$/.test(r.m||"")?`${r.cur}%<small>${r.target!=null&&r.target!==100?` of ${r.target}%`:" done"}</small>`:`${r.cur}<small>${r.target!=null?"/"+r.target+(r.dl&&!r.weekly&&/^Year goal/.test(r.sec||"")?` by ${esc(fmtD(asDay(r.dl)).replace(/^\w+, /,""))}`:""):" "+esc(r.label.replace(/\s*\(.*\)\s*$/,""))}</small>`}</span>
       ${r.warm?`<span class="gm ctsum">${[r.warm.ident!=null?`${r.warm.ident} named contact${r.warm.ident===1?"":"s"}`:"",`${r.warm.open} to open`].filter(Boolean).join(" · ")}</span>`:""}
       ${r.warm||(nf&&((G.progress||{})[p.key]||{}).status_label&&!r.funnel)?"":`<span class="gm"${r.funnel?' style="white-space:normal"':""}>${r.funnel&&r.mail?'<span class="src">Notion</span> ':""}${esc(r.funnel||(r.m?r.label:(p.goal||"")))}</span>`}
+      ${p.key==="relationships"&&r.m==="coffee_chats_calendar"?(()=>{const g=(G.progress||{}).relationships||{}, t=num(g.coffee_chats_typed), a=num(g.coffee_chats_all_excl_orientation);
+        return t!=null||a!=null?`<span class="gm ctsum">Other counts: ${[t!=null?`Notion typed ${t}`:"",a!=null?`all touchpoints ${a}`:""].filter(Boolean).join(" · ")}</span>`:""})():""}
       ${p.key==="growth"&&gpTile(d)?`<span class="gm ctsum">${esc(gpTile(d))}</span>`:""}
       ${p.key==="career"&&liveRoles(G)?`<span class="gm ctsum">${esc(liveRoles(G)+(ctSummary(d)?" · "+ctSummary(d).split(" · ").pop():""))}</span>`:""}
       ${p.key==="career"&&!liveRoles(G)&&ctSummary(d)?`<span class="gm${r.warm?"":" ctsum"}">${esc(ctSummary(d))}</span>`:""}
@@ -874,7 +876,7 @@ function goalPop(i){
     ${p.key==="career"&&g&&num(g.applied_total)!=null?`<div class="muted" style="font-size:13px">${num(g.applied_total)} applications sent${g.applied_total_note?` · ${esc(g.applied_total_note)}`:""}</div>`:""}
     ${r.funnel?`<div><b>Funnel</b> <span class="muted">(Notion tracker)</span>: ${esc(r.funnel)}</div>`:""}
     ${r.mail?`<div><b>Inbox</b> <span class="muted">(Gmail scan${r.mail.at?", "+esc(fmtT(r.mail.at))+" PT":""})</span>: ${esc(r.mail.txt)}${r.mail.gap>0?`<div class="flag" style="margin-top:4px">≈${r.mail.gap} applications in email aren't in the Notion tracker yet</div>`:""}</div>`:""}
-    ${sec.length?`<ul class="facts">${sec.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}
+    ${sec.length?`<ul class="facts">${sec.map(x=>`<li>${/overdue keep-in-touch/.test(x)&&kitRows().length?`<button type="button" class="linkbtn hot" data-kit>${esc(x)} ›</button>`:esc(x)}</li>`).join("")}</ul>`:""}
     <details><summary class="muted" style="cursor:pointer;font-size:13px">Targets</summary><dl class="kv" style="margin-top:6px">${Object.entries(T).map(([k,v])=>`<dt>${esc(k.replace(/_/g," "))}</dt><dd class="mono">${esc(tv(v))}</dd>`).join("")}</dl></details>
     ${g?Object.keys(g).filter(k=>k==="note"||/_note$/.test(k)).filter(k=>typeof g[k]==="string"&&g[k]&&g[k]!==r.pace&&!(k==="applied_total_note"&&p.key==="career")).map(k=>`<p class="muted" style="margin:0;font-size:13px">${esc(g[k])}</p>`).join(""):""}
     ${!G.progress?`<p class="muted" style="margin:0;font-size:13px">Progress numbers arrive once the Notion feed is connected.</p>`:""}`);
@@ -1081,6 +1083,15 @@ function render(){
   if(h.startsWith("m-")) window.scrollTo(0,0);
   if(KF>=0) kMark(false);
 }
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-kit]"); if(b) kitPop()});
+function kitRows(){return (Array.isArray(DATA.keep_in_touch)?DATA.keep_in_touch:[]).filter(x=>x&&(x.first_name||x.company)).slice().sort((a,b)=>String(a.follow_up_due||"9").localeCompare(String(b.follow_up_due||"9")))}
+function kitPop(){const it=kitRows(), dd=x=>isDate(x)?fmtD(asDay(x)).replace(/^\w+, /,""):"";
+  const met=x=>isDate(x.last_touch)&&isDate(x.follow_up_due)&&asDay(x.last_touch)>=asDay(x.follow_up_due);
+  const nm=x=>esc([x.first_name,x.company].filter(Boolean).join(" · "));
+  openPop("Keep in touch · "+it.length,`<ul class="lst">${it.map(x=>`<li>${/^https:\/\//.test(x.notion_url||"")?`<a href="${esc(x.notion_url)}" target="_blank" rel="noopener"><b>${nm(x)}</b> ↗</a>`:`<b>${nm(x)}</b>`}
+      <div class="muted" style="font-size:13px">${[x.follow_up_due?"follow-up due "+dd(x.follow_up_due):"",isDate(x.last_touch)?"last touch "+dd(x.last_touch):"no touch yet"].filter(Boolean).join(" · ")}${met(x)?' · <span style="color:var(--good)">touched on or after the due date, may be done</span>':""}</div>
+      ${x.reason?`<div style="font-size:13px">${esc(x.reason)}</div>`:""}</li>`).join("")}</ul>
+    <p class="muted" style="margin:0;font-size:12px">From Notion's keep-in-touch filter. Open one to log the touch or move the date.</p>`)}
 function overduePop(){const it=((((DATA.goals||{}).progress||{}).tasks||{}).overdue_items||[]).filter(x=>x&&x.title);
   const ago=x=>{if(!isDate(x.due))return "";const n=Math.round((new Date(ptDay(Date.now())+"T12:00:00-08:00")-new Date(asDay(x.due)))/dayMs);return n>0?`${n} day${n===1?"":"s"} late`:"due today"};
   openPop("Overdue tasks",`<ul class="lst">${it.map(x=>`<li>${/^https:\/\//.test(x.url||"")?link(x.url,x.title):esc(x.title)}${x.due?` <span class="muted">· ${esc(ago(x))}</span>`:""}</li>`).join("")}</ul>
