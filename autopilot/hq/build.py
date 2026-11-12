@@ -472,6 +472,20 @@ def _done_stats(agents):
             a["done_24h"] = sum(1 for t, _ in rows if t >= t24)
             a["done_7d"] = sum(1 for t, _ in rows if t >= t7)
             a["last_done"] = rows[0][1] if rows else None
+            # Topic of each done item -> STRATEGY pillar (from the request file name/title), for effort vs plan.
+            bp = {}
+            for t, d in rows:
+                if t < t7: continue
+                txt = (d.get("url") or "") + " " + (d.get("title") or "")
+                low = txt.lower()
+                pil = ("digigov" if re.search(r"digigov|digitizing|govtech|login\.gov|govil", low) else
+                       "career" if re.search(r"career|deepdive|postings|cpt|h1b|comp-bench|apply|skydio|zoox|waymo|zipline", low) else
+                       "growth" if re.search(r"growth|exponent|aced|mock|drill|behavioral", low) else
+                       "relationships" if re.search(r"\brel-|relationship|coffee|keep-in-touch|events|alumni|conference", low) else
+                       "fleet_hq" if re.search(r"\bhq\b|hq-|fleet|usage|report-test|codex|natwong-dev|new-repo", low) else "other")
+                if k in ("chinny", "cinny"): pil = "career" if "natwong-dev" in low else "fleet_hq"
+                bp[pil] = bp.get(pil, 0) + 1
+            a["done_7d_by_pillar"] = bp
     except Exception:
         pass
     return agents
