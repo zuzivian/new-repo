@@ -297,8 +297,8 @@ a{color:var(--core)}
 </div>
 
 <script>
-const TIER_COLOR={"career-core":"var(--core)","career-surface":"var(--surface)","growth":"var(--growth)","maintenance":"var(--maint)"};
-const TIER_LABEL={"career-core":"Career core","career-surface":"Career surface","growth":"Growth & joy","maintenance":"Maintenance"};
+const TIER_COLOR={career:"var(--core)",digigov:"#7a5cc4",relationships:"#d0698a",fleet_hq:"var(--maint)","career-core":"var(--core)","career-surface":"var(--surface)","growth":"var(--growth)","maintenance":"var(--maint)"};
+const TIER_LABEL={career:"Career",digigov:"Digitizing gov",relationships:"Relationships",fleet_hq:"Fleet / HQ","career-core":"Career core","career-surface":"Career surface","growth":"Growth & joy","maintenance":"Maintenance"};
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const PT={timeZone:"America/Los_Angeles"};
 const fmtT=iso=>new Date(iso).toLocaleString("en-US",{...PT,weekday:"short",hour:"numeric",minute:"2-digit"});
@@ -450,7 +450,7 @@ function paceOf(fp,a){const A=fp&&fp.agents||{}, x=A[a.key]||A[{cinny:"chinny",c
   const idle=num(x.idle_min)??(isDate(x.last_run)?Math.round((Date.now()-new Date(x.last_run))/60000):null);
   return {used,tg:past?null:tg,off,past,stale:!!x.stale,txt:bits.join(" · "),reset:isDate(x.reset)?x.reset:null,note:x.target_note||"",nolimit,
     stalled:x.stalled===true,idle,waiting:fl,lastRun:isDate(x.last_run)?x.last_run:null,expire,unused:expire?unused:null,
-    done24:num(x.done_24h),done7:num(x.done_7d),lastDone:x.last_done&&x.last_done.title?x.last_done:null}}
+    done24:num(x.done_24h)??num(a.done_24h),done7:num(x.done_7d)??num(a.done_7d),lastDone:[x.last_done,a.last_done].find(v=>v&&v.title)||null}}
 const idleTxt=m=>m==null?"":m<120?`${m} min`:m<1440?`${Math.floor(m/60)} h${m%60?` ${m%60} min`:""}`:`${Math.round(m/1440*10)/10} days`;
 function agentsHtml(list,fp){
   if(!list||!list.length) return "";
@@ -461,9 +461,11 @@ function agentsHtml(list,fp){
   const actionable=a=>{const x=((fp||{}).agents||{})[a.key]||{}; return x.capacity_actionable!=null?x.capacity_actionable!==false:a.key!=="minny"};
   const exp=list.filter(actionable).map(a=>paceOf(fp,a)).filter(P=>P&&P.expire);
   const summ=[exp.length?`<b style="color:var(--warn)">${exp.length} agent${exp.length===1?"":"s"} near reset with ${exp.reduce((t,P)=>t+P.unused,0)} pts unused</b>`:"",cnt[0]?`<b style="color:var(--bad)">${cnt[0]} stalled</b>`:"",cnt[1]?`${cnt[1]} working`:"",cnt[2]?`${cnt[2]} between runs`:"",cnt[3]?`${cnt[3]} idle`:""].filter(Boolean).join(" · ");
-  const BL=(Array.isArray(DATA.blocked)?DATA.blocked:Array.isArray((fp||{}).blocked)?fp.blocked:[]).filter(b=>b&&b.title).slice().sort((a,b)=>String(a.since||"").localeCompare(String(b.since||"")));
+  const BL=(Array.isArray(DATA.blocked)?DATA.blocked:Array.isArray((fp||{}).blocked)?fp.blocked:[]).filter(b=>b&&b.title).slice().sort((a,b)=>String(a.since||"9").localeCompare(String(b.since||"9")));
   const WO={nat:"you",agent:"an agent",external:"outside"};
-  const blk=BL.length?`<div class="blk"><b>Blocked · ${BL.length}</b><ul class="lst">${BL.map(b=>`<li>${/^https:\/\//.test(b.url||"")?link(b.url,b.title):esc(b.title)} <span class="muted">· ${[b.agent?esc(b.agent):"",b.waiting_on?"waiting on "+esc(WO[b.waiting_on]||b.waiting_on):"",isDate(b.since)?idleTxt(Math.round((Date.now()-new Date(b.since))/60000))+" old":""].filter(Boolean).join(" · ")}</span></li>`).join("")}</ul></div>`:"";
+  const bRow=b=>`<li>${/^https:\/\//.test(b.url||"")?link(b.url,b.title):esc(b.title)} <span class="muted">· ${[b.agent&&b.agent!==b.waiting_on?esc(b.agent):"",b.waiting_on?"waiting on "+esc(WO[b.waiting_on]||b.waiting_on):"",isDate(b.since)?idleTxt(Math.round((Date.now()-new Date(b.since))/60000))+" old":""].filter(Boolean).join(" · ")}</span></li>`;
+  const onNat=BL.filter(b=>b.waiting_on==="nat").length;
+  const blk=BL.length?`<div class="blk"><b>Blocked · ${BL.length}</b>${onNat?` <span class="muted">· ${onNat} waiting on you (also in Needs)</span>`:""}<ul class="lst">${BL.slice(0,3).map(bRow).join("")}</ul>${BL.length>3?`<details class="closed"><summary class="muted">${BL.length-3} more</summary><ul class="lst">${BL.slice(3).map(bRow).join("")}</ul></details>`:""}</div>`:"";
   return `${blk}<p class="agsum muted">${summ}<span class="hint"> · swipe for all ${list.length}</span></p><div class="agents" role="list" aria-label="Agents">${list.map((a,k)=>{const sc=AGENT_STATUS[a.status]||"var(--maint)";
     const col=(AGENT_LOOK[a.key]||{c:"#8795a6"}).c, P=paceOf(fp,a), u=utilOf(a.util)??(P?P.used:null);
     const pct=u==null?(P&&P.nolimit?"no limit":"no feed"):Math.round(u*100)+"%";
@@ -480,7 +482,7 @@ function agentsHtml(list,fp){
       ${a.url?`<a href="${esc(a.url)}" target="_blank" rel="noopener" style="font-size:12px">Open ↗</a>`:""}</div>`;
     return `<div class="agent${u==null?" nofeed":""}" role="listitem" tabindex="0" data-s="${esc(a.status)}" style="--sc:${sc}" aria-describedby="tip-${k}">
       <div class="av">${ringSvg(u,col,P&&P.tg)}<div class="face">${avatar(a.key)}</div><span class="pip"></span><span class="pc mono${u==null?" nf":""}"${old?' style="color:var(--warn)"':""}>${pct}</span></div>
-      <div style="min-width:0"><div class="nm">${esc(a.name)} <span class="sx"${P&&P.stalled?' style="color:var(--bad)"':""}>${esc(P&&P.stalled?"stalled":/^idle$/i.test(a.status||"")&&P&&num(P.waiting)>0?"between runs":a.status)}</span></div><div class="rl">${esc(a.role)}</div><div class="dg">${esc(a.doing||"—")}</div>${P&&(P.done24!=null||P.lastDone)?`<div class="muted" style="font-size:12px">${[P.done24!=null?`${P.done24} done today`:"",P.done7!=null?`${P.done7} this week`:"",P.lastDone?`last: ${/^https:\/\//.test(P.lastDone.url||"")?link(P.lastDone.url,String(P.lastDone.title).slice(0,50)):esc(String(P.lastDone.title).slice(0,50))}${isDate(P.lastDone.at)?`, ${idleTxt(Math.max(1,Math.round((Date.now()-new Date(P.lastDone.at))/60000)))} ago`:""}`:""].filter(Boolean).join(" · ")}</div>`:""}${P&&P.stalled?`<div class="pace stalled">Idle ${P.idle!=null?idleTxt(P.idle):"a while"}${P.waiting!=null?` · ${P.waiting} in flight`:""}${P.expire?` · ${esc(P.expire)}`:""}</div>`:""}${P&&!P.stalled&&(P.txt||P.stale)?`<div class="pace${P.off!=null&&P.off<=-3?" behind":""}">${P.stale?`<span class="stbadge">STALE</span> `:""}${esc(P.txt)}${P.tg!=null?` <span class="muted">· target ${Math.round(P.tg*100)}% now</span>`:""}</div>`:""}</div>${tip}</div>`}).join("")}</div>`;
+      <div style="min-width:0"><div class="nm">${esc(a.name)} <span class="sx"${P&&P.stalled?' style="color:var(--bad)"':""}>${esc(P&&P.stalled?"stalled":/^idle$/i.test(a.status||"")&&P&&num(P.waiting)>0?"between runs":a.status)}</span></div><div class="rl">${esc(a.role)}</div><div class="dg">${esc(a.doing||"—")}</div>${P&&(P.done24!=null||P.lastDone)?`<div class="muted" style="font-size:12px">${[P.done24!=null?`${P.done24} done in 24 h`:"",P.done7!=null?`${P.done7} this week`:"",P.lastDone?`last: ${/^https:\/\//.test(P.lastDone.url||"")?link(P.lastDone.url,String(P.lastDone.title).slice(0,50)):esc(String(P.lastDone.title).slice(0,50))}${isDate(P.lastDone.at)?`, ${idleTxt(Math.max(1,Math.round((Date.now()-new Date(P.lastDone.at))/60000)))} ago`:""}`:""].filter(Boolean).join(" · ")}</div>`:""}${P&&P.stalled?`<div class="pace stalled">Idle ${P.idle!=null?idleTxt(P.idle):"a while"}${P.waiting!=null?` · ${P.waiting} in flight`:""}${P.expire?` · ${esc(P.expire)}`:""}</div>`:""}${P&&!P.stalled&&(P.txt||P.stale)?`<div class="pace${P.off!=null&&P.off<=-3?" behind":""}">${P.stale?`<span class="stbadge">STALE</span> `:""}${esc(P.txt)}${P.tg!=null?` <span class="muted">· target ${Math.round(P.tg*100)}% now</span>`:""}</div>`:""}</div>${tip}</div>`}).join("")}</div>`;
 }
 function openPop(title,html){
   let d=document.getElementById("pop");
@@ -928,17 +930,20 @@ function weekHtml(d){
 const TIER_ORDER=["career-core","career-surface","growth","maintenance"];
 function tierOfProject(d,name){const b=(d.board||[]).find(x=>x.project===name);if(b&&b.tier)return b.tier;const s=(d.spend||[]).find(x=>x.project===name);return s&&s.tier}
 function alignHtml(d,part){
-  const plan=d.allocation||{}, tot={}; (d.spend||[]).forEach(s=>{if(num(s.usd)!=null)tot[s.tier]=(tot[s.tier]||0)+s.usd});
+  const plan={}; Object.entries(d.allocation||{}).forEach(([k,v])=>{const n=num(v); if(n!=null) plan[k]=n>1?n/100:n});
+  const byPillar=plan.career!=null&&plan["career-core"]==null, T2P={"career-core":"career","career-surface":"career",maintenance:"fleet_hq"};
+  const tot={}; (d.spend||[]).forEach(s=>{if(num(s.usd)!=null){const k=byPillar?(T2P[s.tier]||s.tier):s.tier; tot[k]=(tot[k]||0)+s.usd}});
   const sum=Object.values(tot).reduce((a,b)=>a+b,0);
-  const tiers=[...TIER_ORDER,...Object.keys({...plan,...tot}).filter(k=>!TIER_ORDER.includes(k))].filter(k=>plan[k]!=null||tot[k]);
+  const ORD=byPillar?["career","digigov","growth","relationships","fleet_hq"]:TIER_ORDER, CK=byPillar?"career":"career-core";
+  const tiers=[...ORD,...Object.keys({...plan,...tot}).filter(k=>!ORD.includes(k))].filter(k=>plan[k]!=null||tot[k]);
   let say;
   if(!sum) say=`<p class="say muted">No fleet spend recorded this week yet.</p>`;
   else{
-    const a=(tot["career-core"]||0)/sum, pl=plan["career-core"];
-    const top=Object.entries(tot).sort((x,y)=>y[1]-x[1])[0], topProj=(d.spend||[]).filter(s=>s.tier===top[0]).sort((x,y)=>y.usd-x.usd)[0];
+    const a=(tot[CK]||0)/sum, pl=plan[CK];
+    const top=Object.entries(tot).sort((x,y)=>y[1]-x[1])[0], topProj=(d.spend||[]).filter(s=>(byPillar?(T2P[s.tier]||s.tier):s.tier)===top[0]).sort((x,y)=>y.usd-x.usd)[0];
     const gap=pl!=null?a-pl:0, col=pl==null?"inherit":gap>=-0.1?"var(--good)":gap>=-0.25?"var(--warn)":"var(--bad)";
-    say=`<p class="say">Career-core got <b style="color:${col}">${Math.round(a*100)}%</b> of fleet effort this week${pl!=null?` vs a <b>${Math.round(pl*100)}%</b> plan`:""}.`+
-      (pl!=null&&gap<-0.1&&top[0]!=="career-core"?` Most went to ${esc(TIER_LABEL[top[0]]||top[0])} (${Math.round(top[1]/sum*100)}%${topProj?`, mostly ${esc(topProj.project)}`:""}).`:pl!=null?" On plan.":"")+`</p>`;
+    say=`<p class="say">${byPillar?"Career":"Career-core"} got <b style="color:${col}">${Math.round(a*100)}%</b> of fleet effort this week${pl!=null?` vs a <b>${Math.round(pl*100)}%</b> plan`:""}.`+
+      (pl!=null&&gap<-0.1&&top[0]!==CK?` Most went to ${esc(TIER_LABEL[top[0]]||top[0])} (${Math.round(top[1]/sum*100)}%${topProj?`, mostly ${esc(topProj.project)}`:""}).`:pl!=null?" On plan.":"")+`</p>`;
   }
   const seg=(src,den)=>tiers.map(k=>{const v=(src[k]||0)/(den||1);return v>0?`<i style="width:${(v*100).toFixed(1)}%;background:${TIER_COLOR[k]||"var(--maint)"}" title="${esc((TIER_LABEL[k]||k)+" "+Math.round(v*100)+"%")}"></i>`:""}).join("");
   const psum=Object.values(plan).reduce((a,b)=>a+(num(b)||0),0);

@@ -6,7 +6,8 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 |---|---------|--------|-------|
 | 58 | Keep-in-touch chip not openable; coffee-chat tile didn't say which count (Pinny #6, #2) | done: list from keep_in_touch, sorted by due, flags touched-since; "Other counts: Notion typed · all touchpoints" | R58 |
 | 62 | Fleet: pace gap hid capacity about to expire; no done counts; no blocked list (Pinny Fleet #1-3) | done R61: "N pts unused · resets in X" within 24 h of reset + summary; done_24h/last_done line and Blocked strip render when the data has them | R61 |
-| 63 | Fleet: allocation vs STRATEGY split, in-flight source, watchdog fixes list, per-feed freshness, stale prose (Pinny Fleet #4-8) | needs data (Fleet Ops) | R61 |
+| 63 | Fleet: allocation vs STRATEGY split, watchdog fixes list (Pinny Fleet #4, #6) | done R63: plan by pillar (percent), tier spend rolled up to pillars; fixes list was already wired | R61 |
+| 64 | Fleet: in-flight source, per-feed freshness, stale prose; spend tagged digigov/relationships (Pinny Fleet #5, #7, #8) | needs data | R63 |
 | 61 | Digigov tile; Focus = ranked blocker; Apply = on-target PM/TPM roles only (Pinny #1, #4, #3) | done R60: digigov tile with "none booked yet", pillar deadline read; nudge live; Apply uses on_target, other postings fold into "Posted, no PM/TPM role" | R58 |
 | 60 | Needs in file order, no time cost (Pinny #5) | done R59: sorted by due when any need has one; "(5 min, today)" after the title; waits on due/est_min data | R58 |
 | 57 | Eligible PM/TPM roles live (Fleet Ops data) shown on Career tile and sheet; tile merges it with "N to apply" so 6 vs 7 postings don't conflict | done | R56 |
