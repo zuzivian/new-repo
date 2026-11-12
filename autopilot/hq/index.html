@@ -384,7 +384,8 @@ function spark(series,col){
   const last=pts[pts.length-1];
   return `<svg class="spark" viewBox="0 0 ${W} ${H}" role="img" aria-label="Usage trend"><path d="${d} L${last[0].toFixed(1)} ${H-P} L${P} ${H-P}Z" fill="${col}" opacity=".14"/><path d="${d}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round"/><circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3" fill="${col}"/></svg>`;
 }
-function weekChart(series,col,reset,tg,end){
+const nextMonUTC=()=>{const d=new Date(), add=(8-d.getUTCDay())%7||7; return new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()+add)).toISOString()};
+function weekChart(series,col,reset,tg,end,assumed){
   const now=Date.now(), R=reset&&!isNaN(new Date(reset))?new Date(reset).getTime():null;
   const x1=R&&R>now-3600e3?R:now, x0=x1-7*864e5, pts=(series||[]).map(s=>[new Date(s.t).getTime(),s.u]).filter(p=>isFinite(p[0])&&p[0]>=x0&&p[0]<=x1+3600e3).sort((a,b)=>a[0]-b[0]);
   if(!pts.length) return "";
@@ -397,7 +398,7 @@ function weekChart(series,col,reset,tg,end){
   const lab=t=>esc(new Date(t).toLocaleDateString("en-US",{...PT,weekday:"short"}));
   return `<svg class="spark wk7" viewBox="0 0 ${W} ${H}" role="img" aria-label="Share of weekly limit used, ${Math.round(last[1]*100)}% now${R?`, pace line to ${Math.round(e*100)}% by reset`:", last 7 days"}">${grid}${pace}
     <path d="${path}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round"/><circle cx="${x(last[0]).toFixed(1)}" cy="${y(last[1]).toFixed(1)}" r="2.5" fill="${col}"/>${tick}
-    <text x="${L}" y="${H-3}" font-size="8" fill="var(--ink-2)">${lab(x0)}</text><text x="${W-Rt}" y="${H-3}" font-size="8" text-anchor="end" fill="var(--ink-2)">${R?"reset "+lab(x1):"now"}</text></svg>`}
+    <text x="${L}" y="${H-3}" font-size="8" fill="var(--ink-2)">${lab(x0)}</text><text x="${W-Rt}" y="${H-3}" font-size="8" text-anchor="end" fill="var(--ink-2)">${R?(assumed?"reset ~"+esc(fmtT(new Date(x1).toISOString()))+" PT":"reset "+lab(x1)):"now"}</text></svg>`}
 /* util may arrive as 0..1, as a percent (0..100), or as a string; anything else is "no feed". */
 function utilOf(v){if(typeof v==="string"&&v.trim()!=="")v=Number(v.replace("%",""));
   if(typeof v!=="number"||!isFinite(v)||v<0)return null; return v>1.5?Math.min(v/100,1):Math.min(v,1)}
@@ -419,7 +420,8 @@ function agentsHtml(list,fp){
       <div class="muted" style="font-size:12px">${esc(a.util_label||(u==null?"Plan usage":"Share of plan used this week"))}</div>
       ${P&&P.tg!=null?`<div style="font-size:12px">Tick = pace line: ${Math.round(P.tg*100)}% now, ${Math.round(((fpOf(DATA)||{}).target_end||.92)*100)}% by ${P.reset?esc(fmtT(P.reset)):"reset"}${P.note?" ("+esc(P.note)+")":""}</div>`:""}
       ${u==null?`<div class="nf-note">No usage feed yet. The ring fills in once this agent reports its plan usage.</div>`:asof}
-      ${weekChart(ser,col,a.util_reset||(P&&P.reset),P&&P.tg,(fpOf(DATA)||{}).target_end)}${a.usage_note?`<div style="font-size:12px">${esc(a.usage_note)}</div>`:""}
+      ${(()=>{const known=a.util_reset||(P&&P.reset), asm=!known&&P&&/monday/i.test(P.note||"");
+        return weekChart(ser,col,known||(asm?nextMonUTC():null),P&&P.tg,(fpOf(DATA)||{}).target_end,asm)+(asm?`<div class="muted" style="font-size:11px">Reset assumed Mon 00:00 UTC (${esc(fmtT(nextMonUTC()))} PT); not reported yet</div>`:"")})()}${a.usage_note?`<div style="font-size:12px">${esc(a.usage_note)}</div>`:""}
       ${a.url?`<a href="${esc(a.url)}" target="_blank" rel="noopener" style="font-size:12px">Open ↗</a>`:""}</div>`;
     return `<div class="agent${u==null?" nofeed":""}" role="listitem" tabindex="0" data-s="${esc(a.status)}" style="--sc:${sc}" aria-describedby="tip-${k}">
       <div class="av">${ringSvg(u,col,P&&P.tg)}<div class="face">${avatar(a.key)}</div><span class="pip"></span><span class="pc mono${u==null?" nf":""}"${old?' style="color:var(--warn)"':""}>${pct}</span></div>
