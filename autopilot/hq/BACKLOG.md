@@ -5,6 +5,14 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 | # | Finding | Status | Round |
 |---|---------|--------|-------|
 | 28 | Career metric is warm target companies (Nat): tile headline, contacts line; warm paths in the sheet once career_warm lands | done | R29 |
+| 49 | "What a tap does" hint sat below the last Needs card | done: hint above card 1 | R53 |
+| 50 | Overdue popup and timeline listed different tasks | done: timeline uses overdue_items when present | R53 |
+| 51 | Agent strip "4 idle" while cards say between runs | done: "N between runs" counted separately | R53 |
+| 52 | Warm progress worded three ways ("4 of 20") | done: "4 warm of 28 targets · goal 20" on tile and Focus | R53 |
+| 53 | "Got it" then "No new decisions since your last visit" | done: "Marked as seen" | R53 |
+| 54 | Items Nat already did still counted in "N need you" | done: verifying items move to "Waiting on agents" | R53 |
+| 55 | Growth tile empty metric label | done: hidden while the status word shows | R53 |
+| 56 | Self-healing 0 vs fixes in decisions; Binny 8 vs 6 in flight; career tier "maintenance"; jargon in decisions | needs data (Fleet Ops) | R53 |
 | 43 | Focus said "All goals on track" while Career needs 1.1 warm companies/wk | done: Focus names the goal with a weekly need | R46 |
 | 44 | Career sheet: rejections inside "In progress"; footer "43 target companies" vs tile 28 | done: "Closed" group; footer "N companies researched" | R46 |
 | 45 | Growth sheet headline "—"; no link to practice material | done: status word; "Research for this goal" list on each sheet | R46 |

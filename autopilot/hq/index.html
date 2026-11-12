@@ -449,10 +449,10 @@ function paceOf(fp,a){const A=fp&&fp.agents||{}, x=A[a.key]||A[{cinny:"chinny",c
 const idleTxt=m=>m==null?"":m<120?`${m} min`:m<1440?`${Math.floor(m/60)} h${m%60?` ${m%60} min`:""}`:`${Math.round(m/1440*10)/10} days`;
 function agentsHtml(list,fp){
   if(!list||!list.length) return "";
-  const rank=a=>{const P=paceOf(fp,a);return P&&P.stalled?0:/work|run/i.test(a.status||"")?1:2};
+  const rank=a=>{const P=paceOf(fp,a);return P&&P.stalled?0:/work|run/i.test(a.status||"")?1:P&&num(P.waiting)>0?2:3};
   list=list.slice().sort((a,b)=>rank(a)-rank(b));
-  const cnt=[0,0,0]; list.forEach(a=>cnt[rank(a)]++);
-  const summ=[cnt[0]?`<b style="color:var(--bad)">${cnt[0]} stalled</b>`:"",cnt[1]?`${cnt[1]} working`:"",cnt[2]?`${cnt[2]} idle`:""].filter(Boolean).join(" · ");
+  const cnt=[0,0,0,0]; list.forEach(a=>cnt[rank(a)]++);
+  const summ=[cnt[0]?`<b style="color:var(--bad)">${cnt[0]} stalled</b>`:"",cnt[1]?`${cnt[1]} working`:"",cnt[2]?`${cnt[2]} between runs`:"",cnt[3]?`${cnt[3]} idle`:""].filter(Boolean).join(" · ");
   return `<p class="agsum muted">${summ}<span class="hint"> · swipe for all ${list.length}</span></p><div class="agents" role="list" aria-label="Agents">${list.map((a,k)=>{const sc=AGENT_STATUS[a.status]||"var(--maint)";
     const col=(AGENT_LOOK[a.key]||{c:"#8795a6"}).c, P=paceOf(fp,a), u=utilOf(a.util)??(P?P.used:null);
     const pct=u==null?(P&&P.nolimit?"no limit":"no feed"):Math.round(u*100)+"%";
@@ -644,7 +644,7 @@ function todayHtml(d){
   let n=G.nudge&&G.nudge.text?{text:G.nudge.text,detail:G.nudge.detail||"",url:G.nudge.url||"",i:-1}:null;
   if(!n) (G.pillars||[]).some((p,i)=>{n=nudgeFor(d,i);return !!n});
   if(!n) (G.pillars||[]).some((p,i)=>{const r=pillarRead(p,G.progress,d); if(r.need==null||r.weekly||r.state==="good"||!(r.need>0)) return false;
-    n={text:`${pName(p)}: aim for ${Math.max(1,Math.round(r.need))} more this week`,detail:`${r.label} · ${r.cur} of ${r.target} · ${r.need.toFixed(1)}/wk needed`,url:"",i}; return true});
+    n={text:`${pName(p)}: aim for ${Math.max(1,Math.round(r.need))} more this week`,detail:r.warm?`${r.cur} warm of ${r.warm.of} targets · goal ${r.target} · ${r.need.toFixed(1)}/wk needed`:`${r.label} · ${r.cur} of ${r.target} · ${r.need.toFixed(1)}/wk needed`,url:"",i}; return true});
   if(n) row("Focus",`<b>${n.url?link(n.url,n.text):esc(n.text)}</b>${n.detail?` <span class="muted">· ${esc(n.detail)}</span>`:""}${n.i>=0?` <button type="button" class="code" data-goal="${n.i}" aria-label="Why: open ${esc(pName((G.pillars||[])[n.i]||{}))} details">Why</button>`:""}`,"focus");
   else if(G.pillars&&G.progress) row("Focus",`<span class="muted">All goals on track</span>`);
   return rows.length?`<section class="tbrief" aria-label="Today">${rows.join("")}</section>`:"";
@@ -671,9 +671,9 @@ function goalsHtml(d){
     const al=`${pName(p)}: ${nf?"no feed yet":r.warm?`${r.cur} of ${r.warm.of} target companies warm`:r.target!=null?`${r.cur} of ${r.target} ${r.label}`:`${r.cur} ${r.label}`}${st&&!nf?", "+st:""}. ${r.m?r.pace:""}. Open details`;
     return `<button type="button" class="goal${nf?" nf":""}" data-goal="${i}" style="--gs:${GS[r.state]??GS[""]}" aria-label="${esc(al)}">
       <span class="gk">${esc(pName(p))}<span class="gchev" aria-hidden="true">›</span></span>
-      <span class="gv">${nf?esc(((G.progress||{})[p.key]||{}).status_label||"no feed yet"):r.warm?`${r.cur}<small> of ${r.warm.of} target companies warm${r.target!=null?` · goal ${r.target}`:""}</small>`:/_pct$/.test(r.m||"")?`${r.cur}%<small>${r.target!=null&&r.target!==100?` of ${r.target}%`:" done"}</small>`:`${r.cur}<small>${r.target!=null?"/"+r.target:" "+esc(r.label.replace(/\s*\(.*\)\s*$/,""))}</small>`}</span>
+      <span class="gv">${nf?esc(((G.progress||{})[p.key]||{}).status_label||"no feed yet"):r.warm?`${r.cur}<small> warm of ${r.warm.of} targets${r.target!=null?` · goal ${r.target}`:""}</small>`:/_pct$/.test(r.m||"")?`${r.cur}%<small>${r.target!=null&&r.target!==100?` of ${r.target}%`:" done"}</small>`:`${r.cur}<small>${r.target!=null?"/"+r.target:" "+esc(r.label.replace(/\s*\(.*\)\s*$/,""))}</small>`}</span>
       ${r.warm?`<span class="gm ctsum">${[r.warm.ident!=null?`${r.warm.ident} named contact${r.warm.ident===1?"":"s"}`:"",`${r.warm.open} to open`].filter(Boolean).join(" · ")}</span>`:""}
-      ${r.warm?"":`<span class="gm"${r.funnel?' style="white-space:normal"':""}>${r.funnel&&r.mail?'<span class="src">Notion</span> ':""}${esc(r.funnel||(r.m?r.label:(p.goal||"")))}</span>`}
+      ${r.warm||(nf&&((G.progress||{})[p.key]||{}).status_label&&!r.funnel)?"":`<span class="gm"${r.funnel?' style="white-space:normal"':""}>${r.funnel&&r.mail?'<span class="src">Notion</span> ':""}${esc(r.funnel||(r.m?r.label:(p.goal||"")))}</span>`}
       ${p.key==="growth"&&gpTile(d)?`<span class="gm ctsum">${esc(gpTile(d))}</span>`:""}
       ${p.key==="career"&&ctSummary(d)?`<span class="gm${r.warm?"":" ctsum"}">${esc(ctSummary(d))}</span>`:""}
       ${r.mail&&!r.warm?`<span class="gm" style="white-space:normal">${r.mail.gap>0?`<span class="flag">≈${r.mail.gap} not in tracker</span> · `:""}<span class="src">Gmail scan</span> ${esc(r.mail.txt)}</span>`:""}
@@ -683,7 +683,7 @@ function goalsHtml(d){
 }
 /* ---------- Decisions the orchestrator made for Nat (data.decisions, newest first) ---------- */
 // "New" = made after Nat's previous visit; the visit time is saved when the page is hidden, so refreshes don't clear it.
-let SEEN_BEFORE=null; try{SEEN_BEFORE=localStorage.getItem("hq.lastVisit")}catch(_){}
+let DEC_OK=false, SEEN_BEFORE=null; try{SEEN_BEFORE=localStorage.getItem("hq.lastVisit")}catch(_){}
 // a glance under 10 s doesn't count as a visit, so new decisions survive a quick app switch
 let VIS_AT=document.visibilityState==="visible"?Date.now():null;
 const markVisit=()=>{if(VIS_AT&&Date.now()-VIS_AT>=10e3){try{localStorage.setItem("hq.lastVisit",new Date().toISOString())}catch(_){}} VIS_AT=null};
@@ -699,7 +699,7 @@ function decHtml(d,where){const D=decs(d); if(!D.length) return "";
   if(where==="inner") return fresh.length?`<div class="ov-dec"><h3>Decided for you${SEEN_BEFORE?` · ${fresh.length} new`:""}</h3><ul class="decl">${fresh.slice(0,3).map(x=>decRow(x,D.indexOf(x))).join("")}</ul>
     <div class="dec-act"><button type="button" class="more" data-decall>See all ${D.length}</button><button type="button" class="more" data-decok>Got it</button></div></div>`
     :`<p class="muted decnone" style="margin:8px 0 0">No new decisions · <button type="button" class="linkbtn" data-decall>see all ${D.length}</button></p>`;
-  if(!fresh.length) return `<p class="muted decnone">No new decisions since your last visit · <button type="button" class="linkbtn" data-decall>see all ${D.length}</button></p>`;
+  if(!fresh.length) return `<p class="muted decnone">${DEC_OK?"Marked as seen":"No new decisions since your last visit"} · <button type="button" class="linkbtn" data-decall>see all ${D.length}</button></p>`;
   return `<section class="panel decs" aria-labelledby="dc"><h2 id="dc">Decided for you${SEEN_BEFORE?` · ${fresh.length} new`:""}</h2><ul class="decl">${fresh.slice(0,3).map(x=>decRow(x,D.indexOf(x))).join("")}</ul>
     <div class="dec-act"><button type="button" class="more" data-decall>See all ${D.length}</button><button type="button" class="more" data-decok>Got it</button></div></section>`}
 /* Watchdog (data.watchdog {fixes_24h, at?, fixes?[{at, what, link?}]}): what the fleet repaired on its own */
@@ -881,7 +881,9 @@ function weekHtml(d){
   ((P.career&&P.career.next_deadlines)||[]).forEach(x=>isDate(x.date)&&items.push({t:asDay(x.date),title:x.title,k:"career",url:x.url}));
   (d.meetings||[]).forEach(m=>isDate(m.when)&&items.push({t:m.when,title:m.title,k:"meeting",href:"#m-"+encodeURIComponent(m.id),time:true}));
   const tk=P.tasks||{};
-  (tk.top||[]).forEach(x=>items.push({t:isDate(x.due)?asDay(x.due):null,title:x.title,k:"task",url:x.url}));
+  const OD=Array.isArray(tk.overdue_items)&&tk.overdue_items.length?tk.overdue_items:null;
+  (tk.top||[]).filter(x=>!(OD&&isDate(x.due)&&ptDay(asDay(x.due))<today)).forEach(x=>items.push({t:isDate(x.due)?asDay(x.due):null,title:x.title,k:"task",url:x.url}));
+  (OD||[]).forEach(x=>x&&x.title&&items.push({t:isDate(x.due)?asDay(x.due):null,title:x.title,k:"task",url:x.url}));
   const inWin=items.filter(x=>!x.t||(new Date(x.t)<=end&&(ptDay(x.t)>=today||x.k==="task")));
   inWin.sort((a,b)=>(a.t?new Date(a.t):Infinity)-(b.t?new Date(b.t):Infinity));
   const seen=new Set(), list=inWin.filter(x=>{const key=(x.t||"").slice(0,10)+"|"+x.title;if(seen.has(key))return false;seen.add(key);return true}).slice(0,14);
@@ -977,7 +979,9 @@ function home(d){
      ${ans.length?`<div class="reply" aria-label="Answers"><span class="muted" style="font-size:12px">Answer:</span>${ans.map(o=>`<button class="code" data-copy="${esc((i+1)+" → "+o)}" data-title="${esc(n.title)}">${esc(o)}${o===n.recommend?" ★":""}</button>`).join("")}</div>`:""}</div>`};
   const dow=new Date(new Date().toLocaleString("en-US",PT)).getDay(), wpI=dow===0||dow===1?d.needs.findIndex(n=>n.project==="weekly-review"):-1;
   const wplan=wpI>=0?`<section class="wplan" aria-label="Week plan"${d.needs.length===1?' id="n"':""}>${card(d.needs[wpI],wpI,"wp")}</section>`:"";
+  const waiting=d.needs_waiting||[];
   const rest=d.needs.map((n,i)=>[n,i]).filter(([,i])=>i!==wpI);
+  const waitHtml=waiting.length?`<p class="muted" style="margin:10px 0 0;font-size:13px">Waiting on agents (you're done): ${waiting.map(n=>esc(String(n.title).slice(0,60))).join(" · ")}</p>`:"";
   const needs=rest.length?rest.map(([n,i])=>card(n,i)).join("")
      :`<div class="empty">Nothing waiting on you.</div>`;
   const crew=d.workers.length?d.workers.map(w=>`<div class="row"><span class="name">${esc(w.project)} <span class="muted">· ${esc(w.task)}</span></span>${(()=>{const st=String(w.status||w.state||"").toLowerCase();return `<span class="pill ${st==="working"||st==="running"?"warn":st.includes("block")?"bad":st.startsWith("queued")?"":"good"}">${esc(w.status||w.state||"—")}</span>`})()}</div>`).join(""):`<div class="empty">No workers running.</div>`;
@@ -986,8 +990,9 @@ function home(d){
   const tab=curTab();
   const life=`${sinceHtml(d)}${wplan}${todayHtml(d)}
    ${rest.length?`<section class="panel" aria-labelledby="n" style="margin-bottom:16px"><h2 id="n">Needs you · ${rest.length}</h2>
-     <div class="cards">${needs}</div>
-     ${rest.some(([n])=>!Array.isArray(n.options)||n.options.length)?`<p class="muted" style="margin:10px 0 0;font-size:13px"><span class="long">${ONE?"Tap an answer to send it to the autopilot in one tap. ":"Tap an answer to open a prefilled GitHub issue; Submit there sends it to the autopilot. "}</span><span class="short">${ONE?"One tap sends. ":"Opens GitHub → tap Submit. "}</span>★ = my pick.</p><p class="muted keyhint">Keys: <kbd>j</kbd>/<kbd>k</kbd> pick a need · <kbd>1</kbd>–<kbd>9</kbd> choose an answer, <kbd>Enter</kbd> sends · <kbd>?</kbd> all shortcuts</p>`:""}</section>`:""}
+     ${rest.some(([n])=>!Array.isArray(n.options)||n.options.length)?`<p class="muted" style="margin:-4px 0 10px;font-size:13px"><span class="long">${ONE?"Tap an answer to send it to the autopilot in one tap. ":"Tap an answer to open a prefilled GitHub issue; Submit there sends it to the autopilot. "}</span><span class="short">${ONE?"One tap sends. ":"Opens GitHub → tap Submit. "}</span>★ = my pick.</p><p class="muted keyhint">Keys: <kbd>j</kbd>/<kbd>k</kbd> pick a need · <kbd>1</kbd>–<kbd>9</kbd> choose an answer, <kbd>Enter</kbd> sends · <kbd>?</kbd> all shortcuts</p>`:""}
+     <div class="cards">${needs}</div>${waitHtml}
+</section>`:""}
    ${nightHtml(d)}${goalsHtml(d)}<div style="margin-bottom:16px">${weekHtml(d)}</div>${researchHtml(d)}${alignHtml(d,"build")}`;
   const fleet=()=>`${watchHtml(d)}${agentsHtml(d.agents,fpOf(d))}${decHtml(d,"fleet")?`<div style="margin:16px 0">${decHtml(d,"fleet")}</div>`:""}${alignHtml(d)}<div class="grid" style="margin-top:16px">
    <section class="panel" aria-labelledby="g"><h2 id="g">Weekly fuel · Stanford account</h2>
@@ -1056,7 +1061,7 @@ function render(){
     if(b.dataset.tab&&curTab()!==b.dataset.tab){location.hash=b.dataset.tab;setTimeout(go,60)}else go()}));
   v.querySelectorAll("[data-decall]").forEach(b=>b.addEventListener("click",decAllPop));
   v.querySelectorAll("[data-reverse]").forEach(b=>b.addEventListener("click",()=>reversePop(+b.dataset.reverse)));
-  v.querySelectorAll("[data-decok]").forEach(b=>b.addEventListener("click",()=>{SEEN_BEFORE=new Date().toISOString();try{localStorage.setItem("hq.lastVisit",SEEN_BEFORE)}catch(_){} render()}));
+  v.querySelectorAll("[data-decok]").forEach(b=>b.addEventListener("click",()=>{SEEN_BEFORE=new Date().toISOString();DEC_OK=true;try{localStorage.setItem("hq.lastVisit",SEEN_BEFORE)}catch(_){} render()}));
   v.querySelectorAll("[data-rf]").forEach(b=>b.addEventListener("click",()=>{RFILT=b.dataset.rf||null;try{RFILT?localStorage.setItem("hq.rfilt",RFILT):localStorage.removeItem("hq.rfilt")}catch(_){} const y=scrollY;render();scrollTo(0,y)}));
   const rq=v.querySelector("#rq"); if(rq) rq.addEventListener("input",()=>{const q=rq.value.trim().toLowerCase(), l=document.getElementById("rlist"); if(!l) return;
     l.classList.toggle("all",!!q); const mb=v.querySelector("[data-rmore]"); if(mb) mb.style.display=q?"none":"";
@@ -1152,7 +1157,10 @@ function natNeeds(d){if(!d||!Array.isArray(d.needs)) return d; const seen=new Se
   for(const a of d.agents||[]){const P=paceOf(FP,a); if(P&&P.stalled&&P.idle!=null&&P.idle>120)
     stall.push({project:"fleet",title:`${a.name||a.key} hasn't run for ${idleTxt(P.idle)}; check its schedule`,detail:`${P.waiting!=null?P.waiting+" tasks waiting. ":""}It only wakes on its own app schedule${P.lastRun?`; last ran ${fmtT(P.lastRun)} PT`:""}.`,options:[],from:"Fleet"})}
   const add=acts.concat(iss,stall).filter(n=>!seen.has(String(n.title||"").toLowerCase()));
-  d.needs=d.needs.concat(add); return d}
+  d.needs=d.needs.concat(add);
+  // already done by Nat, now being checked by an agent: not his to do, so out of every count
+  const V=n=>/^(verifying|waiting|done_pending)$/i.test(String(n.state||n.status||""))||/\b(fleet ops|supervisor) is verifying\b|reported this done/i.test(String(n.detail||""));
+  d.needs_waiting=d.needs.filter(V); d.needs=d.needs.filter(n=>!V(n)); return d}
 function load(){return fetch("data.json",{cache:"no-store"}).then(r=>r.json()).then(d=>{DATA=natNeeds(ghMirror(d));try{render()}catch(e){document.getElementById("view").innerHTML='<p class="empty">HQ hit a display error ('+esc(String(e&&e.message||e))+'). Ask the autopilot chat to fix it.</p>'}}).catch(()=>{if(DATA){try{render()}catch(_){}}else document.getElementById("view").innerHTML='<p class="empty">Couldn\'t load status data. Ask the autopilot chat to republish HQ.</p>'})}
 load().then(()=>{if(DATA&&typeof DATA.one_click==="boolean"){ONE=DATA.one_click;if(ONE)try{render()}catch(_){}}else probeOne()});
 /* Refresh every 5 min while the tab is visible (not while a popup is open), and on return to the tab. */
