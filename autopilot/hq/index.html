@@ -137,6 +137,8 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600;white-space:nowrap}.pop .spark{width:100%;height:64px}.spark.wk7{height:auto!important;max-height:110px}
 .cards{display:grid;gap:10px}
+.since{margin:0 0 12px;font-size:14px;line-height:1.6}.since .linkbtn{min-height:28px;font-weight:600;color:var(--ink)}
+#rl,#is{scroll-margin-top:76px}
 .wdog{margin:0 0 6px;font-size:13px}
 .rq{font:inherit;font-size:15px;width:100%;min-height:40px;padding:0 12px;margin:0 0 8px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}.rq:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .agsum{margin:0 0 6px;font-size:13px}.agsum .hint{display:none}@media (max-width:640px){.agsum .hint{display:inline}}
@@ -705,6 +707,14 @@ function watchHtml(d){const W=d&&d.watchdog; if(!W||num(W.fixes_24h)==null) retu
   const line=`Self-healing: ${n} fix${n===1?"":"es"} in the last 24h${bad.length?` · <span style="color:var(--warn)">${bad.length} need${bad.length===1?"s":""} a look</span>`:""}${isDate(W.at)?` · checked ${esc(fmtT(W.at))} PT`:""}`;
   return F.length||bad.length?`<details class="closed wdog"><summary class="muted"><span>${line}</span></summary><ul class="lst2">${bad.map(it).join("")}${F.map(it).join("")}</ul></details>`
     :`<p class="muted wdog">${line}</p>`}
+/* "Since you last looked": one line of counts, each a jump to where the new things are */
+function sinceHtml(d){if(!SEEN_BEFORE) return ""; const t0=new Date(SEEN_BEFORE), nw=x=>x&&isDate(x)&&new Date(x)>t0;
+  const D=decs(d).filter(x=>nw(x.at)).length, R=(d.research||[]).filter(x=>x&&nw(x.at)).length;
+  const C=(((d.gh_issues||{}).items)||[]).filter(i=>i.state==="closed"&&nw(i.closed)).length;
+  const M=((d.overnight||{}).merged_prs||[]).length&&nw((d.overnight||{}).since)?(d.overnight.merged_prs||[]).length:0;
+  const bits=[D?`<button type="button" class="linkbtn" data-decall>${D} decision${D===1?"":"s"}</button>`:"",R?`<button type="button" class="linkbtn" data-go="rl">${R} research file${R===1?"":"s"}</button>`:"",
+    M?`<span>${M} PR${M===1?"":"s"} merged</span>`:"",C?`<button type="button" class="linkbtn" data-go="is" data-tab="fleet">${C} issue${C===1?"":"s"} closed</button>`:""].filter(Boolean);
+  return bits.length?`<p class="since"><span class="muted">Since you last looked (${esc(fmtT(SEEN_BEFORE))}):</span> ${bits.join(" · ")}</p>`:""}
 function nightHtml(d){const ov=overnightHtml(d); if(!ov) return decHtml(d);
   const inner=decHtml(d,"inner"); return inner?ov.replace(/<\/section>$/,inner+"</section>"):ov}
 function decAllPop(){const D=decs(DATA); openPop("Decided for you",`<p class="muted" style="margin:0;font-size:13px">Calls the orchestrator made on your behalf, newest first. Tap Reverse? to ask for one to be undone.</p><ul class="decl">${D.map((x,i)=>decRow(x,i,1)).join("")}</ul>`);
@@ -970,7 +980,7 @@ function home(d){
   const maxc=Math.max(...d.spend.map(s=>s.usd),1);
   const spend=d.spend.map(s=>`<div class="row"><span class="name">${esc(PALIAS[s.project]&&(d.board||[]).some(b=>b.project===PALIAS[s.project])?PALIAS[s.project]:s.project)}</span><span class="mono muted">$${s.usd.toFixed(0)}</span></div><div class="hbar"><i style="width:${(s.usd/maxc*100).toFixed(1)}%;background:${TIER_COLOR[s.tier]||"var(--maint)"}"></i></div>`).join("");
   const tab=curTab();
-  const life=`${wplan}${todayHtml(d)}
+  const life=`${sinceHtml(d)}${wplan}${todayHtml(d)}
    ${rest.length?`<section class="panel" aria-labelledby="n" style="margin-bottom:16px"><h2 id="n">Needs you · ${rest.length}</h2>
      <div class="cards">${needs}</div>
      ${rest.some(([n])=>!Array.isArray(n.options)||n.options.length)?`<p class="muted" style="margin:10px 0 0;font-size:13px"><span class="long">${ONE?"Tap an answer to send it to the autopilot in one tap. ":"Tap an answer to open a prefilled GitHub issue; Submit there sends it to the autopilot. "}</span><span class="short">${ONE?"One tap sends. ":"Opens GitHub → tap Submit. "}</span>★ = my pick.</p><p class="muted keyhint">Keys: <kbd>j</kbd>/<kbd>k</kbd> pick a need · <kbd>1</kbd>–<kbd>9</kbd> choose an answer, <kbd>Enter</kbd> sends · <kbd>?</kbd> all shortcuts</p>`:""}</section>`:""}
@@ -1038,6 +1048,8 @@ function render(){
   v.querySelectorAll("[data-goneeds]").forEach(b=>b.addEventListener("click",e=>{e.preventDefault();
     const go=()=>{const n=document.getElementById("n");if(n)n.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth",block:"start"})};
     if(curTab()!=="life"){location.hash="life";setTimeout(go,30)}else go()}));
+  v.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>{const go=()=>{const e=document.getElementById(b.dataset.go);if(e)e.scrollIntoView({block:"start",behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth"})};
+    if(b.dataset.tab&&curTab()!==b.dataset.tab){location.hash=b.dataset.tab;setTimeout(go,60)}else go()}));
   v.querySelectorAll("[data-decall]").forEach(b=>b.addEventListener("click",decAllPop));
   v.querySelectorAll("[data-reverse]").forEach(b=>b.addEventListener("click",()=>reversePop(+b.dataset.reverse)));
   v.querySelectorAll("[data-decok]").forEach(b=>b.addEventListener("click",()=>{SEEN_BEFORE=new Date().toISOString();try{localStorage.setItem("hq.lastVisit",SEEN_BEFORE)}catch(_){} render()}));
