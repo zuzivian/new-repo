@@ -991,7 +991,7 @@ function home(d){
    ${nightHtml(d)}${goalsHtml(d)}<div style="margin-bottom:16px">${weekHtml(d)}</div>${researchHtml(d)}${alignHtml(d,"build")}`;
   const fleet=()=>`${watchHtml(d)}${agentsHtml(d.agents,fpOf(d))}${decHtml(d,"fleet")?`<div style="margin:16px 0">${decHtml(d,"fleet")}</div>`:""}${alignHtml(d)}<div class="grid" style="margin-top:16px">
    <section class="panel" aria-labelledby="g"><h2 id="g">Weekly fuel · Stanford account</h2>
-     <div class="gauge-top"><div class="big mono">${Math.round(u*100)}%<span class="muted" style="font-size:14px;font-weight:600;margin-left:6px">used</span></div>
+     <div class="gauge-top"><div class="big mono">${Math.round(u*100)}% <span class="muted" style="font-size:14px;font-weight:600">used</span></div>
        <div class="stat"><span class="muted">Target now</span><b>${t==null?"—":Math.round(t*100)+"%"}</b></div>
        <div class="stat"><span class="muted">Resets</span><b>${esc(fmtT(d.week.reset))}</b></div>
        <span class="pill ${state[0]}" title="Pace = share of the weekly limit the plan expects used by now">${gap>0.01?`${Math.round(gap*100)} pts over pace`:gap<-0.01?`${Math.round(-gap*100)} pts under pace`:state[1]}</span></div>
