@@ -136,6 +136,7 @@ header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outlin
 @media (max-width:640px){.agent .tip{display:none}}
 .tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600}.pop .spark{width:100%;height:64px}
 .cards{display:grid;gap:10px}
+.dlist{margin:6px 0 0;padding-left:18px;display:grid;gap:6px;font-size:14px}.dlist a{font-weight:600;white-space:nowrap}
 .linkbtn{font:inherit;background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:2px;min-height:32px}
 .linkbtn.hot,.linkbtn.od{color:var(--warn);font-weight:600}.linkbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .agent .pace{font-size:12px;margin-top:2px;color:var(--ink-2)}.agent .pace.behind{color:var(--warn);font-weight:600}
@@ -724,11 +725,18 @@ function home(d){
   /* Needs: reading the context (title, "Open ↗", preview) never files an answer. An option that is really a
      link ("Open …", "View …", "Review …") renders as a link to n.url, not as an answer button. */
   const isOpen=o=>/^(open|view|see|read|review)\b/i.test(String(o||""))&&!/\b(later|skip|done|no)\b/i.test(String(o||""));
+  /* A detail that bundles several items ("repo #N: …" PR lists, or "a; b; c") reads as a list; PR refs link to GitHub. */
+  const detailHtml=t=>{t=String(t||""); const PR=/(?:^|\s)([A-Za-z0-9._-]+) #(\d+): /g, hits=[...t.matchAll(PR)];
+    if(hits.length>=2){const intro=t.slice(0,hits[0].index).trim(), items=hits.map((h,k)=>({repo:h[1],n:h[2],txt:t.slice(h.index+h[0].length,k+1<hits.length?hits[k+1].index:t.length).trim()}));
+      return `${intro?`<div class="muted">${esc(intro)}</div>`:""}<ul class="dlist">${items.map(x=>`<li><a href="https://github.com/zuzivian/${esc(x.repo)}/pull/${esc(x.n)}" target="_blank" rel="noopener">${esc(x.repo)} #${esc(x.n)} ↗</a> <span class="muted">${esc(x.txt)}</span></li>`).join("")}</ul>`}
+    const parts=t.split(/;\s+/).filter(Boolean);
+    return parts.length>=3?`<ul class="dlist">${parts.map(x=>`<li class="muted">${esc(x)}</li>`).join("")}</ul>`:`<div class="muted">${esc(t)}</div>`};
   const card=(n,i,cls)=>{
     const opts=(n.options||["Done","Later"]), ans=n.url?opts.filter(o=>!isOpen(o)):opts, openOpt=n.url?opts.find(isOpen):null;
-    const openL=n.url?`<a class="openlink" href="${esc(needUrl(n.url))}" target="_blank" rel="noopener">${esc(openOpt||(cls?"Open plan":"Open"))} ↗</a>`:"";
+    const dh=detailHtml(n.detail||n.note||""), prList=dh.includes("/pull/")&&/github\.com\/[^/]+\/[^/]+\/pull\//.test(n.url||"");
+    const openL=n.url&&!prList?`<a class="openlink" href="${esc(needUrl(n.url))}" target="_blank" rel="noopener">${esc(openOpt||(cls?"Open plan":"Open"))} ↗</a>`:"";
     const prev=n.preview?`<a class="openlink" href="${esc(n.preview)}" target="_blank" rel="noopener">▶ Preview</a>`:"";
-    return `<div class="card need${cls?" "+cls:""}">${cls?`<div class="wp-k">Week plan · your call</div>`:""}<div class="t">${cls?"":i+1+". "}${esc(n.title)}</div><div class="muted">${esc(n.detail||n.note||"")}</div>
+    return `<div class="card need${cls?" "+cls:""}">${cls?`<div class="wp-k">Week plan · your call</div>`:""}<div class="t">${cls?"":i+1+". "}${esc(n.title)}</div>${dh}
      ${openL||prev?`<div class="reply">${openL}${prev}</div>`:""}
      ${ans.length?`<div class="reply" aria-label="Answers"><span class="muted" style="font-size:12px">Answer:</span>${ans.map(o=>`<button class="code" data-copy="${esc((i+1)+" → "+o)}" data-title="${esc(n.title)}">${esc(o)}${o===n.recommend?" ★":""}</button>`).join("")}</div>`:""}</div>`};
   const dow=new Date(new Date().toLocaleString("en-US",PT)).getDay(), wpI=dow===0||dow===1?d.needs.findIndex(n=>n.project==="weekly-review"):-1;
