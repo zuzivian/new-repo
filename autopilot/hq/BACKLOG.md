@@ -5,6 +5,7 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 | # | Finding | Status | Round |
 |---|---------|--------|-------|
 | 58 | Keep-in-touch chip not openable; coffee-chat tile didn't say which count (Pinny #6, #2) | done: list from keep_in_touch, sorted by due, flags touched-since; "Other counts: Notion typed · all touchpoints" | R58 |
+| 73 | "This week" grew to 10–11 flat rows (Sinny: group by due day) | done R76: day sub-headers (Sun 11/15 …, "No date" last); rows keep minutes, overdue/today still flagged | R76 |
 | 71 | Light-mode status words ("idle", "low") at 3:1 contrast | done R75: idle/offline/low text uses --ink-2 | R75 |
 | 72 | Needs heading had no time cost (week-47 plan caps action work at 60 min/day) | done R75: "Needs you now · 2 · 6 min" from est_min (≥ when some are missing) | R75 |
 | 70 | Triage data live: Later should read "N in Notion" once notion_ready; defaults auto-apply after 48h | done R73: Later is one line when triage.notion_ready (links triage.notion_url if set); "Default: X · auto-applies <time>" on cards and week rows | R73 |
