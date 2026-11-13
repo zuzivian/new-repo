@@ -185,6 +185,7 @@ details.closed{margin-top:8px}details.closed summary{cursor:pointer;font-size:13
 .ct-roles{font-size:13px;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
 .ct-el{font-size:12px;overflow-wrap:anywhere;margin-top:2px}.ct-el.clamp{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}.ct-el.warn{color:var(--warn);font-weight:600}
 .dlist{margin:6px 0 0;padding-left:18px;display:grid;gap:6px;font-size:14px}.dlist a{font-weight:600;white-space:nowrap}
+.clamp3{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .linkbtn{font:inherit;background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:2px;min-height:32px}
 .linkbtn.hot,.linkbtn.od{color:var(--warn);font-weight:600}.linkbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .agent .pace{font-size:12px;margin-top:2px;color:var(--ink-2)}.agent .pace.behind{color:var(--warn);font-weight:600}
@@ -1028,7 +1029,7 @@ function home(d){
     if(hits.length>=2){const intro=t.slice(0,hits[0].index).trim(), items=hits.map((h,k)=>({repo:h[1],n:h[2],txt:t.slice(h.index+h[0].length,k+1<hits.length?hits[k+1].index:t.length).trim()}));
       return `${intro?`<div class="muted">${esc(intro)}</div>`:""}<ul class="dlist">${items.map(x=>`<li><a href="https://github.com/zuzivian/${esc(x.repo)}/pull/${esc(x.n)}" target="_blank" rel="noopener">${esc(x.repo)} #${esc(x.n)} ↗</a> <span class="muted">${esc(x.txt)}</span></li>`).join("")}</ul>`}
     const parts=t.split(/;\s+/).filter(Boolean);
-    return parts.length>=3?`<ul class="dlist">${parts.map(x=>`<li class="muted">${esc(x)}</li>`).join("")}</ul>`:`<div class="muted">${esc(t)}</div>`};
+    return parts.length>=3?`<ul class="dlist">${parts.map(x=>`<li class="muted">${esc(x)}</li>`).join("")}</ul>`:`<div class="muted clamp3">${esc(t)}</div>`};
   const card=(n,i,cls)=>{
     const opts=(n.options||["Done","Later"]), ans=n.url?opts.filter(o=>!isOpen(o)):opts, openOpt=n.url?opts.find(isOpen):null;
     const dh=detailHtml(n.detail||n.note||""), prList=dh.includes("/pull/")&&/github\.com\/[^/]+\/[^/]+\/pull\//.test(n.url||"");
@@ -1117,11 +1118,22 @@ function staleHtml(d){
   const age=min<120?min+" min":Math.round(min/60)+" h";
   return `<div class="stalebar${min>180?" bad":""}" role="status"><b>Data is ${age} old.</b><span>The numbers below may be out of date; the feed normally updates every 15 min.</span></div>`;
 }
+function clampDetails(v){
+  v.querySelectorAll(".clamp3").forEach(el=>{
+    if(el.scrollHeight<=el.clientHeight+2||el.nextElementSibling?.hasAttribute("data-clamp-toggle")) return;
+    const b=document.createElement("button"); b.type="button"; b.className="linkbtn";
+    b.setAttribute("data-clamp-toggle",""); b.setAttribute("aria-expanded","false"); b.textContent="More";
+    b.addEventListener("click",()=>{const clamped=el.classList.toggle("clamp3");
+      b.textContent=clamped?"More":"Less"; b.setAttribute("aria-expanded",String(!clamped))});
+    el.after(b);
+  });
+}
 function render(){
   const v=document.getElementById("view"); if(!DATA){v.innerHTML='<p class="empty">Loading the latest status…</p>';return}
   document.getElementById("updated").textContent="Updated "+(matchMedia("(max-width:640px)").matches&&ptDay(DATA.updated)===ptDay(Date.now())?new Date(DATA.updated).toLocaleTimeString("en-US",{...PT,hour:"numeric",minute:"2-digit"}):fmtT(DATA.updated)+" PT");
   const h=location.hash.slice(1);
   v.innerHTML=staleHtml(DATA)+(h.startsWith("m-")?primer((DATA.meetings||[]).find(m=>"m-"+m.id===(()=>{try{return decodeURIComponent(h)}catch(_){return h}})())):home(DATA));
+  clampDetails(v);
   v.querySelectorAll(".agent").forEach(el=>el.addEventListener("click",e=>{
     if(!matchMedia("(max-width:640px)").matches||e.target.closest("a")) return;
     const t=el.querySelector(".tip"); if(t) openPop(el.querySelector(".nm").firstChild.textContent.trim(), t.innerHTML);
@@ -1142,7 +1154,7 @@ function render(){
     let e=document.getElementById("rq-n"); if(!e){e=document.createElement("p");e.id="rq-n";e.className="muted";e.style.cssText="margin:6px 0 0;font-size:12px";l.after(e)} e.textContent=q?`${n} match${n===1?"":"es"}`:""});
   v.querySelectorAll("[data-rmore]").forEach(b=>b.addEventListener("click",()=>{const l=document.getElementById("rlist");if(l)l.classList.add("all");b.remove()}));
   v.querySelectorAll("[data-overdue]").forEach(b=>b.addEventListener("click",overduePop));
-  v.querySelectorAll("[data-needsall]").forEach(b=>b.addEventListener("click",()=>{const m=v.querySelector(".needs-more");if(m)m.hidden=false;b.remove()}));
+  v.querySelectorAll("[data-needsall]").forEach(b=>b.addEventListener("click",()=>{const m=v.querySelector(".needs-more");if(m){m.hidden=false;clampDetails(m)}b.remove()}));
   v.querySelectorAll("[data-more]").forEach(b=>b.addEventListener("click",()=>{const l=document.getElementById("wkl");if(l)l.classList.add("all");b.remove()}));
   v.querySelectorAll("[data-goal]").forEach(b=>b.addEventListener("click",()=>goalPop(+b.dataset.goal)));
   v.querySelectorAll("[data-proj]").forEach(b=>b.addEventListener("click",()=>projectPop(b.dataset.proj)));
