@@ -1,0 +1,1266 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Autopilot HQ</title>
+<link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="HQ"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#eef1f5" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#0b1320" media="(prefers-color-scheme: dark)">
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: a cockpit panel. Fuel gauge for the week up top, then "needs you", meetings, crew (workers), burn by project. One column on phones, two on desktop. */
+:root{
+  --bg:#eef1f5; --panel:#ffffff; --ink:#122033; --ink-2:#4a5b70; --line:#d6dde6;
+  --accent:#c77700; --accent-soft:#fff1db; --good:#1f8a4c; --warn:#b26b00; --bad:#c0392b;
+  --core:#2b6cb0; --surface:#7b5ea7; --growth:#c77700; --maint:#8795a6; --track:#e3e8ef;
+  --f-display:"Barlow Semi Condensed","Avenir Next Condensed","Roboto Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0b1320; --panel:#111c2d; --ink:#e7edf5; --ink-2:#9fb0c4; --line:#22324a;
+  --accent:#ffb13b; --accent-soft:#2a2112; --good:#4cc283; --warn:#ffb13b; --bad:#ff6b5e;
+  --core:#6aa8ff; --surface:#b294e0; --growth:#ffb13b; --maint:#7d8da2; --track:#1c2a40; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0b1320; --panel:#111c2d; --ink:#e7edf5; --ink-2:#9fb0c4; --line:#22324a;
+  --accent:#ffb13b; --accent-soft:#2a2112; --good:#4cc283; --warn:#ffb13b; --bad:#ff6b5e;
+  --core:#6aa8ff; --surface:#b294e0; --growth:#ffb13b; --maint:#7d8da2; --track:#1c2a40; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.wrap{max-width:1080px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr);gap:16px}.wrap>*,#view{min-width:0}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+h1{font-family:var(--f-display);font-weight:700;font-size:30px;letter-spacing:.02em;margin:0}
+h2{font-family:var(--f-display);font-weight:600;font-size:15px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);margin:0 0 10px}
+.muted{color:var(--ink-2)} .mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.grid{display:grid;gap:16px;grid-template-columns:1fr}
+@media (min-width:860px){.grid{grid-template-columns:1.25fr 1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+.gauge-top{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-end}
+.big{font-family:var(--f-display);font-weight:700;font-size:56px;line-height:1}
+.stat{display:grid;gap:2px}.stat b{font-family:var(--f-mono);font-size:20px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.pill.good{background:color-mix(in srgb,var(--good) 15%,transparent);color:var(--good)}
+.pill.warn{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+.pill.bad{background:color-mix(in srgb,var(--bad) 15%,transparent);color:var(--bad)}
+svg text{fill:var(--ink-2);font-family:var(--f-mono);font-size:10px}
+.chart{width:100%;height:auto;display:block;margin-top:12px}
+.bar5{height:8px;border-radius:4px;background:var(--track);overflow:hidden;margin-top:6px}
+.bar5>i{display:block;height:100%;background:var(--accent)}
+.board{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.tile{border:1px solid var(--line);border-left:4px solid var(--st);border-radius:8px;padding:8px 10px;display:grid;gap:2px;min-width:0}
+.tile .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tile .st{font-size:12px;color:var(--st);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.tile .ct{font-size:12px;color:var(--ink-2)}
+.legend-st{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--ink-2);margin-top:8px}
+.legend-st i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;background:var(--st)}
+.panel{overflow-wrap:anywhere}.cards>*,.rows>*,.row>*{min-width:0}.row .name{overflow:hidden;text-overflow:ellipsis}
+.sevbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.sev{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 8px;border-radius:999px;border:1px solid var(--sv);color:var(--sv)}
+.iss{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;padding:8px 0;border-top:1px solid var(--line)}
+.iss:first-of-type{border-top:0}
+.iss .dot{width:10px;height:10px;border-radius:50%;background:var(--sv);margin-top:5px}
+.iss .meta{font-size:12px;color:var(--ink-2)}
+.agents{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:14px}
+.agent{display:grid;grid-template-columns:44px 1fr;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 10px;min-width:0}
+.agent .av{position:relative;width:44px;height:44px}
+.agent .av svg{width:44px;height:44px;display:block}
+.agent .av .pip{position:absolute;right:-1px;bottom:-1px;width:12px;height:12px;border-radius:50%;background:var(--sc);border:2px solid var(--panel)}
+.agent .nm{font-weight:700;line-height:1.1}
+.agent .rl{font-size:11px;color:var(--ink-2);line-height:1.2}
+.agent .dg{font-size:12px;line-height:1.25;margin-top:2px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.agent .sx{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--sc)}
+@media (prefers-reduced-motion:no-preference){.agent[data-s="working"] .av svg{animation:bob 2.4s ease-in-out infinite}}
+@keyframes bob{50%{transform:translateY(-2px)}}
+/* Phone layout: what needs Nat first, agents as a swipeable strip, chart and cost further down. */
+@media (max-width:640px){
+  body{font-size:15px}
+  .agents{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:8px;padding-bottom:4px;margin:0 -16px 12px;padding-left:16px;padding-right:16px;scrollbar-width:none}
+  .agents::-webkit-scrollbar{display:none}
+  .agent{flex:0 0 72%;scroll-snap-align:start}
+  .grid{display:flex;flex-direction:column;gap:12px}
+  .grid>section[aria-labelledby="n"]{order:-5}
+  .grid>section[aria-labelledby="is"]{order:-4}
+  .grid>section[aria-labelledby="pb"]{order:-3}
+  .grid>section[aria-labelledby="mt"]{order:-2}
+  .grid>section[aria-labelledby="g"]{order:-1}
+  .board{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .reply{display:flex;flex-wrap:wrap;gap:8px}
+  .reply button{min-height:44px;flex:1 1 40%}
+  .need a,.iss a{display:inline-block;padding:4px 0}
+}
+button.tile,button.iss{font:inherit;color:inherit;background:none;text-align:left;cursor:pointer;width:100%}
+button.tile:hover,button.iss:hover{background:var(--track)}
+button.tile:focus-visible,button.iss:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.iss{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;border:0;border-top:1px solid var(--line);border-radius:0;padding:10px 2px;min-height:44px}
+button.iss:first-of-type{border-top:0}
+button.iss .dot{margin-top:0}
+.chev{color:var(--ink-2);font-size:20px;line-height:1}
+dialog.pop{border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--ink);padding:0;width:min(560px,calc(100% - 32px));max-height:min(80vh,720px)}
+dialog.pop::backdrop{background:rgba(5,10,20,.55)}
+.pop .hd{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px 16px 8px}
+.pop .hd h3{margin:0;font-size:18px;line-height:1.25}
+.pop .bd{padding:0 16px 16px;display:grid;gap:10px;overflow:auto}
+.pop .x{font:inherit;font-size:22px;line-height:1;background:none;border:0;color:var(--ink-2);cursor:pointer;min-width:44px;min-height:44px}
+.pop .kv{display:grid;grid-template-columns:max-content 1fr;gap:4px 12px;font-size:14px}
+.pop .kv dt{color:var(--ink-2)}.pop .kv dd{margin:0}
+.pop .lst{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+.pop .lst li{border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.pop .facts{margin:0;padding-left:18px;display:grid;gap:4px;font-size:14px;color:var(--ink-2)}
+@media (max-width:640px){dialog.pop{width:100%;max-width:100%;margin:auto 0 0;border-radius:16px 16px 0 0;max-height:85vh}}
+.agent{position:relative;grid-template-columns:52px 1fr}
+.agent .av{width:52px;height:52px}
+.agent .av .ring{position:absolute;inset:0;width:52px;height:52px}
+.agent .av .face{position:absolute;left:6px;top:6px;width:40px;height:40px}
+.agent .av .face svg{width:40px;height:40px}
+.agent .av .pc{position:absolute;left:50%;bottom:-7px;transform:translateX(-50%);font-size:10px;line-height:1;padding:2px 4px;border-radius:6px;background:var(--panel);border:1px solid var(--line);color:var(--ink-2)}
+.agent .av .pip{right:0;top:0;bottom:auto}
+.agent .av .pc.nf{white-space:nowrap;font-style:italic;letter-spacing:-.02em;padding:2px 3px}
+.agent.nofeed .av .face{opacity:.78}
+.agent .tip .nf-note{font-size:12px;border-top:1px dashed var(--line);padding-top:6px}
+.agent .tip .asof{font-size:11px}
+.stale{color:var(--warn)}
+header .idea{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;padding:6px 12px;min-height:36px;cursor:pointer;margin-left:auto}
+header .idea:hover{border-color:var(--accent)} header .idea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.pop textarea{font:inherit;width:100%;min-height:96px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--bg);color:var(--ink);resize:vertical}
+.pop .act{display:flex;gap:8px;flex-wrap:wrap}
+.pop .act button{font:inherit;min-height:44px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.pop .act button.pri{background:var(--accent);border-color:var(--accent);color:#1b1206;font-weight:600}
+.agent:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.agent .tip{position:absolute;z-index:6;left:8px;top:calc(100% + 6px);width:220px;max-width:calc(100vw - 32px);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:grid;gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.18);opacity:0;visibility:hidden;transform:translateY(-4px);transition:opacity .15s,transform .15s,visibility .15s}
+.agent .tip::before{content:"";position:absolute;left:22px;top:-6px;width:10px;height:10px;background:var(--panel);border-left:1px solid var(--line);border-top:1px solid var(--line);transform:rotate(45deg)}
+.agent:hover .tip,.agent:focus-within .tip{opacity:1;visibility:visible;transform:none}
+.agent .tip .tt{display:flex;justify-content:space-between;gap:8px}
+.agent .tip .spark{width:100%;height:44px}
+@media (prefers-reduced-motion:reduce){.agent .tip{transition:none}}
+@media (max-width:640px){.agent .tip{display:none}}
+.tt{display:flex;justify-content:space-between;gap:8px}.pop .tt b{display:none}.pop .tt .mono{font-size:22px;font-weight:600;white-space:nowrap}.pop .spark{width:100%;height:64px}.spark.wk7{height:auto!important;max-height:110px}
+.cards{display:grid;gap:10px}
+.nday{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-2);padding:10px 0 2px;list-style:none}
+.agent[data-s="idle"] .sx,.agent[data-s="offline"] .sx,.tile[data-st="idle"] .st{color:var(--ink-2)}
+.ntier{margin-top:4px}.ntier summary{min-height:44px;display:flex;align-items:center;font-weight:600}.nminil{list-style:none;padding:0;margin:0}.nmini{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line)}.nmini>span:first-child{min-width:0;overflow-wrap:anywhere}.nmini>span:last-child{flex:none;font-size:13px}
+.hibadge{background:var(--bad);color:var(--panel);border-radius:8px;padding:0 6px;font-weight:700}
+.mql{list-style:none;padding:0;margin:0}.mq{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line)}.mq>div{min-width:0;overflow-wrap:anywhere}.mq .openlink{flex:none}
+.needs-more{display:grid;gap:10px}.needs-more[hidden]{display:none}.needs-all{width:100%;min-height:44px}
+.blk{border:1px solid var(--line);border-left:3px solid var(--bad);border-radius:10px;padding:8px 12px;margin:0 0 10px}.blk .lst{margin:4px 0 0}
+.conseq{font-size:13px;font-weight:600;color:var(--warn);margin:2px 0}
+.goal .gk{position:relative;padding-right:18px}.goal .gchev{position:absolute;right:0;top:-2px;font-size:18px;line-height:1;color:var(--ink-2)}
+.goal:hover,.goal:focus-visible{border-color:var(--accent);border-top-color:var(--gs)}.goal:hover .gchev,.goal:focus-visible .gchev{color:var(--accent)}
+.since{margin:0 0 12px;font-size:14px;line-height:1.6}.since .linkbtn{min-height:28px;font-weight:600;color:var(--ink)}
+#rl,#is{scroll-margin-top:76px}
+.wdog{margin:0 0 6px;font-size:13px}
+.rq{font:inherit;font-size:15px;width:100%;min-height:40px;padding:0 12px;margin:0 0 8px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}.rq:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.agsum{margin:0 0 6px;font-size:13px}
+.goal .gact{color:var(--ink);white-space:normal}.agsum .hint{display:none}@media (max-width:640px){.agsum .hint{display:inline}}
+.sev.zero{color:var(--ink-2);opacity:.7}
+details.closed summary::after{content:"▸";margin-left:6px}details.closed[open] summary::after{content:"▾"}
+details.dorm{margin-top:8px}details.dorm summary{overflow-wrap:anywhere}
+.grid>section[aria-labelledby="g"]{align-self:start}
+.wk li.dh{display:block;min-height:0;padding:10px 0 2px;border-top:0;font-family:var(--f-display);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.wk li.dh:first-child{padding-top:0}.wk li.dh.today{color:var(--accent)}.wk li.dh.od{color:var(--bad)}.wk li.dh+li{border-top:0}
+.wk:not(.all) li.dh.later{display:none}.wk.all li.dh.later{display:block}
+.decs{margin-bottom:16px;border-left:4px solid var(--core)}.decl{margin:0;padding:0;list-style:none;display:grid;gap:10px}
+.dec{display:grid;gap:2px;border-top:1px solid var(--line);padding-top:8px}.dec:first-child{border-top:0;padding-top:0}
+.dec-d{font-weight:600;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.dec-m{display:flex;flex-wrap:wrap;align-items:center;gap:0 6px}.dec-m a,.dec-m .linkbtn{display:inline-flex;align-items:center;min-height:36px;padding:0 4px}
+.ov-dec{border-top:1px solid var(--line);margin-top:10px;padding-top:10px}.ov-dec h3{margin:0 0 6px;font-family:var(--f-display);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}.dec-w{font-size:13px}.dec-m{font-size:12px}.dec-act{display:flex;gap:8px;flex-wrap:wrap}.decnone{margin:0 0 12px;font-size:13px}
+.overnight{margin-bottom:16px;border-left:4px solid var(--accent);background:color-mix(in srgb,var(--accent) 6%,var(--panel))}
+.ovh{margin:0 0 8px;padding-left:18px;display:grid;gap:4px}.ovg{display:grid;gap:4px;font-size:14px}.ovg summary{cursor:pointer;min-height:36px;display:flex;align-items:center;font-weight:600}.ovg summary::after{content:"▸";margin-left:6px;color:var(--ink-2)}.ovg details[open] summary::after{content:"▾"}.lst2{margin:4px 0 0;padding-left:18px;display:grid;gap:4px}.ova{font-size:13px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}.chip{font:inherit;font-size:13px;min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}.chip.on{background:var(--ink);color:var(--panel);border-color:var(--ink)}.chip.on .muted{color:inherit;opacity:.7}
+.rlist{margin:0;padding:0;list-style:none;display:grid;gap:2px}.rlist li{display:grid;gap:2px;padding:8px 0;border-top:1px solid var(--line);min-width:0}.rlist li:first-child{border-top:0}.rlist a{color:var(--ink);text-decoration:none;font-weight:600;overflow-wrap:anywhere}.rlist .muted{font-size:12px}
+.rlist li.later{display:none}.rlist.all li.later{display:grid}
+.agent .pace.stalled{color:var(--bad);font-weight:600}
+.gp-w{display:grid;gap:4px;font-size:14px;padding:6px 0;border-top:1px solid var(--line)}.ct.gp>.gp-w{border-top:0;padding-top:0}
+.gp-k{font-family:var(--f-display);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);margin-right:4px}
+details.closed{margin-top:8px}details.closed summary{cursor:pointer;font-size:13px;min-height:36px;display:flex;align-items:center}details.closed .row a{color:var(--ink-2);text-decoration:none}
+.asof-c{font-size:12px;font-weight:400}
+.ctl.wp li{display:block}.ctl.wp .pill{font-size:10px;padding:1px 7px;vertical-align:middle}
+.goal .gm.ctsum{color:var(--ink);font-weight:600}
+.ct{display:grid;gap:8px;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.ct h4{margin:0;font-family:var(--f-display);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.ct summary{cursor:pointer;font-family:var(--f-display);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);min-height:36px;display:flex;align-items:center}
+.ctl{margin:0;padding:0;list-style:none;display:grid;gap:8px}.ctl li{border-top:1px solid var(--line);padding-top:8px;min-width:0}.ctl li:first-child{border-top:0;padding-top:0}
+.ctl li.dim,.ctl.nopen li{opacity:.6}.ctl a{text-decoration:none;color:var(--ink)}.ctl a:hover{color:var(--accent)}
+.ct-roles{font-size:13px;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.ct-el{font-size:12px;overflow-wrap:anywhere;margin-top:2px}.ct-el.clamp{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}.ct-el.warn{color:var(--warn);font-weight:600}
+.dlist{margin:6px 0 0;padding-left:18px;display:grid;gap:6px;font-size:14px}.dlist a{font-weight:600;white-space:nowrap}
+.linkbtn{font:inherit;background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:2px;min-height:32px}
+.linkbtn.hot,.linkbtn.od{color:var(--warn);font-weight:600}.linkbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.agent .pace{font-size:12px;margin-top:2px;color:var(--ink-2)}.agent .pace.behind{color:var(--warn);font-weight:600}
+.stbadge{font-size:10px;font-weight:700;letter-spacing:.06em;padding:0 5px;border-radius:4px;border:1px solid var(--warn);color:var(--warn)}
+a.prep{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;margin:2px 0 0 4px;border-radius:999px;border:1px solid var(--core);color:var(--core);font-weight:600;text-decoration:none;vertical-align:middle}
+a.prep:hover{background:color-mix(in srgb,var(--core) 10%,var(--panel))}a.prep:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (max-width:640px){header{flex-wrap:nowrap;gap:8px}header h1{font-size:22px;white-space:nowrap}
+  header #updated{font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  header .idea{flex:none;width:40px;height:40px;min-height:40px;padding:0;font-size:20px;line-height:1;display:inline-flex;align-items:center;justify-content:center}header .idea .lbl{display:none}}
+.card.need.kf{outline:2px solid var(--accent);outline-offset:2px}
+.keyhint{display:none;margin:8px 0 0;font-size:12px}
+@media (pointer:fine) and (min-width:860px){.keyhint{display:block}}
+kbd{font-family:var(--f-mono);font-size:12px;padding:1px 6px;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;background:var(--panel)}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;align-items:baseline}.keys dd{margin:0}
+.gm .src{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);opacity:.8}
+.flag{display:inline-block;font-size:12px;font-weight:600;color:var(--warn)}
+.wplan{margin:0 0 14px}.wplan .need.wp{border:1px solid var(--accent);background:var(--accent-soft);border-left-width:4px}
+.wp-k{font-family:var(--f-display);font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.tbrief{display:grid;gap:6px;margin:0 0 14px;padding:12px 14px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}
+.tb-r{display:grid;grid-template-columns:84px minmax(0,1fr);gap:10px;align-items:baseline;font-size:15px}
+.tb-k{font-family:var(--f-display);font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.tb-v{min-width:0;overflow-wrap:anywhere}.tb-v a{color:inherit;text-underline-offset:2px}.tb-v .hot{color:var(--warn);font-weight:600}
+.tb-r.focus .tb-v b{color:var(--ink)}.tb-r .code{margin-left:4px;min-height:28px;padding:2px 8px}
+.wk li.later{display:none}.wk.all li.later{display:grid}
+button.more{font:inherit;font-size:13px;margin-top:8px;min-height:40px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink-2);cursor:pointer}
+.cbdone{margin:0 0 4px;font-size:13px}
+.need .openlink,.openlink{display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:0 12px;border-radius:8px;border:1px solid var(--core);color:var(--core);text-decoration:none;font-weight:600;font-size:14px;background:var(--panel)}.openlink:hover{background:color-mix(in srgb,var(--core) 10%,var(--panel))}
+#n{scroll-margin-top:76px}
+.tabs{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:6px;margin:0 0 14px;padding:8px 0;background:var(--bg)}
+.tabs .tab{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);text-decoration:none;font-weight:600;font-size:15px}
+.tabs .tab.on{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.tabs .tab .tx{font-weight:400;font-size:12px;opacity:.75}
+.tabs .tab:focus-visible,.tabs .nb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tabs .nb{margin-left:auto;font:inherit;font-size:13px;font-weight:600;min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--accent);background:var(--accent-soft);color:var(--ink);cursor:pointer}
+@media (max-width:640px){.tabs{margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px}.tabs .tab{flex:1;justify-content:center;padding:0 10px}.tabs .tab .tx{display:none}}
+@media (max-width:640px){.long{display:none}}.short{display:none}@media (max-width:640px){.short{display:inline}}
+.today{margin:-4px 0 12px;font-size:15px;color:var(--ink-2)}.today b{color:var(--ink);font-family:var(--f-display);letter-spacing:.06em;text-transform:uppercase;font-size:13px;margin-right:4px}
+.today a{color:inherit;text-decoration:underline;text-underline-offset:2px}.today .hot{color:var(--warn);font-weight:600}
+.tile .nx{font-size:12px;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:2px;text-align:left}
+.nudge{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:-4px 0 14px;padding:10px 14px;border-radius:10px;background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)}
+.nudge .ar{color:var(--accent);font-weight:700}.nudge .muted{font-size:13px}.nudge button{margin-left:auto;min-height:32px}
+.stalebar{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin:0 0 12px;padding:8px 12px;border-radius:8px;border:1px solid var(--warn);color:var(--warn);font-size:14px}
+.stalebar.bad{border-color:var(--bad);color:var(--bad)}
+/* Alignment: is fleet effort going where the plan says? */
+.align .say{font-size:16px;line-height:1.4;margin:0 0 10px}.align .say b{font-family:var(--f-mono)}
+.stack{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--track)}.stack>i{display:block;height:100%}
+.stack.plan{height:6px;margin-top:4px;opacity:.55}
+.align .lab{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-2);margin-top:2px;letter-spacing:.04em;text-transform:uppercase}
+.build{display:grid;gap:6px;margin:8px 0 0;padding:0;list-style:none}
+.build li{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:center}
+.build .nm{min-width:0;overflow-wrap:anywhere}
+/* Fleet internals live behind one fold. */
+details.fleet{margin-top:16px}
+details.fleet>summary{list-style:none;cursor:pointer;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 16px;min-height:44px}
+details.fleet>summary::-webkit-details-marker{display:none}
+details.fleet>summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+details.fleet>summary .h{font-family:var(--f-display);font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:14px}
+details.fleet>summary .chev{margin-left:auto;color:var(--ink-2);transition:transform .15s}
+details.fleet[open]>summary .chev{transform:rotate(90deg)}
+details.fleet[open]>summary{margin-bottom:14px}
+@media (prefers-reduced-motion:reduce){details.fleet>summary .chev{transition:none}}
+/* Goals: one row of pillar tiles, the first thing on the page. */
+.goals{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
+@media (max-width:860px){.goals{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}}
+.goal{font:inherit;color:inherit;text-align:left;cursor:pointer;background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--gs);border-radius:10px;padding:10px 12px;display:grid;gap:4px;min-width:0;min-height:44px}
+.goal:hover{border-color:var(--accent);border-top-color:var(--gs)} .goal:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.goal .gk{font-family:var(--f-display);font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.goal .gv{font-family:var(--f-mono);font-size:22px;font-weight:600;line-height:1.1}.goal .gv small{font-size:13px;color:var(--ink-2);font-weight:400}
+.goal .gm{font-size:12px;color:var(--ink-2);overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow-wrap:anywhere}
+.goal .gp{font-size:12px;font-weight:600;color:var(--gs);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.goal.nf .gv{font-size:15px;font-style:italic;font-family:var(--f-body);color:var(--ink-2);font-weight:500}
+.goal.nf .gp{color:var(--ink-2);font-weight:500}
+.gbar{height:6px;border-radius:3px;background:var(--track);overflow:hidden}.gbar>i{display:block;height:100%;background:var(--gs)}
+.goal.nf .gbar{background:repeating-linear-gradient(90deg,var(--track) 0 6px,transparent 6px 10px)}
+/* This week: one timeline of deadlines, meetings and top tasks. */
+.wk{display:grid;gap:2px;margin:0;padding:0;list-style:none}
+.wk li{display:grid;grid-template-columns:68px minmax(0,1fr) auto;gap:10px;align-items:baseline;padding:7px 0;border-top:1px solid var(--line)}
+.wk li:first-child{border-top:0}
+.wk .d{font-family:var(--f-mono);font-size:12px;color:var(--ink-2)}.wk .d.today{color:var(--accent);font-weight:600}
+.wk .k{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}
+.wk a{color:inherit;text-decoration:none}.wk a:hover{color:var(--accent)}
+/* the whole row is the tap target (stretched link), at least 44px tall */
+.wk li{position:relative;min-height:44px}.wk li a::after{content:"";position:absolute;inset:0}.wk li a:focus-visible{outline:none}.wk li:has(a:focus-visible){outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}.wk li:has(a):hover{background:color-mix(in srgb,var(--accent) 6%,transparent)}
+.wk .od{color:var(--bad)}
+.card{border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:6px;min-width:0}
+.card.need{border-left:4px solid var(--accent);background:var(--accent-soft)}
+.card .t{font-weight:600}
+.reply{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+button.code{font-family:var(--f-mono);font-size:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:6px;padding:4px 8px;cursor:pointer}
+button.code:hover{border-color:var(--accent)} button.code:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.rows{display:grid;gap:8px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}
+.row .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hbar{height:10px;border-radius:5px;background:var(--track);overflow:hidden}
+.hbar>i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--ink-2);margin-top:8px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
+a{color:var(--core)}
+.meet{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:start;text-decoration:none;color:inherit}
+.meet .when{font-family:var(--f-mono);font-size:12px;color:var(--ink-2);min-width:74px}
+.meet:hover .t{color:var(--accent)}
+.primer{display:grid;gap:14px}
+.primer ol{margin:0;padding-left:20px;display:grid;gap:6px}
+.primer ul{margin:0;padding-left:18px}
+.back{font-size:14px}
+.empty{color:var(--ink-2);font-style:italic}
+@media (prefers-reduced-motion:no-preference){.hbar>i,.bar5>i{transition:width .6s ease}}
+</style>
+
+<div class="wrap" id="app">
+  <header>
+    <h1>Autopilot HQ</h1>
+    <span class="muted mono" id="updated">loading…</span>
+    <button type="button" class="idea" id="idea" aria-label="Suggest an HQ change" title="Suggest an HQ change"><span aria-hidden="true">+</span><span class="lbl" aria-hidden="true"> Suggest an HQ change</span></button>
+  </header>
+  <div id="view"></div>
+</div>
+
+<script>
+const TIER_COLOR={career:"var(--core)",digigov:"#7a5cc4",relationships:"#d0698a",fleet_hq:"var(--maint)","career-core":"var(--core)","career-surface":"var(--surface)","growth":"var(--growth)","maintenance":"var(--maint)"};
+const TIER_LABEL={other:"Other",career:"Career",digigov:"Digitizing gov",relationships:"Relationships",fleet_hq:"Fleet / HQ","career-core":"Career core","career-surface":"Career surface","growth":"Growth & joy","maintenance":"Maintenance"};
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const PT={timeZone:"America/Los_Angeles"};
+const fmtT=iso=>new Date(iso).toLocaleString("en-US",{...PT,weekday:"short",hour:"numeric",minute:"2-digit"});
+let DATA=null;
+
+const cfgOf=d=>d.pacing&&typeof d.pacing.weekly_target==="number"&&typeof d.pacing.ramp_start_hours_before_reset==="number"?d.pacing:null;
+const fpOf=d=>d.fleet_pacing&&d.fleet_pacing.agents?d.fleet_pacing:d.pacing&&d.pacing.agents?d.pacing:null;
+function target(hLeft,p){ // mirrors autopilot/pace.py
+  if(hLeft<=p.final_sweep_hours) return p.weekly_target;
+  const ramp=p.ramp_start_hours_before_reset, slow=p.slow_phase_target;
+  if(hLeft>=ramp) return slow*Math.min(Math.max((168-hLeft)/(168-ramp),0),1);
+  return slow+(p.weekly_target-slow)*(1-hLeft/ramp);
+}
+
+function gaugeChart(d){
+  const W=640,H=200,L=34,R=10,T=10,B=26, reset=new Date(d.week.reset).getTime(), start=reset-168*3600e3;
+  const x=t=>L+(t-start)/(168*3600e3)*(W-L-R), y=v=>T+(1-v)*(H-T-B);
+  let tp=""; for(let h=168;h>=0;h-=2){const t=reset-h*3600e3; tp+=(tp?"L":"M")+x(t).toFixed(1)+","+y(target(h,d.pacing)).toFixed(1);}
+  const pts=d.week.timeline.map(p=>[new Date(p.t).getTime(),p.u7]);
+  let ap=pts.map((p,i)=>(i?"L":"M")+x(p[0]).toFixed(1)+","+y(p[1]).toFixed(1)).join("");
+  const last=pts[pts.length-1], now=new Date(d.updated).getTime();
+  const area=pts.length?ap+`L${x(last[0]).toFixed(1)},${y(0)}L${x(pts[0][0]).toFixed(1)},${y(0)}Z`:"";
+  const days=["Sat","Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  let grid=""; for(let i=0;i<=7;i++){const gx=x(start+i*86400e3); grid+=`<line x1="${gx}" x2="${gx}" y1="${T}" y2="${H-B}" stroke="var(--line)" stroke-width="1"/><text x="${gx}" y="${H-8}" text-anchor="middle">${days[i]}</text>`;}
+  for(const v of [0,.25,.5,.75,1]) grid+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-dasharray="${v?2:0} 3"/><text x="${L-6}" y="${y(v)+3}" text-anchor="end">${v*100}%</text>`;
+  const fast=x(reset-d.pacing.ramp_start_hours_before_reset*3600e3);
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Weekly usage against the pacing target">
+  ${grid}<rect x="${fast}" y="${T}" width="${W-R-fast}" height="${H-T-B}" fill="var(--accent)" opacity=".06"/>
+  <text x="${fast+4}" y="${T+11}">fast phase</text>
+  <path d="${tp}" fill="none" stroke="var(--ink-2)" stroke-width="1.5" stroke-dasharray="5 4"/>
+  ${area?`<path d="${area}" fill="var(--core)" opacity=".15"/>`:""}
+  <path d="${ap}" fill="none" stroke="var(--core)" stroke-width="2.5"/>
+  ${last?`<circle cx="${x(last[0])}" cy="${y(last[1])}" r="4.5" fill="var(--core)"/>`:""}
+  <line x1="${x(now)}" x2="${x(now)}" y1="${T}" y2="${H-B}" stroke="var(--accent)" stroke-width="1.5"/>
+  </svg>
+  <div class="legend"><span><i class="dot" style="background:var(--core)"></i>Used</span><span><i class="dot" style="background:var(--ink-2)"></i>Target (dashed)</span><span><i class="dot" style="background:var(--accent)"></i>Now</span></div>`;
+}
+
+function proChart(d){ // Pro account: cumulative new tokens over the same Sat-Sat week as the gauge above (plan % isn't visible for Pro)
+  const tl=d.cost&&d.cost.pro&&d.cost.pro.timeline; if(!tl||!tl.length) return "";
+  const W=640,H=130,L=34,R=10,T=10,B=22, reset=new Date(d.week.reset).getTime(), start=reset-168*3600e3, x=t=>L+(t-start)/(168*3600e3)*(W-L-R);
+  let cum=0,cr=0; const pts=[[start,0]]; tl.forEach(b=>{const t=new Date(b.t).getTime(); if(t<start||t>reset) return; pts.push([t,cum]); cum+=b.new; cr+=b.cache_read; pts.push([t,cum])});
+  if(pts.length<2) return "";
+  const now=Math.min(new Date(d.updated).getTime(),reset); pts.push([now,cum]);
+  const max=Math.max(cum,1), y=v=>T+(1-v/max)*(H-T-B), tok=n=>n>=1e6?(n/1e6).toFixed(1)+"M":n>=1e3?Math.round(n/1e3)+"k":String(n);
+  const days=["Sat","Sun","Mon","Tue","Wed","Thu","Fri","Sat"]; let grid="";
+  for(let i=0;i<=7;i++){const gx=x(start+i*86400e3); grid+=`<line x1="${gx}" x2="${gx}" y1="${T}" y2="${H-B}" stroke="var(--line)"/><text x="${gx}" y="${H-6}" text-anchor="middle">${days[i]}</text>`}
+  for(const f of [0,.5,1]) grid+=`<line x1="${L}" x2="${W-R}" y1="${y(max*f)}" y2="${y(max*f)}" stroke="var(--line)" stroke-dasharray="${f?2:0} 3"/><text x="${L-6}" y="${y(max*f)+3}" text-anchor="end">${tok(max*f)}</text>`;
+  const line=pts.map((p,i)=>(i?"L":"M")+x(p[0]).toFixed(1)+","+y(p[1]).toFixed(1)).join(""), last=pts[pts.length-1];
+  return `<h2 style="margin-top:16px">Pro account · tokens this week</h2>
+  <svg class="chart" style="margin-top:4px" viewBox="0 0 ${W} ${H}" role="img" aria-label="Pro account cumulative new tokens this week">${grid}
+  <path d="${line}L${x(last[0]).toFixed(1)},${y(0)}L${x(start)},${y(0)}Z" fill="var(--accent)" opacity=".15"/>
+  <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2.5"/><circle cx="${x(last[0])}" cy="${y(last[1])}" r="4" fill="var(--accent)"/></svg>
+  <div class="legend"><span><i class="dot" style="background:var(--accent)"></i>New tokens (input + output + cache write): ${tok(cum)}</span><span>Cache re-reads ${tok(cr)} not counted</span></div>
+  <div class="muted" style="font-size:13px">Pro plan % isn't visible from the Pro runner, so this is token volume, not share of the weekly limit.</div>`;
+}
+
+const ST_COLOR={"needs you":"var(--bad)","running":"var(--good)","queued":"var(--core)","paused":"var(--warn)","idle":"var(--maint)","off":"var(--ink-2)"};
+function ago(iso){const t=new Date(iso);if(!iso||isNaN(t))return "";const m=Math.max(0,(Date.now()-t)/60000);
+  return m<60?Math.round(m)+"m ago":m<48*60?Math.round(m/60)+"h ago":Math.round(m/1440)+"d ago"}
+function boardHtml(b){
+  if(!b||!b.length) return '<div class="empty">No projects.</div>';
+  const counts={}; b.forEach(p=>counts[p.status]=(counts[p.status]||0)+1);
+  const dormant=p=>/^(idle|off)$/.test(p.status)&&!p.running&&!p.queued&&!p.codex&&!p.needs&&!p.next_step;
+  const live=b.filter(p=>!dormant(p)), sleep=b.filter(dormant);
+  const tile=p=>{
+    const bits=[]; if(p.running) bits.push(p.running+" running"); if(p.queued) bits.push(p.queued+" queued");
+    if(p.codex) bits.push(p.codex+" Codex"); if(p.needs) bits.push(p.needs+" for you"); if(!bits.length&&p.done) bits.push(p.done+" done this week");
+    return `<button type="button" class="tile" data-proj="${esc(p.project)}" data-st="${esc(p.status)}" style="--st:${ST_COLOR[p.status]}" aria-label="${esc(p.project)}: ${esc(p.status)}. Show details"><span class="nm">${esc(p.project)}</span><span class="st">${esc(p.status)}</span><span class="ct">${esc(bits.join(" · ")||"—")}${p.last_activity&&ago(p.last_activity)?` · <span title="${esc(p.last_activity)}">pushed ${esc(ago(p.last_activity))}</span>`:""}</span>${p.next_step?`<span class="nx">Next: ${esc(p.next_step)}</span>`:""}</button>`};
+  const tiles=live.map(tile).join("")+(sleep.length?`</div><details class="closed dorm"><summary class="muted">${sleep.length} dormant: ${esc(sleep.map(p=>p.project).join(", "))}</summary><div class="board">${sleep.map(tile).join("")}</div></details><div>`:"");
+  const legend=Object.keys(ST_COLOR).filter(k=>counts[k]).map(k=>`<span style="--st:${ST_COLOR[k]}"><i></i>${counts[k]} ${esc(k)}</span>`).join("");
+  return `<div class="board">${tiles}</div><div class="legend-st">${legend}</div>`;
+}
+const SEV_COLOR={critical:"var(--bad)",high:"var(--warn)",medium:"var(--core)",low:"var(--ink-2)"};
+function issuesHtml(list){
+  if(!list||!list.length) return '<div class="empty">No open issues.</div>';
+  const c={}; list.forEach(i=>c[i.severity]=(c[i.severity]||0)+1);
+  // 8. zero counts are neutral, not alarm-coloured
+  const bar=Object.keys(SEV_COLOR).map(k=>`<span class="sev${c[k]?"":" zero"}" style="--sv:${c[k]?SEV_COLOR[k]:"var(--line)"}">${c[k]||0} ${k}</span>`).join("");
+  const rows=list.map((i,k)=>`<button type="button" class="iss" data-iss="${k}" style="--sv:${SEV_COLOR[i.severity]||"var(--maint)"}"><span class="dot" aria-hidden="true"></span><span class="t">${esc(i.title)}</span><span class="chev" aria-hidden="true">›</span></button>`).join("");
+  return `<div class="sevbar">${bar}</div>${rows}`;
+}
+/* Cartoon avatars: round face in each agent's colour plus one prop that says what they do. */
+const AGENT_LOOK={
+  pinny:{c:"#7c5cff",prop:'<circle cx="35" cy="33" r="6" fill="none" stroke="#2a2340" stroke-width="2.5"/><path d="M39.5 37.5l4 4" stroke="#2a2340" stroke-width="3" stroke-linecap="round"/>'},
+  sinny:{c:"#e8743b",prop:'<rect x="27" y="30" width="16" height="10" rx="2" fill="#2a2340"/><path d="M31 33l-2 2 2 2M39 33l2 2-2 2" stroke="#ffd9c2" stroke-width="1.5" fill="none" stroke-linecap="round"/>'},
+  cinny:{c:"#10a37f",prop:'<circle cx="36" cy="35" r="5" fill="none" stroke="#1d3b33" stroke-width="3" stroke-dasharray="3 2"/><circle cx="36" cy="35" r="1.8" fill="#1d3b33"/>'},
+  binny:{c:"#2b8be6",prop:'<rect x="29" y="27" width="13" height="16" rx="2" fill="#fff" stroke="#173a5e" stroke-width="2"/><path d="M32 32h7M32 35.5h7M32 39h5" stroke="#173a5e" stroke-width="1.6" stroke-linecap="round"/>'},
+  minny:{c:"#e64f8f",prop:'<path d="M28 31h15l-1.5 12h-12z" fill="#fff" stroke="#5e1736" stroke-width="2" stroke-linejoin="round"/><path d="M32 31c0-4 7-4 7 0" fill="none" stroke="#5e1736" stroke-width="2"/>'},
+};
+function avatar(key){const L=AGENT_LOOK[key]||{c:"#8795a6",prop:""};
+  return `<svg viewBox="0 0 46 46" aria-hidden="true"><circle cx="20" cy="22" r="17" fill="${L.c}"/>
+  <ellipse cx="14" cy="9" rx="4" ry="5" fill="${L.c}"/><ellipse cx="26" cy="9" rx="4" ry="5" fill="${L.c}"/>
+  <circle cx="14" cy="20" r="3.2" fill="#fff"/><circle cx="25" cy="20" r="3.2" fill="#fff"/>
+  <circle cx="14.8" cy="20.6" r="1.6" fill="#1b1b2a"/><circle cx="25.8" cy="20.6" r="1.6" fill="#1b1b2a"/>
+  <path d="M15 27q4.5 4 9 0" stroke="#1b1b2a" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <circle cx="10.5" cy="26" r="2" fill="#fff" opacity=".35"/><circle cx="29" cy="26" r="2" fill="#fff" opacity=".35"/>${L.prop}</svg>`}
+const AGENT_STATUS={working:"var(--good)",queued:"var(--core)",blocked:"var(--bad)",idle:"var(--maint)",offline:"var(--line)"};
+/* Agent card: avatar inside a utilization ring (share of that agent's plan used this week).
+   Hover, focus or tap shows a small bubble with the usage trend. No feed = dashed grey ring. */
+AGENT_LOOK.chinny=AGENT_LOOK.cinny;
+function ringTick(tg){if(typeof tg!=="number"||!isFinite(tg))return "";const a=(Math.max(0,Math.min(1,tg))*360-90)*Math.PI/180;
+  return `<line x1="${(24+17*Math.cos(a)).toFixed(1)}" y1="${(24+17*Math.sin(a)).toFixed(1)}" x2="${(24+25*Math.cos(a)).toFixed(1)}" y2="${(24+25*Math.sin(a)).toFixed(1)}" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"/>`}
+function ringSvg(u,col,tg){
+  const r=21,c=2*Math.PI*r;
+  if(u==null) return `<svg class="ring" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="${r}" fill="none" stroke="var(--track)" stroke-width="3"/><circle cx="24" cy="24" r="${r}" fill="none" stroke="${col}" stroke-opacity=".45" stroke-width="3" stroke-linecap="round" stroke-dasharray="0.1 6.5"/></svg>`;
+  const v=Math.max(0,Math.min(1,u)), hot=v>=.9?"var(--bad)":v>=.7?"var(--warn)":col;
+  return `<svg class="ring" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="${r}" fill="none" stroke="var(--track)" stroke-width="3"/>
+    <circle cx="24" cy="24" r="${r}" fill="none" stroke="${hot}" stroke-width="3" stroke-linecap="round" stroke-dasharray="${(v*c).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 24 24)"/>${ringTick(tg)}</svg>`;
+}
+function spark(series,col){
+  if(!series||series.length<2) return "";
+  const W=180,H=44,P=3,xs=series.map(s=>new Date(s.t).getTime()),x0=Math.min(...xs),x1=Math.max(...xs)||x0+1;
+  const ymax=Math.max(.05,...series.map(s=>s.u));
+  const pts=series.map((s,i)=>[P+(xs[i]-x0)/((x1-x0)||1)*(W-2*P),H-P-(s.u/ymax)*(H-2*P)]);
+  const d=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join("");
+  const last=pts[pts.length-1];
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" role="img" aria-label="Usage trend"><path d="${d} L${last[0].toFixed(1)} ${H-P} L${P} ${H-P}Z" fill="${col}" opacity=".14"/><path d="${d}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round"/><circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3" fill="${col}"/></svg>`;
+}
+const nextMonUTC=()=>{const d=new Date(), add=(8-d.getUTCDay())%7||7; return new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()+add)).toISOString()};
+function weekChart(series,col,reset,tg,end,assumed){
+  const now=Date.now(), R=reset&&!isNaN(new Date(reset))?new Date(reset).getTime():null;
+  const x1=R&&R>now-3600e3?R:now, x0=x1-7*864e5, pts=(series||[]).map(s=>[new Date(s.t).getTime(),s.u]).filter(p=>isFinite(p[0])&&p[0]>=x0&&p[0]<=x1+3600e3).sort((a,b)=>a[0]-b[0]);
+  if(!pts.length) return "";
+  const W=220,H=72,L=26,Rt=4,T=4,B=14, x=t=>L+(t-x0)/(x1-x0)*(W-L-Rt), y=v=>T+(1-Math.max(0,Math.min(1,v)))*(H-T-B);
+  const path=pts.map((p,i)=>(i?"L":"M")+x(p[0]).toFixed(1)+" "+y(p[1]).toFixed(1)).join("");
+  const last=pts[pts.length-1], e=typeof end==="number"?end:.92;
+  const grid=[0,.5,1].map(v=>`<line x1="${L}" x2="${W-Rt}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="var(--line)"/><text x="${L-3}" y="${(y(v)+3).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--ink-2)">${v*100}%</text>`).join("");
+  const pace=R?`<line x1="${x(x0).toFixed(1)}" y1="${y(0).toFixed(1)}" x2="${x(x1).toFixed(1)}" y2="${y(e).toFixed(1)}" stroke="var(--ink-2)" stroke-dasharray="3 3"/>`:"";
+  const tick=typeof tg==="number"&&isFinite(tg)?`<line x1="${(x(now)-5).toFixed(1)}" x2="${(x(now)+5).toFixed(1)}" y1="${y(tg).toFixed(1)}" y2="${y(tg).toFixed(1)}" stroke="var(--ink)" stroke-width="2"/>`:"";
+  const lab=t=>esc(new Date(t).toLocaleDateString("en-US",{...PT,weekday:"short"}));
+  return `<svg class="spark wk7" viewBox="0 0 ${W} ${H}" role="img" aria-label="Share of weekly limit used, ${Math.round(last[1]*100)}% now${R?`, pace line to ${Math.round(e*100)}% by reset`:", last 7 days"}">${grid}${pace}
+    <path d="${path}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round"/><circle cx="${x(last[0]).toFixed(1)}" cy="${y(last[1]).toFixed(1)}" r="2.5" fill="${col}"/>${tick}
+    <text x="${L}" y="${H-3}" font-size="8" fill="var(--ink-2)">${lab(x0)}</text><text x="${W-Rt}" y="${H-3}" font-size="8" text-anchor="end" fill="var(--ink-2)">${R?(assumed?"reset ~"+esc(fmtT(new Date(x1).toISOString()))+" PT":"reset "+lab(x1)):"now"}</text></svg>`}
+/* util may arrive as 0..1, as a percent (0..100), or as a string; anything else is "no feed". */
+function utilOf(v){if(typeof v==="string"&&v.trim()!=="")v=Number(v.replace("%",""));
+  if(typeof v!=="number"||!isFinite(v)||v<0)return null; return v>1.5?Math.min(v/100,1):Math.min(v,1)}
+function paceOf(fp,a){const A=fp&&fp.agents||{}, x=A[a.key]||A[{cinny:"chinny",chinny:"cinny"}[a.key]]; if(!x) return null;
+  const used=utilOf(x.used), tg=utilOf(x.target), q=num(x.queue), fl=num(x.in_flight);
+  const past=isDate(x.reset)&&new Date(x.reset)<Date.now()&&(!isDate(x.read_at)||new Date(x.read_at)<new Date(x.reset));
+  const off=!past&&used!=null&&tg!=null?Math.round((used-tg)*100):null;
+  const nolimit=x.used===null&&x.target===null;
+  const tEnd=utilOf((fp||{}).target_end)??1, toReset=isDate(x.reset)&&!past?(new Date(x.reset)-Date.now())/60000:null;
+  const unused=num(x.unused_pts_at_reset)??(toReset!=null&&toReset<24*60&&used!=null?Math.max(0,Math.round((tEnd-used)*100)):null);
+  const expire=unused!=null&&unused>5&&toReset!=null&&toReset<24*60?`${unused} pts ${x.unused_pts_at_reset!=null?"will expire":"unused"} · resets in ${(m=>m<60?m+" min":`${Math.floor(m/60)} h${m%60?` ${m%60} min`:""}`)(Math.round(toReset))}`:"";
+  const bits=nolimit?["no limit",fl!=null?`${fl} in flight`:"",q!=null?`${q} queued`:""].filter(Boolean)
+    :[past?"reset since last read":expire?expire:off==null?"":off<=-3?`${-off} pts under pace`:off>=3?`${off} pts over pace`:"on pace", q!=null?`${q} queued`:"", fl!=null?`${fl} in flight`:""].filter(Boolean);
+  // stalled: tasks waiting and the runner hasn't run for a while (it only wakes on its own app schedule)
+  const idle=num(x.idle_min)??(isDate(x.last_run)?Math.round((Date.now()-new Date(x.last_run))/60000):null);
+  return {used,tg:past?null:tg,off,past,stale:!!x.stale,txt:bits.join(" · "),reset:isDate(x.reset)?x.reset:null,note:x.target_note||"",nolimit,
+    stalled:x.stalled===true,idle,waiting:fl,lastRun:isDate(x.last_run)?x.last_run:null,expire,unused:expire?unused:null,
+    done24:num(x.done_24h)??num(a.done_24h),done7:num(x.done_7d)??num(a.done_7d),lastDone:[x.last_done,a.last_done].find(v=>v&&v.title)||null}}
+const idleTxt=m=>m==null?"":m<120?`${m} min`:m<1440?`${Math.floor(m/60)} h${m%60?` ${m%60} min`:""}`:`${Math.round(m/1440*10)/10} days`;
+function agentsHtml(list,fp){
+  if(!list||!list.length) return "";
+  const rank=a=>{const P=paceOf(fp,a);return P&&P.stalled?0:/work|run/i.test(a.status||"")?1:P&&num(P.waiting)>0?2:3};
+  list=list.slice().sort((a,b)=>rank(a)-rank(b));
+  const cnt=[0,0,0,0]; list.forEach(a=>cnt[rank(a)]++);
+  // Minny runs on a free allowance for purchases/sign-in tasks only: its unused capacity isn't actionable
+  const actionable=a=>{const x=((fp||{}).agents||{})[a.key]||{}; return x.capacity_actionable!=null?x.capacity_actionable!==false:a.key!=="minny"};
+  const exp=list.filter(actionable).map(a=>paceOf(fp,a)).filter(P=>P&&P.expire);
+  const summ=[exp.length?`<b style="color:var(--warn)">${exp.length} agent${exp.length===1?"":"s"} near reset with ${exp.reduce((t,P)=>t+P.unused,0)} pts unused</b>`:"",cnt[0]?`<b style="color:var(--bad)">${cnt[0]} stalled</b>`:"",cnt[1]?`${cnt[1]} working`:"",cnt[2]?`${cnt[2]} between runs`:"",cnt[3]?`${cnt[3]} idle`:""].filter(Boolean).join(" · ");
+  const BL=(Array.isArray(DATA.blocked)?DATA.blocked:Array.isArray((fp||{}).blocked)?fp.blocked:[]).filter(b=>b&&b.title).slice().sort((a,b)=>String(a.since||"9").localeCompare(String(b.since||"9")));
+  const WO={nat:"you",agent:"an agent",external:"outside"};
+  const bRow=b=>`<li>${/^https:\/\//.test(b.url||"")?link(b.url,b.title):esc(b.title)} <span class="muted">· ${[b.agent&&b.agent!==b.waiting_on?esc(b.agent):"",b.waiting_on?"waiting on "+esc(WO[b.waiting_on]||b.waiting_on):"",isDate(b.since)?idleTxt(Math.round((Date.now()-new Date(b.since))/60000))+" old":""].filter(Boolean).join(" · ")}</span></li>`;
+  const onNat=BL.filter(b=>b.waiting_on==="nat").length;
+  const blk=BL.length?`<div class="blk"><b>Blocked · ${BL.length}</b>${onNat?` <span class="muted">· ${onNat} waiting on you (also in Needs)</span>`:""}<ul class="lst">${BL.slice(0,3).map(bRow).join("")}</ul>${BL.length>3?`<details class="closed"><summary class="muted">${BL.length-3} more</summary><ul class="lst">${BL.slice(3).map(bRow).join("")}</ul></details>`:""}</div>`:"";
+  return `${blk}<p class="agsum muted">${summ}<span class="hint"> · swipe for all ${list.length}</span></p><div class="agents" role="list" aria-label="Agents">${list.map((a,k)=>{const sc=AGENT_STATUS[a.status]||"var(--maint)";
+    const col=(AGENT_LOOK[a.key]||{c:"#8795a6"}).c, P=paceOf(fp,a), u=utilOf(a.util)??(P?P.used:null);
+    const pct=u==null?(P&&P.nolimit?"no limit":"no feed"):Math.round(u*100)+"%";
+    const ser=(a.series||[]).filter(s=>s&&utilOf(s.u)!=null&&!isNaN(new Date(s.t))).map(s=>({t:s.t,u:utilOf(s.u)}));
+    const tms=[a.util_at,ser.length?ser[ser.length-1].t:null].filter(t=>t&&!isNaN(new Date(t))).map(t=>new Date(t).getTime());
+    const at=tms.length?new Date(Math.max(...tms)):null, old=at&&(Date.now()-at)>2*3600e3;
+    const asof=u==null?"":`<div class="muted asof">${old?`<span class="stbadge">STALE</span> `:""}${at?"read "+esc(fmtT(at.toISOString()))+" PT":"reading time not reported"}${a.util_reset?" · resets "+esc(fmtT(a.util_reset)):""}</div>`;
+    const tip=`<div class="tip" role="tooltip" id="tip-${k}"><div class="tt"><b>${esc(a.name)}</b><span class="mono">${u==null?"—":pct}</span></div>
+      <div class="muted" style="font-size:12px">${esc(a.util_label||(u==null?"Plan usage":"Share of plan used this week"))}</div>
+      ${P&&P.tg!=null?`<div style="font-size:12px">Tick = pace line: ${Math.round(P.tg*100)}% now, ${Math.round(((fpOf(DATA)||{}).target_end||.92)*100)}% by ${P.reset?esc(fmtT(P.reset)):"reset"}${P.note?" ("+esc(P.note)+")":""}</div>`:""}
+      ${u==null?(P&&P.nolimit?`<div class="nf-note">No usage limit to pace against.${P.lastRun?` Last ran ${esc(fmtT(P.lastRun))} PT.`:""}</div>`:`<div class="nf-note">No usage feed yet. The ring fills in once this agent reports its plan usage.</div>`):asof}
+      ${(()=>{const known=a.util_reset||(P&&P.reset), asm=!known&&P&&/monday/i.test(P.note||"");
+        return weekChart(ser,col,known||(asm?nextMonUTC():null),P&&P.tg,(fpOf(DATA)||{}).target_end,asm)+(asm?`<div class="muted" style="font-size:11px">Reset assumed Mon 00:00 UTC (${esc(fmtT(nextMonUTC()))} PT); not reported yet</div>`:"")})()}${a.usage_note?`<div style="font-size:12px">${esc(a.usage_note)}</div>`:""}
+      ${a.url?`<a href="${esc(a.url)}" target="_blank" rel="noopener" style="font-size:12px">Open ↗</a>`:""}</div>`;
+    return `<div class="agent${u==null?" nofeed":""}" role="listitem" tabindex="0" data-s="${esc(a.status)}" style="--sc:${sc}" aria-describedby="tip-${k}">
+      <div class="av">${ringSvg(u,col,P&&P.tg)}<div class="face">${avatar(a.key)}</div><span class="pip"></span><span class="pc mono${u==null?" nf":""}"${old?' style="color:var(--warn)"':""}>${pct}</span></div>
+      <div style="min-width:0"><div class="nm">${esc(a.name)} <span class="sx"${P&&P.stalled?' style="color:var(--bad)"':""}>${esc(P&&P.stalled?"stalled":/^idle$/i.test(a.status||"")&&P&&num(P.waiting)>0?"between runs":a.status)}</span></div><div class="rl">${esc(a.role)}</div><div class="dg">${esc(a.doing||"—")}</div>${P&&(P.done24!=null||P.lastDone)?`<div class="muted" style="font-size:12px">${[P.done24!=null?`${P.done24} done in 24 h`:"",P.done7!=null?`${P.done7} this week`:"",P.lastDone?`last: ${/^https:\/\//.test(P.lastDone.url||"")?link(P.lastDone.url,String(P.lastDone.title).slice(0,50)):esc(String(P.lastDone.title).slice(0,50))}${isDate(P.lastDone.at)?`, ${idleTxt(Math.max(1,Math.round((Date.now()-new Date(P.lastDone.at))/60000)))} ago`:""}`:""].filter(Boolean).join(" · ")}</div>`:""}${P&&P.stalled?`<div class="pace stalled">Idle ${P.idle!=null?idleTxt(P.idle):"a while"}${P.waiting!=null?` · ${P.waiting} in flight`:""}${P.expire?` · ${esc(P.expire)}`:""}</div>`:""}${P&&!P.stalled&&(P.txt||P.stale)?`<div class="pace${P.off!=null&&P.off<=-3?" behind":""}">${P.stale?`<span class="stbadge">STALE</span> `:""}${esc(P.txt)}${P.tg!=null?` <span class="muted">· target ${Math.round(P.tg*100)}% now</span>`:""}</div>`:""}</div>${tip}</div>`}).join("")}</div>`;
+}
+function openPop(title,html){
+  let d=document.getElementById("pop");
+  if(!d){d=document.createElement("dialog");d.id="pop";d.className="pop";d.setAttribute("aria-labelledby","pop-t");
+    d.innerHTML='<div class="hd"><h3 id="pop-t"></h3><button type="button" class="x" aria-label="Close">×</button></div><div class="bd"></div>';
+    document.body.appendChild(d);d.querySelector(".x").addEventListener("click",()=>d.close());
+    d.addEventListener("click",e=>{if(e.target===d)d.close()});}
+  d.querySelector("#pop-t").textContent=title; d.querySelector(".bd").innerHTML=html;
+  const wasOpen=d.open;
+  if(!wasOpen){d._opener=document.activeElement&&document.activeElement!==document.body?document.activeElement:null;if(d.showModal) d.showModal(); else d.setAttribute("open","");
+    try{history.pushState({hqpop:1},"",location.href)}catch(_){}}
+}
+/* A sheet owns one history entry: Back closes it; closing it any other way pops that entry. */
+addEventListener("popstate",()=>{const d=document.getElementById("pop"); if(d&&d.open){d.dataset.viaBack="1";d.close()}});
+document.addEventListener("close",e=>{const d=e.target; if(!d||d.id!=="pop") return;
+  const op=d._opener; d._opener=null; if(op&&op.isConnected){try{op.focus({preventScroll:true})}catch(_){}}
+  if(d.dataset.viaBack){delete d.dataset.viaBack;return}
+  if(history.state&&history.state.hqpop){try{history.back()}catch(_){}}},true);
+const link=(u,t)=>u?`<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t||u)} ↗</a>`:"";
+function issuePop(i){
+  openPop(i.title,`<dl class="kv"><dt>Severity</dt><dd><span class="sev" style="--sv:${SEV_COLOR[i.severity]||"var(--maint)"}">${esc(i.severity)}</span></dd>
+    <dt>Area</dt><dd>${esc(i.area||"—")}</dd><dt>Owner</dt><dd>${esc(i.owner||"—")}</dd><dt>Since</dt><dd>${esc(i.since||"—")}</dd></dl>
+    <p style="margin:0">${esc(i.detail||"")}</p>${i.url?`<p style="margin:0">${link(i.url,"Open")}</p>`:""}`);
+}
+const PALIAS={HQ:"new-repo","new-repo":"HQ"};
+const sameProj=(a,b)=>a===b||PALIAS[a]===b;
+function projectPop(name){
+  const d=DATA, b=(d.board||[]).find(x=>x.project===name)||{project:name,status:"idle"};
+  const has=s=>String(s||"").toLowerCase().includes(name.toLowerCase());
+  const ws=(d.workers||[]).filter(w=>sameProj(w.project,name)||(name==="temasek-1360"&&String(w.project).startsWith("temasek")));
+  const ns=(d.needs||[]).filter(n=>has(n.title)||has(n.url));
+  const is=(d.issues||[]).filter(i=>i.area===name||has(i.title));
+  const sp=(d.spend||[]).find(s=>sameProj(s.project,name));
+  const li=(arr,f)=>arr.length?`<ul class="lst">${arr.map(f).join("")}</ul>`:'<div class="muted">None.</div>';
+  openPop(name,`<dl class="kv"><dt>Status</dt><dd style="color:${ST_COLOR[b.status]||"inherit"};font-weight:600">${esc(b.status)}</dd>
+    <dt>Tier</dt><dd>${esc(b.tier||"—")}</dd><dt>Last push</dt><dd>${b.last_activity?esc(ago(b.last_activity)+" · "+fmtT(b.last_activity)):'<span class="muted">not visible to the fleet</span>'}</dd>${b.next_step?`<dt>Next step</dt><dd>${esc(b.next_step)}</dd>`:""}<dt>Spend this week</dt><dd>${sp?"$"+sp.usd.toFixed(2):"—"}</dd>
+    <dt>Repo</dt><dd>${(r=>link("https://github.com/zuzivian/"+r,"github.com/zuzivian/"+r))(name==="HQ"?"new-repo":name)}</dd></dl>
+    <div><b>Needs you</b>${li(ns,n=>`<li>${link(n.url,n.title)||esc(n.title)}${n.preview?` · ${link(n.preview,"preview")}`:""}<div class="muted">${esc(n.detail||"")}</div></li>`)}</div>
+    <div><b>Work</b>${li(ws,w=>`<li>${esc(w.task)} · <span class="muted">${esc(w.status)}</span>${w.session&&/^https?:/.test(w.session)?` · ${link(w.session,"open")}`:""}</li>`)}</div>
+    <div><b>Issues</b>${li(is,i=>`<li><span class="sev" style="--sv:${SEV_COLOR[i.severity]}">${esc(i.severity)}</span> ${esc(i.title)}</li>`)}</div>`);
+}
+function costHtml(c,upd){
+  const asOf=o=>{const t=[o&&o.at,o&&o.as_of,o&&o.read_at,o&&o.updated].find(v=>v&&!isNaN(new Date(v)))||upd; return t&&!isNaN(new Date(t))?` <span class="muted asof-c">· as of ${esc(fmtT(t))} PT</span>`:""};
+  if(!c||(!c.providers.length&&!c.other.length&&!c.pro)) return '<div class="empty">No usage collected yet.</div>';
+  const fmtTok=t=>t>=1e6?(t/1e6).toFixed(1)+"M":t>=1e3?(t/1e3).toFixed(0)+"k":String(t);
+  const max=Math.max(1,...c.providers.flatMap(p=>p.models.map(m=>m.usd)));
+  const prov=c.providers.map(p=>`<div class="row"><span class="name"><b>${esc(p.provider)}</b>${asOf(p.at||p.as_of?p:c)}</span><span class="mono">$${p.usd.toFixed(2)}</span></div>`+
+    p.models.map(m=>`<div class="row"><span class="name" style="padding-left:12px">${esc(m.model)} <span class="muted">· ${m.sessions} sessions · ${fmtTok(m.tokens)} tok</span></span><span class="mono muted">$${m.usd.toFixed(2)}</span></div><div class="hbar"><i style="width:${(m.usd/max*100).toFixed(1)}%;background:var(--core)"></i></div>`).join("")).join("");
+  const oth=c.other.map(o=>`<div class="row"><span class="name"><b>${esc(o.provider)}</b> <span class="muted">· ${esc(o.label||"")}</span>${o.at||o.as_of||o.read_at?asOf(o):""}</span><span class="mono muted">${o.usd!=null?"$"+Number(o.usd).toFixed(2):"n/a"}</span></div><div class="muted" style="font-size:13px;padding-left:12px">${esc(o.note||"")}</div>`).join("");
+  let pro="";
+  if(c.pro&&c.pro.models&&c.pro.models.length){
+    const seg=[["output","Output","var(--accent)"],["input","Input","var(--core)"],["cache_write","Cache write","var(--surface)"],["cache_read","Cache read","var(--maint)"]];
+    pro=`<div class="row" style="margin-top:6px"><span class="name"><b>${esc(c.pro.account)}</b></span><span class="mono muted">${c.pro.sessions} session${c.pro.sessions===1?"":"s"}</span></div>`+
+      c.pro.models.map(m=>{const tot=seg.reduce((a,[k])=>a+m[k],0)||1;
+        const bar=seg.map(([k,l,col])=>m[k]?`<i style="display:inline-block;height:100%;width:${(m[k]/tot*100).toFixed(2)}%;min-width:2px;background:${col}" title="${l}: ${fmtTok(m[k])}"></i>`:"").join("");
+        return `<div class="row"><span class="name" style="padding-left:12px">${esc(m.model)} <span class="muted">· ${m.messages} msgs · ${fmtTok(tot)} tok</span></span></div><div class="hbar" style="display:flex">${bar}</div>`}).join("")+
+      `<div class="legend">${seg.map(([k,l,col])=>`<span><i class="dot" style="background:${col}"></i>${l} ${fmtTok(c.pro.models.reduce((a,m)=>a+m[k],0))}</span>`).join("")}</div>`+
+      `<div class="muted" style="font-size:13px;padding-left:12px">Tokens only, no USD. Bar = share of tokens by type (cache reads are re-read context, not new work).</div>`;
+  }
+  return `<div class="rows">${prov}${oth}${pro}</div>`;
+}
+function copy(btn,text){
+  const done=()=>{const o=btn.textContent;btn.textContent="Copied";setTimeout(()=>btn.textContent=o,1200)};
+  try{navigator.clipboard.writeText(text).then(done,()=>{})}catch(e){}
+}
+function openExt(u){let w=null;try{w=window.open(u,"_blank")}catch(_){} if(w){try{w.opener=null}catch(_){}} return w}
+const ISSUE_NEW="https://github.com/zuzivian/ops-bus/issues/new";
+const needUrl=u=>/^https?:\/\//.test(u)?u:"https://github.com/zuzivian/ops-bus/blob/main/"+String(u).replace(/^\.?\//,"");
+/* Answer buttons message the supervisor session directly through the viewer's
+   Claude Code Remote connector; if that isn't available, fall back to copy. */
+const CCR="Claude Code Remote";
+let ONE=null; // one-click answers available?
+function probeOne(){try{fetch("/api/answer",{method:"POST",headers:{"Content-Type":"application/json","X-HQ":"1"},body:'{"title":""}'})
+  .then(r=>{ONE=r.status===400; if(ONE&&DATA){try{render()}catch(_){}}}).catch(()=>{ONE=false})}catch(_){ONE=false}}
+function fileIssue(title,body){return fetch("/api/answer",{method:"POST",headers:{"Content-Type":"application/json","X-HQ":"1"},body:JSON.stringify({title,body})})
+  .then(r=>r.ok?r.json():Promise.reject(r.status))}
+async function answer(btn,text,title){
+  const sid=DATA&&DATA.supervisor, pick=text.split(" → ").slice(1).join(" → "), t="HQ answer: "+title+" → "+pick;
+  const gh=()=>{const u=ISSUE_NEW+"?title="+encodeURIComponent(t)+"&body="+encodeURIComponent("Tap Submit to send this to the autopilot supervisor.");
+    if(!openExt(u)){copy(btn,text);toast("Couldn't open GitHub. Copied your answer instead")} else {btn.textContent="Opened ✓ tap Submit"}};
+  if(btn.dataset.fallback){gh();return}
+  if(ONE){
+    const orig=btn.textContent, card=btn.closest(".need"); btn.disabled=true; btn.textContent="Sending…";
+    try{const j=await fileIssue(t,"Answer from HQ: "+pick);
+      btn.textContent="Sent ✓"; if(card){card.style.opacity=".55";card.querySelectorAll("button.code").forEach(b=>b.disabled=true)}
+      toast("Sent to the autopilot"+(j&&j.number?" (#"+j.number+")":""));
+    }catch(e){btn.disabled=false; btn.textContent="Finish on GitHub ↗"; btn.dataset.fallback="1"; toast("One-click send failed. Tap again to finish on GitHub")}
+    return}
+  let mcp=null; try{mcp=await window.claude?.use?.("mcp")}catch(e){}
+  if(!sid||!mcp){
+    /* No Claude connector here (e.g. hq.natwong.dev): open a prefilled GitHub issue; submitting it wakes the supervisor. */
+    const t="HQ answer: "+title+" → "+text.split(" → ").slice(1).join(" → ");
+    const u=ISSUE_NEW+"?title="+encodeURIComponent(t)+"&body="+encodeURIComponent("Tap Submit to send this to the autopilot supervisor.");
+    if(!openExt(u)){copy(btn,text);toast("Couldn't open GitHub. Copied your answer instead")} else {btn.textContent="Opened ✓ tap Submit"}
+    return}
+  const orig=btn.textContent; btn.disabled=true; btn.textContent="Sending…";
+  try{
+    await mcp.callTool(CCR,"send_message",{session_id:sid,message:"HQ answer from Nat: "+title+" → "+text.split(" → ").slice(1).join(" → ")});
+    btn.textContent="Sent ✓"; const c=btn.closest(".need"); if(c) c.style.opacity=".55";
+  }catch(e){btn.disabled=false; btn.textContent=orig; copy(btn,text)}
+}
+
+/* ---------- Goals (north star): pillar tiles + one 14-day timeline. Everything renders from data; nulls read "no feed yet", never 0. ---------- */
+const num=v=>typeof v==="number"&&isFinite(v)?v:null;
+const isDate=v=>typeof v==="string"&&/^\d{4}-\d{2}-\d{2}/.test(v)&&!isNaN(new Date(v));
+const dayMs=864e5, fmtD=iso=>new Date(iso).toLocaleDateString("en-US",{...PT,weekday:"short",month:"numeric",day:"numeric"});
+const ptDay=t=>new Date(t).toLocaleDateString("en-CA",PT); // YYYY-MM-DD in PT
+const asDay=v=>/^\d{4}-\d{2}-\d{2}$/.test(v)?v+"T12:00:00-08:00":v; // a bare date means that PT calendar day
+function pillarRead(p,prog,d){
+  const T=p.targets||{}, g=(prog&&prog[p.key])||{};
+  const tnum=v=>num(v)!=null?num(v):(v&&typeof v==="object"?num(v.target??v.value):null);
+  const keys=Object.keys(T).filter(k=>tnum(T[k])!=null);
+  const mk=typeof p.metric==="string"?p.metric:(p.metric&&p.metric.key);
+  const m=(mk&&(keys.includes(mk)||num(g[mk])!=null||!keys.length))?mk:keys[0];
+  if(!m) return {m:null};
+  const target=tnum(T[m]), label=(p.metric&&p.metric.label)||m.replace(/_/g," ");
+  const weekly=/_per_week$|_this_week$/.test(m)||(p.metric&&/^week/i.test(p.metric.period||""))||/^week/i.test(String(T[m+"_period"]||""))||(T[m]&&/^week/i.test(T[m].per||T[m].period||"")), base=m.replace(/_per_week$|_total$|_typed$|_logged$|_done$|_calendar$|_shipped$/,"");
+  let cur=num(g[m]); if(cur==null&&weekly) cur=num(g[base+"_this_week"]); if(cur==null&&!weekly) cur=num(g[base]);
+  let cal=false; if(cur==null&&num(g[base+"_scheduled_done"])!=null){cur=num(g[base+"_scheduled_done"]);cal=true}
+  // second numeric target with a reported value, e.g. classmates logged
+  const yk=keys.find(k=>k!==m&&/year/i.test(k)&&tnum(T[k])!=null);
+  const k2=yk?null:keys.find(k=>k!==m&&num(g[k])!=null), sec=yk&&cur!=null?`Year goal: ${cur}/${tnum(T[yk])}`:k2?`${k2.replace(/_/g," ")} ${num(g[k2])}/${tnum(T[k2])}`.replace(/^(\w)/,c=>c.toUpperCase()):"";
+  // funnel (no numeric target): show the stages that are reported
+  const FUN=["tracked","applied","interviewing","offers"], funnel=target==null&&FUN.some(k=>num(g[k])!=null)?FUN.filter(k=>num(g[k])!=null).map(k=>`${num(g[k])} ${k}`).join(" · "):"";
+  const EM=[["email_applied","applied"],["email_interviews","interviews"],["email_rejections","rejections"],["email_offers","offers"]].filter(([k])=>num(g[k])!=null);
+  const mail=EM.length?{txt:EM.map(([k,l])=>`${num(g[k])} ${num(g[k])===1?l.replace(/s$/,""):l}`).join(" · "),at:isDate(g.email_scan_at)?g.email_scan_at:null,gap:num(g.email_not_in_tracker)||0}:null;
+  const pend=keys.filter(k=>k!==m&&!/_by$/.test(k)&&!/year/i.test(k)&&num(g[k])==null&&k in g).map(k=>`goal ${tnum(T[k])} ${k.replace(/_/g," ")} · not tracked yet`);
+  const warm=m==="warm_companies"&&num(g.target_companies)!=null&&cur!=null?{of:num(g.target_companies),ident:num(g.identified_companies),open:Math.max(0,num(g.target_companies)-cur-(num(g.identified_companies)||0)-((d&&d.career_warm)||[]).filter(x=>x&&String(x.state).toLowerCase()==="closed").length),
+    closed:((d&&d.career_warm)||[]).filter(x=>x&&String(x.state).toLowerCase()==="closed").length}:null;
+  const dl=[T[m]&&T[m].by,T[m+"_by"],T.by,T.deadline,p.deadline,T.fall_end].find(isDate);
+  const now=new Date(d.updated||Date.now());
+  if(target==null) return {m,label,target,cur,state:cur==null?"nf":"",pace:cur==null?(g.note?String(g.note):"Not reported yet"):"No target set"+(dl?" · deadline "+fmtD(asDay(dl)).replace(/^\w+, /,""):""),dl,sec,funnel,cal,mail,warm,pend};
+  let need=null,rate=null,state="nf",pace=cur==null?(g.note?String(g.note):prog?"Not reported yet":"Waiting on the progress feed"):"";
+  if(cur!=null){
+    if(cur>=target){state="good";pace=weekly?"Done for this week":"Target reached ✓"}
+    else if(weekly){ // Mon-Sun PT week
+      // Use the feed's own week (progress.week.start/end, Mon-Sun PT) when present; else compute Mon-Sun PT.
+      const W=prog&&prog.week, ws=W&&isDate(W.start)?W.start.slice(0,10):null, we=W&&isDate(W.end)?W.end.slice(0,10):null;
+      const dayN=x=>Date.UTC(+x.slice(0,4),+x.slice(5,7)-1,+x.slice(8,10))/dayMs, td=ptDay(now);
+      const frac=ws&&we?Math.min(Math.max((dayN(td)-dayN(ws)+1)/(dayN(we)-dayN(ws)+1),0),1):((new Date(now.toLocaleString("en-US",PT)).getDay()+6)%7+1)/7;
+      state=cur>=Math.floor(target*frac)?"good":"warn"; need=target; rate=cur; pace=`${target-cur} more by Sun`+(state==="good"?" · on track":" · behind");
+    } else if(dl){
+      const wk=Math.max((new Date(asDay(dl))-now)/(7*dayMs),.1); need=(target-cur)/wk;
+      rate=num(g[m+"_this_week"])??num(g[base+"_this_week"]);
+      state=rate==null?"":rate>=need?"good":"warn";
+      pace=(state==="good"&&cur>=0.9*target?`Almost there · ${target-cur} to go by ${fmtD(asDay(dl)).replace(/^\w+, /,"")}`:`needs ${need.toFixed(1)}/wk · ${wk.toFixed(1)} wk left`)+(rate==null?"":` · ${rate} this wk`);
+    } else {state="";pace=`${Math.round(cur/target*100)}% of target`}
+  }
+  const booked=Object.keys(g).filter(k=>/_booked$|_upcoming$/.test(k)&&num(g[k])).map(k=>`${num(g[k])} more booked`);
+  const overdue=booked.concat(Object.keys(g).filter(k=>/^overdue_/.test(k)&&num(g[k])).map(k=>`${num(g[k])} ${k.replace(/^overdue_/,"overdue ").replace(/_/g," ")}`.replace("overdue keep in touch","overdue keep-in-touch")));
+  return {m,label,target,cur,state,pace:(cal?"Calendar blocks, not verified · ":"")+pace,dl,sec,funnel,cal,need,rate,weekly,overdue,mail,warm,pend};
+}
+/* One nudge: goals.nudge if Sinny sets it, else the first behind pillar in priority order (data order). Counts only, never names. */
+/* Today: the 10-second read. Only facts the data actually carries; missing feeds are simply left out. */
+function todayHtml(d){
+  const G=d.goals||{}, P=G.progress||{}, tk=P.tasks||{}, now=Date.now(), today=ptDay(now), rows=[];
+  const tm=t=>new Date(t).toLocaleTimeString("en-US",{...PT,hour:"numeric",minute:"2-digit"});
+  const when=t=>ptDay(t)===today?tm(t):fmtD(t)+" "+tm(t);
+  const row=(k,v,cls)=>rows.push(`<div class="tb-r${cls?" "+cls:""}"><span class="tb-k">${k}</span><span class="tb-v">${v}</span></div>`);
+  // next meeting (in progress counts for 30 min), with its primer
+  const up=(d.meetings||[]).filter(m=>isDate(m.when)&&new Date(m.when)>now-30*60e3).sort((x,y)=>new Date(x.when)-new Date(y.when));
+  if(up.length){const m=up[0], left=up.filter(x=>ptDay(x.when)===today).length;
+    row("Next",`<b>${esc(when(m.when))}</b> ${esc(m.title)}${m.ready!==false?` <a class="prep" href="#m-${esc(encodeURIComponent(m.id))}" aria-label="Prep for ${esc(m.title)}">Prep →</a>`:""}${left>1?` <span class="muted">· ${left-1} more today</span>`:""}`)}
+  else if(d.meetings) row("Next",`<span class="muted">No upcoming meetings</span>`);
+  // due today (from top tasks) + overdue count
+  const due=(tk.top||[]).filter(x=>isDate(x.due)&&ptDay(asDay(x.due))===today);
+  const od=num(tk.overdue), odl=Array.isArray(tk.overdue_items)&&tk.overdue_items.length;
+  if(due.length||od) row("Due today",[...due.slice(0,3).map(x=>/^https:\/\//.test(x.url||"")?link(x.url,x.title):esc(x.title)),
+    due.length>3?`<span class="muted">+${due.length-3} more</span>`:"", od?(odl?`<button type="button" class="linkbtn hot" data-overdue>${od} overdue</button>`:`<span class="hot">${od} overdue</span>`):""].filter(Boolean).join(" · "));
+  // needs
+  const nn=(d.needs||[]).length; if(Array.isArray(d.needs)&&!nn) row("Needs you",`<span class="muted">None waiting ✓</span>`);
+  // focus: goals.nudge, else the first behind pillar (priority order) with its action
+  let n=G.nudge&&G.nudge.text?{text:G.nudge.text,detail:G.nudge.detail||"",url:G.nudge.url||"",i:-1}:null;
+  if(!n) (G.pillars||[]).some((p,i)=>{n=nudgeFor(d,i);return !!n});
+  if(!n) (G.pillars||[]).some((p,i)=>{const r=pillarRead(p,G.progress,d); if(r.need==null||r.weekly||r.state==="good"||!(r.need>0)) return false;
+    n={text:`${pName(p)}: aim for ${Math.max(1,Math.round(r.need))} more this week`,detail:r.warm?`${r.cur} warm of ${r.warm.of} targets · goal ${r.target} · ${r.need.toFixed(1)}/wk needed`:`${r.label} · ${r.cur} of ${r.target} · ${r.need.toFixed(1)}/wk needed`,url:"",i}; return true});
+  if(n) row("Focus",`<b>${n.url?link(n.url,n.text):esc(n.text)}</b>${n.detail?` <span class="muted">· ${esc(n.detail)}</span>`:""}${n.i>=0?` <button type="button" class="code" data-goal="${n.i}" aria-label="Why: open ${esc(pName((G.pillars||[])[n.i]||{}))} details">Why</button>`:""}`,"focus");
+  else if(G.pillars&&G.progress) row("Focus",`<span class="muted">All goals on track</span>`);
+  return rows.length?`<section class="tbrief" aria-label="Today">${rows.join("")}</section>`:"";
+}
+function nudgeFor(d,i){
+  const G=d.goals||{}, p=(G.pillars||[])[i]; if(!p) return null; const r=pillarRead(p,G.progress,d);
+  if(r.state!=="warn"||r.need==null||r.rate==null) return null;
+  const k=Math.max(1,Math.ceil(r.need-r.rate)), verb=/chat|meeting|call/i.test(r.label)?"Book":"Fit in";
+  return {text:`${verb} ${k} ${r.label}${r.weekly?" more by Sunday":" this week"}`,detail:[r.weekly?"":`${r.rate} so far`,...r.overdue].filter(Boolean).join(" · "),i};
+}
+function nudgeHtml(d){
+  const G=d.goals||{}; let n=G.nudge&&G.nudge.text?{text:G.nudge.text,detail:G.nudge.detail||"",url:G.nudge.url||"",i:-1}:null;
+  if(!n) (G.pillars||[]).some((p,i)=>{n=nudgeFor(d,i);return !!n});
+  if(!n) return "";
+  return `<div class="nudge" role="note"><span class="ar" aria-hidden="true">→</span><b>${n.url?link(n.url,n.text):esc(n.text)}</b>${n.detail?`<span class="muted">${esc(n.detail)}</span>`:""}${n.i>=0?`<button type="button" class="code" data-goal="${n.i}" aria-label="Why: open ${esc(pName((G.pillars||[])[n.i]||{}))} details">Why</button>`:""}</div>`;
+}
+const pName=p=>p.name||String(p.key||"").replace(/^./,c=>c.toUpperCase());
+const GS={good:"var(--good)",warn:"var(--warn)",bad:"var(--bad)",nf:"var(--line)","":"var(--core)"};
+function goalsHtml(d){
+  const G=d.goals; if(!G||!Array.isArray(G.pillars)||!G.pillars.length) return "";
+  return `<section class="goals" aria-label="Goals">${G.pillars.map((p,i)=>{const r=pillarRead(p,G.progress,d);
+    const nf=r.cur==null, pct=nf||r.target==null?0:Math.min(r.cur/r.target*100,100);
+    const st={good:"on track",warn:"behind",bad:"well behind",nf:"no feed yet"}[r.state]||"";
+    const al=`${pName(p)}: ${nf?"no feed yet":r.warm?`${r.cur} of ${r.warm.of} target companies warm`:r.target!=null?`${r.cur} of ${r.target} ${r.label}`:`${r.cur} ${r.label}`}${st&&!nf?", "+st:""}. ${r.m?r.pace:""}. Open details`;
+    return `<button type="button" class="goal${nf?" nf":""}" data-goal="${i}" style="--gs:${GS[r.state]??GS[""]}" aria-label="${esc(al)}">
+      <span class="gk">${esc(pName(p))}<span class="gchev" aria-hidden="true">›</span></span>
+      ${p.key==="career"&&ctSummary(d)?(()=>{const todo=(ctSummary(d).match(/(\d+) to apply/)||[])[1], lv=num((((G.progress||{}).career)||{}).live_roles);
+        return todo!=null?`<span class="gm gact"><b>Apply this week: ${todo}</b>${lv!=null?` · ${lv} eligible live`:""}</span>`:""})():""}
+      <span class="gv">${nf?esc(((G.progress||{})[p.key]||{}).status_label||"no feed yet"):r.warm?`${r.cur}<small> warm of ${r.warm.of} targets${r.target!=null?` · goal ${r.target}`:""}</small>`:/_pct$/.test(r.m||"")?`${r.cur}%<small>${r.target!=null&&r.target!==100?` of ${r.target}%`:" done"}</small>`:`${r.cur}<small>${r.target!=null?"/"+r.target+(r.dl&&!r.weekly&&/^Year goal/.test(r.sec||"")?` by ${esc(fmtD(asDay(r.dl)).replace(/^\w+, /,""))}`:""):" "+esc(r.label.replace(/\s*\(.*\)\s*$/,""))}</small>`}</span>
+      ${r.warm?`<span class="gm ctsum">${[r.warm.ident!=null?`${r.warm.ident} named contact${r.warm.ident===1?"":"s"}`:"",`${r.warm.open} to open`,r.warm.closed?`${r.warm.closed} closed, swap pending`:""].filter(Boolean).join(" · ")}</span>`:""}
+      ${r.warm||(nf&&((G.progress||{})[p.key]||{}).status_label&&!r.funnel)?"":`<span class="gm"${r.funnel?' style="white-space:normal"':""}>${r.funnel&&r.mail?'<span class="src">Notion</span> ':""}${esc(r.funnel||(r.m?r.label:(p.goal||"")))}</span>`}
+      ${p.key==="relationships"&&r.m==="coffee_chats_calendar"?(()=>{const g=(G.progress||{}).relationships||{}, t=num(g.coffee_chats_typed), a=num(g.coffee_chats_all_excl_orientation);
+        return t!=null||a!=null?`<span class="gm ctsum">Other counts: ${[t!=null?`Notion typed ${t}`:"",a!=null?`all touchpoints ${a}`:""].filter(Boolean).join(" · ")}</span>`:""})():""}
+      ${p.key==="digigov"&&r.cur!=null?(()=>{const g=(G.progress||{}).digigov||{}, b=num(g.interviews_booked); return `<span class="gm ctsum">${b==null?"none booked yet":`${b} booked`}</span>`})():""}
+      ${p.key==="growth"&&gpTile(d)?`<span class="gm ctsum">${esc(gpTile(d))}</span>`:""}
+
+      ${p.key==="career"&&!liveRoles(G)&&ctSummary(d)?`<span class="gm${r.warm?"":" ctsum"}">${esc(ctSummary(d))}</span>`:""}
+      ${r.mail&&!r.warm?`<span class="gm" style="white-space:normal">${r.mail.gap>0?`<span class="flag">≈${r.mail.gap} not in tracker</span> · `:""}<span class="src">Gmail scan</span> ${esc(r.mail.txt)}</span>`:""}
+      ${r.funnel?"":`<span class="gbar"><i style="width:${pct.toFixed(0)}%"></i></span>`}
+      ${r.sec?`<span class="gm">${esc(r.sec)}</span>`:""}${(r.pend||[]).map(x=>`<span class="gm">${esc(x)}</span>`).join("")}
+      <span class="gp">${esc(r.m?r.pace:"No metric set")}</span></button>`}).join("")}</section>`;
+}
+/* ---------- Decisions the orchestrator made for Nat (data.decisions, newest first) ---------- */
+// "New" = made after Nat's previous visit; the visit time is saved when the page is hidden, so refreshes don't clear it.
+let DEC_OK=false, SEEN_BEFORE=null; try{SEEN_BEFORE=localStorage.getItem("hq.lastVisit")}catch(_){}
+// a glance under 10 s doesn't count as a visit, so new decisions survive a quick app switch
+let VIS_AT=document.visibilityState==="visible"?Date.now():null;
+const markVisit=()=>{if(VIS_AT&&Date.now()-VIS_AT>=10e3){try{localStorage.setItem("hq.lastVisit",new Date().toISOString())}catch(_){}} VIS_AT=null};
+addEventListener("pagehide",markVisit);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")markVisit(); else VIS_AT=Date.now()});
+const decs=d=>(Array.isArray(d&&d.decisions)?d.decisions:[]).filter(x=>x&&x.decision).slice().sort((a,b)=>String(b.at||"").localeCompare(String(a.at||"")));
+const decT=x=>isDate(x.at)?fmtT(x.at)+" PT":"";
+function decRow(x,i,full,isNew){return `<li class="dec"><div class="dec-d">${isNew?'<span class="pill good" style="font-size:10px;padding:0 6px;margin-right:6px;vertical-align:middle">new</span>':""}${esc(x.decision)}</div>${x.why?`<div class="muted dec-w">${esc(x.why)}</div>`:""}
+  <div class="dec-m"><span class="muted">${esc(decT(x))}</span>${/^https:\/\//.test(x.link||"")?` · ${link(x.link,"Details")}`:""} · <button type="button" class="linkbtn" data-reverse="${i}">Reverse?</button></div></li>`}
+function decHtml(d,where){const D=decs(d); if(!D.length) return "";
+  if(where==="fleet") return `<section class="panel" aria-labelledby="dcf"><h2 id="dcf">Decided for you · ${D.length}</h2><ul class="decl">${D.slice(0,6).map((x,i)=>decRow(x,i)).join("")}</ul>${D.length>6?`<button type="button" class="more" data-decall>See all ${D.length}</button>`:""}</section>`;
+  // always show the newest 3 (what the agents decided is never hidden); "new" marks those since the last visit
+  const isNew=x=>!SEEN_BEFORE||(isDate(x.at)&&new Date(x.at)>new Date(SEEN_BEFORE));
+  const nNew=SEEN_BEFORE?D.filter(isNew).length:0, top=D.slice(0,3);
+  const head=`Decided for you${nNew?` · ${nNew} new`:SEEN_BEFORE?` · nothing new since your last visit`:""}`;
+  const list=`<ul class="decl">${top.map(x=>decRow(x,D.indexOf(x),0,SEEN_BEFORE&&isNew(x))).join("")}</ul>
+    <div class="dec-act"><button type="button" class="more" data-decall>See all ${D.length}</button>${nNew?`<button type="button" class="more" data-decok>${DEC_OK?"Marked as seen":"Got it"}</button>`:""}</div>`;
+  if(where==="inner") return `<div class="ov-dec"><h3>${head}</h3>${list}</div>`;
+  return `<section class="panel decs" aria-labelledby="dc"><h2 id="dc">${head}</h2>${list}</section>`}
+/* Watchdog (data.watchdog {fixes_24h, at?, fixes?[{at, what, link?}]}): what the fleet repaired on its own */
+function watchHtml(d){const W=d&&d.watchdog; if(!W||num(W.fixes_24h)==null) return "";
+  const asItem=x=>typeof x==="string"?{what:x.replace(/\s*https?:\/\/\S+/,"").trim()||x,link:(x.match(/https:\/\/\S+/)||[""])[0]}:x&&{what:x.what||x.title||x.action,link:x.link||x.url,at:x.at};
+  const F=(Array.isArray(W.fixes)?W.fixes:Array.isArray(W.actions)?W.actions:[]).map(asItem).filter(x=>x&&x.what).slice(0,10), n=num(W.fixes_24h);
+  const bad=[].concat((W.failed_runs||[]).map(asItem).map(x=>x&&{...x,kind:"failed run"}),(W.stuck||[]).map(asItem).map(x=>x&&{...x,kind:"stuck"})).filter(x=>x&&x.what);
+  const it=x=>`<li>${/^https:\/\//.test(x.link||"")?link(x.link,x.what):esc(x.what)}${x.kind?` <span class="muted">· ${x.kind}</span>`:""}${isDate(x.at)?` <span class="muted">· ${esc(fmtT(x.at))}</span>`:""}</li>`;
+  const fw=num(W.fixes_watchdog_24h), fo=num(W.fixes_fleet_ops_24h), split=fw!=null&&fo!=null&&n?` (${fw} watchdog · ${fo} Fleet Ops)`:"";
+  const line=`Self-healing: ${n} fix${n===1?"":"es"} in the last 24h${split}${bad.length?` · <span style="color:var(--warn)">${bad.length} need${bad.length===1?"s":""} a look</span>`:""}${isDate(W.at)?` · checked ${esc(fmtT(W.at))} PT`:""}`;
+  return F.length||bad.length?`<details class="closed wdog"><summary class="muted"><span>${line}</span></summary><ul class="lst2">${bad.map(it).join("")}${F.map(it).join("")}</ul></details>`
+    :`<p class="muted wdog">${line}</p>`}
+/* "Since you last looked": one line of counts, each a jump to where the new things are */
+function sinceHtml(d){if(!SEEN_BEFORE) return ""; const t0=new Date(SEEN_BEFORE), nw=x=>x&&isDate(x)&&new Date(x)>t0;
+  const D=decs(d).filter(x=>nw(x.at)).length, R=(d.research||[]).filter(x=>x&&nw(x.at)).length;
+  const C=(((d.gh_issues||{}).items)||[]).filter(i=>i.state==="closed"&&nw(i.closed)).length;
+  const M=((d.overnight||{}).merged_prs||[]).length&&nw((d.overnight||{}).since)?(d.overnight.merged_prs||[]).length:0;
+  const N=(d.needs||[]).filter(n=>nw(n.since||n.at||n.created)).length;
+  const bits=[D?`<button type="button" class="linkbtn" data-go="ov">${D} decision${D===1?"":"s"}</button>`:"",N?`<button type="button" class="linkbtn" data-go="n">${N} new need${N===1?"":"s"}</button>`:"",R?`<button type="button" class="linkbtn" data-go="rl">${R} research file${R===1?"":"s"}</button>`:"",
+    M?`<span>${M} PR${M===1?"":"s"} merged</span>`:"",C?`<button type="button" class="linkbtn" data-go="is" data-tab="fleet">${C} issue${C===1?"":"s"} closed</button>`:""].filter(Boolean);
+  return bits.length?`<p class="since"><span class="muted">Since you last looked (${esc(fmtT(SEEN_BEFORE))}):</span> ${bits.join(" · ")}</p>`:""}
+function mergeHtml(d){const Q=(Array.isArray(d.merge_queue)?d.merge_queue:[]).filter(x=>x&&x.repo&&num(x.number)!=null&&/^https:\/\/github\.com\//.test(x.url||""));
+  if(!Q.length) return "";
+  const ok=x=>x.reviewed===true&&String(x.checks).toLowerCase()==="green"&&x.draft!==true&&!x.waiting;
+  const why=x=>[x.waiting?String(x.waiting).slice(0,60):"",x.draft===true?"draft":"",x.reviewed!==true?"needs Sinny's review":"",String(x.checks).toLowerCase()==="pending"?"checks running":String(x.checks).toLowerCase()==="failing"?"checks failing":String(x.checks).toLowerCase()!=="green"?"checks unknown":""].filter(Boolean).join(" · ");
+  const R=Q.filter(ok), W=Q.filter(x=>!ok(x));
+  const row=x=>`<li class="mq"><div><b>${esc(x.title||"PR")}</b><div class="muted" style="font-size:12px">${esc(x.repo)} #${num(x.number)}${isDate(x.since)?` · ${esc(fmtT(x.since))}`:""}</div></div>${ok(x)?`<a class="openlink" href="${esc(x.url)}#partial-pull-merging" target="_blank" rel="noopener">Merge on GitHub ↗</a>`:`<span class="muted" style="font-size:12px">${esc(why(x))}</span>`}</li>`;
+  if(!R.length) return `<section class="panel" aria-labelledby="mq" style="margin-bottom:16px"><details class="closed"><summary><h2 id="mq" style="display:inline;margin:0">Merge queue · ${W.length} waiting</h2></summary><ul class="lst mql">${W.map(row).join("")}</ul></details></section>`;
+  return `<section class="panel" aria-labelledby="mq" style="margin-bottom:16px"><h2 id="mq">Ready to merge · ${R.length}</h2>
+    ${R.length?`<p class="muted" style="margin:-4px 0 8px;font-size:13px">Sinny reviewed, checks green. Opens the PR; tap Squash and merge, then Confirm. Or comment /merge.</p><ul class="lst mql">${R.map(row).join("")}</ul>`:`<p class="muted" style="margin:0">Nothing ready yet.</p>`}
+    ${W.length?`<details class="closed"><summary class="muted">Waiting · ${W.length}</summary><ul class="lst mql">${W.map(row).join("")}</ul></details>`:""}</section>`}
+function nightHtml(d){const ov=overnightHtml(d); if(!ov) return decHtml(d);
+  const inner=decHtml(d,"inner"); return inner?ov.replace(/<\/section>$/,inner+"</section>"):ov}
+function decAllPop(){const D=decs(DATA); openPop("Decided for you",`<p class="muted" style="margin:0;font-size:13px">Calls the orchestrator made on your behalf, newest first. Tap Reverse? to ask for one to be undone.</p><ul class="decl">${D.map((x,i)=>decRow(x,i,1)).join("")}</ul>`);
+  document.querySelectorAll("#pop [data-reverse]").forEach(b=>b.addEventListener("click",()=>reversePop(+b.dataset.reverse)))}
+function reversePop(i){const x=decs(DATA)[i]; if(!x) return; const t=("HQ idea: Reverse: "+x.decision).slice(0,230);
+  openPop("Reverse this decision?",`<p style="margin:0"><b>${esc(x.decision)}</b></p>${x.why?`<p class="muted" style="margin:0;font-size:13px">Why it was made: ${esc(x.why)}</p>`:""}
+    <label for="rv-t" class="muted" style="font-size:13px">Anything to add? (optional)</label><textarea id="rv-t" maxlength="300" placeholder="e.g. keep it for career, undo for the rest"></textarea>
+    <div class="act"><button type="button" class="pri" id="rv-go">${ONE?"Ask to reverse":"Open issue on GitHub"}</button></div>
+    <p class="muted" style="margin:0;font-size:12px">Files "${esc(t)}" in ops-bus; the supervisor acts on it next round.</p>`);
+  document.getElementById("rv-go").addEventListener("click",()=>{const note=document.getElementById("rv-t").value.trim(), body=(note?note+"\n\n":"")+`Decision made ${x.at||""}: ${x.decision}${x.why?"\nWhy: "+x.why:""}\n\n(from HQ "Decided for you")`;
+    const go=document.getElementById("rv-go");
+    if(ONE&&!go.dataset.fallback){go.disabled=true;go.textContent="Sending…";fileIssue(t,body).then(j=>{document.getElementById("pop").close();toast("Sent ✓"+(j&&j.number?" (#"+j.number+")":""))})
+      .catch(()=>{go.disabled=false;go.dataset.fallback="1";go.textContent="Finish on GitHub ↗";toast("Send failed. Tap again to finish on GitHub")});return}
+    const u=ISSUE_NEW+"?title="+encodeURIComponent(t)+"&body="+encodeURIComponent(body);
+    if(openExt(u)){document.getElementById("pop").close();toast("Opened ✓ tap Submit on GitHub")}else{try{navigator.clipboard.writeText(u)}catch(_){} toast("Couldn't open GitHub. Copied the issue link")}})}
+/* ---------- Overnight brief (data.overnight), shown on Life until 11:00 PT the morning after ---------- */
+function overnightHtml(d){const O=d&&d.overnight; if(!O) return "";
+  const hr=+new Date().toLocaleString("en-US",{...PT,hour:"numeric",hour12:false}), since=isDate(O.since)?new Date(O.since):null;
+  if(!(hr>=4&&hr<11)||(since&&Date.now()-since>30*3600e3)) return "";
+  const H=(O.highlights||[]).filter(Boolean).slice(0,3), M=(O.merged_prs||[]).filter(Boolean), R=(O.research_done||[]).filter(x=>x&&(x.title||typeof x==="string"));
+  const A=O.agents&&typeof O.agents==="object"?Object.entries(O.agents).filter(([,v])=>num(v)!=null||(v&&num(v.done)!=null)):[];
+  const pr=x=>typeof x==="string"?(/^https:\/\//.test(x)?link(x,x.replace(/^https:\/\/github\.com\/[^/]+\//,"").replace("/pull/"," #")):esc(x)):(/^https:\/\//.test(x.url||"")?link(x.url,x.title||x.url):esc(x.title||""));
+  const rs=x=>typeof x==="string"?esc(x):(/^https:\/\//.test(x.link||x.url||"")?link(x.link||x.url,x.title):esc(x.title));
+  if(!H.length&&!M.length&&!R.length&&!A.length) return "";
+  return `<section class="panel overnight" aria-labelledby="ov"><h2 id="ov">Overnight${since?` · since ${esc(fmtT(O.since))} PT`:""}</h2>
+    ${H.length?`<ul class="ovh">${H.map(x=>{const t=typeof x==="string"?x:x.text||"", m=t.match(/\s*\(((?:research|goals|hq)\/[\w./-]+\.md)\)/);
+      return `<li>${m?`${esc(t.replace(m[0],""))} <a href="https://github.com/zuzivian/ops-bus/blob/main/${esc(m[1])}" target="_blank" rel="noopener">Read ↗</a>`:esc(t)}</li>`}).join("")}</ul>`:""}
+    <div class="ovg">${M.length?`<details><summary>${M.length} PR${M.length===1?"":"s"} merged</summary><ul class="lst2">${M.map(x=>`<li>${pr(x)}</li>`).join("")}</ul></details>`:""}
+    ${R.length?`<details><summary>${R.length} must-read${R.length===1?"":"s"}${num(O.research_files)!=null&&num(O.research_files)>R.length?` <span class="muted">of ${num(O.research_files)} new files</span>`:""}</summary><ul class="lst2">${R.map(x=>`<li>${rs(x)}</li>`).join("")}</ul></details>`:""}
+    ${A.length?`<div class="muted ova">${A.map(([k,v])=>`${esc(k.replace(/^./,c=>c.toUpperCase()))} ${num(v)??num(v.done)}`).join(" · ")} tasks done</div>`:""}</div></section>`}
+/* ---------- Research library (data.research) ---------- */
+let RFILT=null; try{RFILT=localStorage.getItem("hq.rfilt")}catch(_){}
+function researchHtml(d){const R=(Array.isArray(d&&d.research)?d.research:[]).filter(x=>x&&x.title).slice().sort((a,b)=>String(b.at||"").localeCompare(String(a.at||"")));
+  if(!R.length) return "";
+  const AL={"digitizing-government":"Digigov"}, aLab=a=>AL[a]||a.replace(/-/g," ").replace(/^./,c=>c.toUpperCase());
+  const areas=[...new Set(R.map(x=>String(x.area||"other").toLowerCase()))].sort((a,b)=>R.filter(x=>String(x.area||"other").toLowerCase()===b).length-R.filter(x=>String(x.area||"other").toLowerCase()===a).length), f=areas.includes(RFILT)?RFILT:null, L=f?R.filter(x=>String(x.area||"other").toLowerCase()===f):R;
+  const url=x=>/^https:\/\//.test(x.url||x.path||"")?(x.url||x.path):x.path?"https://github.com/zuzivian/ops-bus/blob/main/"+String(x.path).replace(/^\.?\//,""):"";
+  const chip=(k,l,n)=>`<button type="button" class="chip${(k||null)===f?" on":""}" data-rf="${esc(k||"")}" aria-pressed="${(k||null)===f}">${esc(l)} <span class="muted">${n}</span></button>`;
+  return `<section class="panel" aria-labelledby="rl"><h2 id="rl">Research library · ${R.length}</h2>
+    ${R.length>8?`<input type="search" id="rq" class="rq" placeholder="Search ${R.length} files" aria-label="Search research titles" autocomplete="off">`:""}
+    <div class="chips" role="group" aria-label="Filter by area">${chip("","All",R.length)}${areas.map(a=>chip(a,aLab(a),R.filter(x=>String(x.area||"other").toLowerCase()===a).length)).join("")}</div>
+    <ul class="rlist" id="rlist">${L.map((x,i)=>`<li data-t="${esc(String(x.title).toLowerCase())}"${i>=3?' class="later"':""}>${SEEN_BEFORE&&isDate(x.at)&&new Date(x.at)>new Date(SEEN_BEFORE)?'<span class="pill good" style="font-size:10px;padding:0 6px;justify-self:start">new</span>':""}${url(x)?`<a href="${esc(url(x))}" target="_blank" rel="noopener">${esc(x.title)} ↗</a>`:esc(x.title)}<span class="muted">${esc([x.area&&!f?aLab(String(x.area).toLowerCase()):"",x.by,isDate(x.at)?fmtD(x.at).replace(/^\w+, /,""):""].filter(Boolean).join(" · "))}</span></li>`).join("")}</ul>
+    ${L.length>3?`<button type="button" class="more" data-rmore>Show all ${L.length}</button>`:""}</section>`}
+/* Growth plan (goals.growth_plan): week-by-week Exponent plan. Current week = latest start <= today (PT). */
+function gpNow(d){const P=d&&d.goals&&d.goals.growth_plan; if(!P||!Array.isArray(P.weeks)||!P.weeks.length) return null;
+  const W=P.weeks.filter(w=>w&&/^\d{4}-\d{2}-\d{2}/.test(w.start||"")).sort((a,b)=>a.start.localeCompare(b.start)); if(!W.length) return null;
+  const today=ptDay(Date.now()), past=W.filter(w=>w.start.slice(0,10)<=today), cur=past.length?past[past.length-1]:W[0], next=!past.length;
+  const hrs=w=>{const n=parseFloat(String(w.hours||"").replace(/[^0-9.]/g,""));return isFinite(n)?n:null};
+  const upto=W.slice(0,W.indexOf(cur)+1).map(hrs), tot=num(P.total_hours)??W.map(hrs).reduce((a,b)=>a+(b||0),0);
+  const planPct=!next&&tot?Math.round(upto.reduce((a,b)=>a+(b||0),0)/tot*100):0, last=past.length&&W.indexOf(cur)===W.length-1&&today>W[W.length-1].start;
+  return {P,W,cur,i:W.indexOf(cur),next,h:hrs(cur),planPct,tot,last}}
+function gpTile(d){const g=gpNow(d); if(!g) return "";
+  const pct=num((((d.goals||{}).progress||{}).growth||{}).exponent_progress_pct);
+  return (g.next?`Week 1 of ${g.W.length} starts ${fmtD(asDay(g.cur.start))}`:`Week ${g.i+1} of ${g.W.length}`)+(g.h!=null?` · ${g.h}h ${g.next?"planned":"this week"}`:"")
+    +(pct!=null&&!g.next?` · ${pct}% done vs ${g.planPct}% planned`:"")}
+function gpHtml(d){const g=gpNow(d); if(!g) return "";
+  const nz=v=>v&&!/^none$/i.test(String(v).trim()), c=v=>esc(cell(v));
+  const wk=w=>`<div class="gp-w"><div><b>Week ${esc(w.week)}</b> <span class="muted">· ${c(w.dates)}${w.hours?` · ${c(w.hours)}h`:""}</span></div>
+    ${w.focus?`<div><span class="gp-k">Focus</span> ${c(w.focus)}</div>`:""}${w.spoken?`<div><span class="gp-k">Say it out loud</span> ${c(w.spoken)}</div>`:""}
+    ${nz(w.mocks)?`<div><span class="gp-k">Mocks</span> ${c(w.mocks)}</div>`:""}</div>`;
+  return `<div class="ct gp"><h4>${g.next?"Next week":g.last?"Final week":"This week"} · week ${g.i+1} of ${g.W.length}</h4>${wk(g.cur)}
+    <details><summary>All ${g.W.length} weeks · ${g.tot}h${g.P.lessons_est?` · ${esc(g.P.lessons_est)} lessons`:""}</summary>${g.W.map(wk).join("")}
+    ${/^https:\/\//.test(g.P.source||"")?`<p style="margin:6px 0 0;font-size:13px">${link(g.P.source,"Full plan")}</p>`:""}</details></div>`}
+/* Career targets: Pinny's internship-timeline research, one row per company. Cells may carry markdown/URLs; strip them. */
+const yes=v=>v===true||/^(true|y|yes|1)$/i.test(String(v==null?"":v).trim());
+const cell=v=>String(v==null?"":v).replace(/\[([^\]]+)\]\([^)]*\)/g,"$1").replace(/\*\*|__|`/g,"").replace(/https?:\/\/\S+/g,"").replace(/\s*\[(pattern|est\.?)\]/gi,"").replace(/\s+/g," ").replace(/[\s;:,(]+$/,"").trim();
+const ctNo=r=>{const e=String(r.eligible||"").toLowerCase().trim(); return e==="no"||/\bclosed\b/.test(e)};
+const ctRows=d=>{const C=d&&d.career_targets; return C&&Array.isArray(C.rows)?C.rows.filter(r=>r&&r.company):null};
+function liveRoles(G){const c=((G||{}).progress||{}).career||{}, n=num(c.live_roles); return n==null?"":`${c.live_roles_label||"Eligible PM/TPM roles live"}: ${n}`}
+const ctOT=R=>R.some(r=>r&&r.on_target!=null&&r.on_target!=="")?r=>yes(r.on_target):()=>true;
+function ctSummary(d){const R=ctRows(d); if(!R||!R.length) return "";
+  const ot=ctOT(R), open=R.filter(r=>yes(r.is_posted)&&!ctNo(r)&&ot(r)), todo=open.filter(r=>!yes(r.applied)).length;
+  return `${open.length} live posting${open.length===1?"":"s"} open to you · ${todo} to apply`}
+function ctHtml(d){const R=ctRows(d); if(!R||!R.length) return "";
+  const co=r=>/^https:\/\//.test(r.url||"")?`<a href="${esc(r.url)}" target="_blank" rel="noopener"><b>${esc(cell(r.company))}</b> ↗</a>`:`<b>${esc(cell(r.company))}</b>`;
+  const roles=r=>{const x=cell(r.roles); return x&&!/^(none|no )/i.test(x)?`<div class="ct-roles">${esc(x)}</div>`:""};
+  const ot=ctOT(R), offT=R.filter(r=>yes(r.is_posted)&&!yes(r.applied)&&!ctNo(r)&&!ot(r));
+  const apply=R.filter(r=>yes(r.is_posted)&&!yes(r.applied)&&!ctNo(r)&&ot(r)), prog=R.filter(r=>yes(r.applied)&&!ctNo(r)),
+    watch=R.filter(r=>!yes(r.is_posted)&&!yes(r.applied)&&!ctNo(r)), closed=R.filter(ctNo);
+  const rej=r=>/reject|declin|withdr/i.test(String(r.status||""));
+  const shut=prog.filter(rej); prog.splice(0,prog.length,...prog.filter(r=>!rej(r)));
+  const li=(r,extra)=>`<li${extra&&extra.dim?' class="dim"':""}>${co(r)}${roles(r)}${extra&&extra.body||""}</li>`;
+  const A=apply.map(r=>{const e=cell(r.eligibility);
+    return li(r,{body:e&&!/^not stated/i.test(e)?`<div class="ct-el clamp muted" title="${esc(e)}">Check eligibility: ${esc(e)}</div>`:`<div class="ct-el muted">Eligibility not stated</div>`})}).join("");
+  const N=closed.map(r=>{const e=cell(r.eligibility); return li(r,{body:e?`<div class="ct-el clamp muted" title="${esc(e)}">${esc(e)}</div>`:""})}).join("");
+  const Pg=prog.map(r=>li(r,{dim:rej(r),body:`<div class="ct-el muted">${esc(cell(r.status)||"applied")}</div>`})).join("");
+  const W=watch.map(r=>li(r,{body:cell(r.window)?`<div class="ct-el muted">Typically opens: ${esc(cell(r.window))}</div>`:""})).join("");
+  const src=d.career_targets.source?`<p class="muted" style="margin:0;font-size:12px">From ${esc(String(d.career_targets.source).split("/").pop())} (${R.length} companies researched).</p>`:"";
+  // warm paths: data.career_warm[{company, state: warm|identified|none, contacts?, note?}]; matched by company name
+  const CW=Array.isArray(d.career_warm)&&d.career_warm.some(x=>x&&x.company)?d.career_warm.filter(x=>x&&x.company):null, key=x=>cell(x).toLowerCase().replace(/[^a-z0-9]/g,"");
+  const wOf=r=>CW&&CW.find(x=>key(x.company)===key(r.company));
+  const WS={warm:["good","warm"],identified:["warn","contact named"],none:["bad","no path yet"],closed:["","closed · swap pending"]};
+  const wp=CW&&apply.length?`<h4>Warm paths for this week's applications</h4><ul class="ctl wp">${apply.map(r=>{const x=wOf(r), st0=x&&WS[String(x.state||"").toLowerCase()]||WS.none;
+      const ba=x&&x.bridge_action?String(x.bridge_action):"", br=!ba&&x&&(String(x.note||"").match(/bridges? via ([^.;]+)/i)||[])[1];
+      const st=st0===WS.none&&ba?["warn","next step"]:st0===WS.none&&br?["warn","next: ask via "+String(br).slice(0,40)]:st0;
+      return `<li${st0===WS.closed?' class="dim"':""}><b>${esc(cell(r.company))}</b> <span class="pill ${st[0]}">${st[1]}</span>${ba&&st0!==WS.closed?`<div class="ct-el"><b>Next:</b> ${esc(ba)}</div>`:""}${x&&num(x.contacts)?` <span class="muted">· ${num(x.contacts)} contact${num(x.contacts)===1?"":"s"}</span>`:""}${x&&x.note?`<div class="ct-el muted">${esc(cell(x.note))}</div>`:""}</li>`}).join("")}</ul>`:"";
+  const ord={warm:0,identified:1,none:2,closed:3};
+  const allW=CW&&CW.length>apply.length?`<details><summary>All warm paths · ${CW.length}</summary><ul class="ctl wp">${CW.slice().sort((a,b)=>(ord[String(a.state).toLowerCase()]??2)-(ord[String(b.state).toLowerCase()]??2)).map(x=>{const k=String(x.state||"").toLowerCase(), st=WS[k]||WS.none, ba=x.bridge_action&&k!=="closed"?String(x.bridge_action):"";
+      return `<li${k==="closed"?' class="dim"':""}><b>${esc(cell(x.company))}</b> <span class="pill ${st[0]}">${ba&&k==="none"?"next step":st[1]}</span>${num(x.contacts)?` <span class="muted">· ${num(x.contacts)} contact${num(x.contacts)===1?"":"s"}</span>`:""}${ba?`<div class="ct-el"><b>Next:</b> ${esc(ba)}</div>`:""}</li>`}).join("")}</ul></details>`:"";
+  return `<div class="ct">${wp}${allW}
+    <h4>Apply this week · ${apply.length}</h4>${apply.length?`<ul class="ctl">${A}</ul>`:`<p class="muted" style="margin:0">Every live posting open to you has an application ✓</p>`}
+    <details><summary>In progress · ${prog.length}</summary><ul class="ctl">${Pg}</ul></details>
+    ${offT.length?`<details><summary>Posted, no PM/TPM role · ${offT.length}</summary><ul class="ctl">${offT.map(r=>li(r,{body:r.reason?`<div class="ct-el clamp muted">${esc(cell(r.reason))}</div>`:""})).join("")}</ul></details>`:""}
+    <details><summary>Watch (not posted yet) · ${watch.length}</summary><ul class="ctl">${W}</ul></details>
+    ${shut.length?`<details><summary>Closed · ${shut.length}</summary><ul class="ctl nopen">${shut.map(r=>li(r,{body:`<div class="ct-el muted">${esc(cell(r.status))}</div>`})).join("")}</ul></details>`:""}
+    ${closed.length?`<details><summary>Not open to you · ${closed.length}</summary><ul class="ctl nopen">${N}</ul></details>`:""}${src}</div>`}
+/* Pillar popup = "what to do next": where you are, the pace you need, a projection, the last weeks, related counts. */
+function histBars(H,key,opt){
+  const rows=(H||[]).filter(h=>h&&isDate(h.week_start)&&num(h[key])!=null).slice(-6);
+  if(rows.length<2) return "";
+  const vals=rows.map(h=>num(h[key])), cum=vals.every((v,i)=>!i||v>=vals[i-1])&&vals[vals.length-1]>vals[0]&&opt.cumulative!==false;
+  const W=260,H2=64,P=4,bw=(W-P*2)/rows.length, max=Math.max(1,...vals,opt.ref||0);
+  const y=v=>H2-14-(v/max)*(H2-28);
+  const bars=rows.map((h,i)=>{const v=vals[i],x=P+i*bw+3,yy=y(v);
+    return `<rect x="${x.toFixed(1)}" y="${yy.toFixed(1)}" width="${(bw-6).toFixed(1)}" height="${(H2-14-yy).toFixed(1)}" rx="2" fill="${opt.col}" opacity="${i===rows.length-1?1:.55}"><title>${esc(fmtD(asDay(h.week_start)))}: ${v}</title></rect>
+      <text x="${(x+(bw-6)/2).toFixed(1)}" y="${(yy-3).toFixed(1)}" text-anchor="middle" font-size="10" fill="var(--ink-2)">${v}</text>
+      <text x="${(x+(bw-6)/2).toFixed(1)}" y="${H2-2}" text-anchor="middle" font-size="9" fill="var(--ink-2)">${opt.curWeek&&i===rows.length-1&&h.week_start.slice(0,10)===opt.curWeek?"this wk":esc(new Date(asDay(h.week_start)).toLocaleDateString("en-US",{...PT,month:"numeric",day:"numeric"}))}</text>`}).join("");
+  const ref=opt.ref&&!cum?`<line x1="${P}" x2="${W-P}" y1="${y(opt.ref).toFixed(1)}" y2="${y(opt.ref).toFixed(1)}" stroke="var(--ink-2)" stroke-dasharray="3 3"/><text x="${W-P}" y="${(y(opt.ref)-3).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--ink-2)">${esc(opt.refLabel||"")}</text>`:"";
+  const cw=opt.curWeek&&rows[rows.length-1].week_start.slice(0,10)===opt.curWeek, full=cw?vals.slice(0,-1):vals;
+  const avg=cum||!full.length?null:full.reduce((a,b)=>a+b,0)/full.length;
+  return {nfull:full.length,cw,svg:`<svg viewBox="0 0 ${W} ${H2}" style="width:100%;height:auto;max-height:90px" role="img" aria-label="${esc(opt.title+": "+vals.join(", "))}">${bars}${ref}</svg>`,avg,cum,vals};
+}
+function goalPop(i){
+  const G=DATA.goals, p=G.pillars[i], r=pillarRead(p,G.progress,DATA), T=p.targets||{};
+  const g=(G.progress&&G.progress[p.key])||null, H=G.progress&&G.progress.history;
+  const tv=v=>v&&typeof v==="object"?(v.target??v.value)+(v.by?` by ${v.by}`:""):v;
+  const col=GS[r.state]&&r.state!=="nf"?GS[r.state]:"var(--core)";
+  // history metric: career history counts applications sent (incl. withdrawn/rejected), so label it that way
+  const hk=r.m, hTitle=p.key==="career"&&hk==="applied"?"applications sent":(r.label||hk);
+  const ref=r.weekly?r.target:(r.need!=null?r.need:null);
+  const PW=G.progress&&G.progress.week&&isDate(G.progress.week.start)?G.progress.week.start.slice(0,10):null;
+  const hb=hk?histBars(H,hk,{col,title:hTitle,ref,curWeek:PW,refLabel:ref!=null?(r.weekly?"target "+ref:"need "+ref.toFixed(1)+"/wk"):""}):"";
+  // projection from the recent weekly average (deadline metrics only)
+  let proj="";
+  if(hb&&hb.avg!=null&&r.dl&&r.target!=null&&r.cur!=null&&!r.weekly){
+    const wk=Math.max((new Date(asDay(r.dl))-Date.now())/(7*dayMs),0), end=Math.round(r.cur+hb.avg*wk);
+    proj=`At your ${hb.nfull}-week average of ${hb.avg.toFixed(1)}/wk you'd reach <b>${end}</b> of ${r.target} by ${esc(fmtD(asDay(r.dl)))}${end>=r.target?" ✓":` · <span style="color:var(--warn)">${r.target-end} short</span>`}.`;
+  }
+  const sec=(r.sec?[r.sec]:[]).concat(r.overdue||[]);
+  const CS=g&&Array.isArray(g.coffee_chats_week_series)&&g.coffee_chats_week_series.length>1?g.coffee_chats_week_series:null;
+  const cc=p.key==="relationships"&&!hb?(CS?histBars(CS,"coffee_chats",{col,title:"coffee chats per week",curWeek:PW,cumulative:false}):H?histBars(H,"coffee_chats_all",{col,title:"coffee chats per week, all sources",curWeek:PW,cumulative:false}):""):"";
+  const ccT=CS?"coffee chats":"coffee chats · all sources";
+  const k2=p.key==="relationships"&&H?histBars(H,"classmates_logged",{col:"var(--core)",title:"classmates logged",curWeek:PW}):"";
+  const nd=nudgeFor(DATA,i);
+  openPop(pName(p),`${p.goal?`<p style="margin:0">${esc(p.goal)}</p>`:""}
+    ${p.previous&&(p.previous.result||p.previous.goal)?`<p class="muted" style="margin:0;font-size:13px">Previous: ${esc(p.previous.result||p.previous.goal)}${/done|✓/i.test(p.previous.result||"")?"":""}</p>`:""}
+    ${p.key==="career"&&liveRoles(G)?`<p><b>${esc(liveRoles(G))}</b>${((G.progress||{}).career||{}).live_roles_note?`<br><span class="muted" style="font-size:13px">${esc((String(G.progress.career.live_roles_note).match(/:\s*([^.]+)\./)||[,""])[1])}</span>`:""}</p>`:""}
+    ${p.key==="career"?ctHtml(DATA):""}${p.key==="growth"?gpHtml(DATA):""}
+    ${(()=>{const RS=(DATA.research||[]).filter(x=>x&&x.title&&String(x.area||"").toLowerCase()===p.key).sort((a,b)=>String(b.at||"").localeCompare(String(a.at||"")));
+      const u=x=>/^https:\/\//.test(x.url||"")?x.url:x.path?"https://github.com/zuzivian/ops-bus/blob/main/"+String(x.path).replace(/^\.?\//,""):"";
+      return RS.length?`<div><b>Research for this goal · ${RS.length}</b><ul class="lst2">${RS.slice(0,6).map(x=>`<li>${u(x)?link(u(x),x.title):esc(x.title)}</li>`).join("")}</ul></div>`:""})()}
+    ${r.m?`<div class="tt"><span class="mono" style="font-size:22px;font-weight:600">${r.cur==null?esc(((G.progress||{})[p.key]||{}).status_label||"—"):esc(/_pct$/.test(r.m||"")?r.cur+"%":r.target!=null?r.cur+" / "+r.target:String(r.cur))}</span><span class="muted" style="align-self:center">${esc(r.label)}</span></div>
+      <div style="color:${col};font-weight:600;font-size:14px">${esc(r.pace)}</div>`:""}
+    ${nd?`<div class="nudge" style="margin:0"><span class="ar" aria-hidden="true">→</span><b>${esc(nd.text)}</b>${nd.detail?`<span class="muted">${esc(nd.detail)}</span>`:""}</div>`:""}
+    ${proj?`<p style="margin:0;font-size:14px">${proj}</p>`:""}
+    ${hb?`<div><div class="muted" style="font-size:12px;margin-bottom:2px">${esc(hTitle)} · ${hb.cum?"running total":"per week"}, last ${hb.vals.length} weeks${hb.cw?" (this week so far)":""}</div>${hb.svg}</div>`:""}
+    ${cc?`<div><div class="muted" style="font-size:12px;margin-bottom:2px">${ccT} · per week, last ${cc.vals.length} weeks${cc.cw?" (this week so far)":""}</div>${cc.svg}</div>`:""}
+    ${k2?`<div><div class="muted" style="font-size:12px;margin-bottom:2px">classmates logged · running total (+${k2.vals[k2.vals.length-1]-k2.vals[0]} in ${k2.vals.length} wks)</div>${k2.svg}</div>`:""}
+    ${p.key==="career"&&g&&num(g.applied_total)!=null?`<div class="muted" style="font-size:13px">${num(g.applied_total)} applications sent${g.applied_total_note?` · ${esc(g.applied_total_note)}`:""}</div>`:""}
+    ${r.funnel?`<div><b>Funnel</b> <span class="muted">(Notion tracker)</span>: ${esc(r.funnel)}</div>`:""}
+    ${r.mail?`<div><b>Inbox</b> <span class="muted">(Gmail scan${r.mail.at?", "+esc(fmtT(r.mail.at))+" PT":""})</span>: ${esc(r.mail.txt)}${r.mail.gap>0?`<div class="flag" style="margin-top:4px">≈${r.mail.gap} applications in email aren't in the Notion tracker yet</div>`:""}</div>`:""}
+    ${sec.length?`<ul class="facts">${sec.map(x=>`<li>${/overdue keep-in-touch/.test(x)&&kitRows().length?`<button type="button" class="linkbtn hot" data-kit>${esc(x)} ›</button>`:esc(x)}</li>`).join("")}</ul>`:""}
+    <details><summary class="muted" style="cursor:pointer;font-size:13px">Targets</summary><dl class="kv" style="margin-top:6px">${Object.entries(T).map(([k,v])=>`<dt>${esc(k.replace(/_/g," "))}</dt><dd class="mono">${esc(tv(v))}</dd>`).join("")}</dl></details>
+    ${g?Object.keys(g).filter(k=>k==="note"||/_note$/.test(k)).filter(k=>typeof g[k]==="string"&&g[k]&&g[k]!==r.pace&&!(k==="applied_total_note"&&p.key==="career")).map(k=>`<p class="muted" style="margin:0;font-size:13px">${esc(g[k])}</p>`).join(""):""}
+    ${!G.progress?`<p class="muted" style="margin:0;font-size:13px">Progress numbers arrive once the Notion feed is connected.</p>`:""}`);
+}
+function weekHtml(d){
+  const G=d.goals||{}, P=G.progress||{}, now=new Date(d.updated||Date.now()), end=now.getTime()+14*dayMs, today=ptDay(now);
+  const items=[];
+  (G.dates||[]).forEach(x=>isDate(x.date)&&items.push({t:asDay(x.date),title:x.title,k:"date",url:x.url}));
+  ((P.career&&P.career.next_deadlines)||[]).forEach(x=>isDate(x.date)&&items.push({t:asDay(x.date),title:x.title,k:"career",url:x.url}));
+  (d.meetings||[]).forEach(m=>isDate(m.when)&&items.push({t:m.when,title:m.title,k:"meeting",href:"#m-"+encodeURIComponent(m.id),time:true}));
+  const tk=P.tasks||{};
+  const OD=Array.isArray(tk.overdue_items)&&tk.overdue_items.length?tk.overdue_items:null;
+  (tk.top||[]).filter(x=>!(OD&&isDate(x.due)&&ptDay(asDay(x.due))<today)).forEach(x=>items.push({t:isDate(x.due)?asDay(x.due):null,title:x.title,k:"task",url:x.url}));
+  (OD||[]).forEach(x=>x&&x.title&&items.push({t:isDate(x.due)?asDay(x.due):null,title:x.title,k:"task",url:x.url}));
+  const inWin=items.filter(x=>!x.t||(new Date(x.t)<=end&&(ptDay(x.t)>=today||x.k==="task")));
+  inWin.sort((a,b)=>(a.t?new Date(a.t):Infinity)-(b.t?new Date(b.t):Infinity));
+  const seen=new Set(), list=inWin.filter(x=>{const key=(x.t||"").slice(0,10)+"|"+x.title;if(seen.has(key))return false;seen.add(key);return true}).slice(0,14);
+  // by default: overdue, today and tomorrow; the rest of the fortnight is one tap away
+  const tmEnd=ptDay(now.getTime()+dayMs), isLater=x=>x.t&&ptDay(x.t)>tmEnd, wk7=null, nLater=list.filter(isLater).length;
+  const sub=[num(tk.due_this_week)!=null?`${(tk.top||[]).length&&(tk.top||[]).length<tk.due_this_week?`top ${(tk.top||[]).length} of `:""}${tk.due_this_week} Notion tasks due this week`:"",num(tk.overdue)?(Array.isArray(tk.overdue_items)&&tk.overdue_items.length?`<button type="button" class="linkbtn od" data-overdue>${tk.overdue} overdue</button>`:`<span class="od">${tk.overdue} overdue</span>`):""].filter(Boolean).join(" · ");
+  // one header per PT day ("Today", "Tomorrow", "Sun 11/15"; past-due tasks under "Overdue"); rows carry only the time
+  const tmrw=ptDay(now.getTime()+dayMs), dayKey=x=>!x.t?"none":ptDay(x.t)<today?"overdue":ptDay(x.t);
+  const dayLab=k=>k==="none"?"No date":k==="overdue"?"Overdue":k===today?"Today":k===tmrw?"Tomorrow":new Date(k+"T12:00:00-08:00").toLocaleDateString("en-US",{...PT,weekday:"short",month:"numeric",day:"numeric"}).replace(",","");
+  let lastK=null;
+  const row=x=>{const k=dayKey(x), later=isLater(x), hd=k!==lastK?`<li class="dh${k==="today"||k===today?" today":""}${k==="overdue"?" od":""}${later?" later":""}">${esc(dayLab(k))}</li>`:""; lastK=k;
+    const ttl=x.href?`<a href="${esc(x.href)}">${esc(x.title)}</a>`:(typeof x.url==="string"&&/^https:\/\//.test(x.url))?link(x.url,x.title):esc(x.title);
+    return `${hd}<li${later?' class="later"':""}><span class="d${!x.time&&x.t?" muted":""}">${x.time?esc(new Date(x.t).toLocaleTimeString("en-US",{...PT,hour:"numeric",minute:"2-digit"})):x.t?"all day":""}</span><span>${ttl}</span><span class="k">${x.k}</span></li>`};
+  return `<section class="panel" aria-labelledby="wk"><h2 id="wk">Coming up${sub?` · <span style="text-transform:none;letter-spacing:0;font-weight:500">${sub}</span>`:""}</h2>
+    ${list.length?`<ul class="wk" id="wkl">${list.map(row).join("")}</ul>${nLater?`<button type="button" class="more" data-more>Show the next two weeks (${nLater} more)</button>`:""}`:`<div class="empty">Nothing dated in the next two weeks.</div>`}
+    ${!G.progress?`<p class="muted" style="margin:8px 0 0;font-size:12px">Tasks and career deadlines appear once the Notion feed lands.</p>`
+      :P.career&&Array.isArray(P.career.next_deadlines)&&!P.career.next_deadlines.length?`<p class="muted" style="margin:8px 0 0;font-size:13px">No dated career deadlines in the next 3 weeks.</p>`:""}</section>`;
+}
+/* ---------- Fleet alignment: one sentence + actual-vs-plan bar, then what the career-core build is doing. ---------- */
+const TIER_ORDER=["career-core","career-surface","growth","maintenance"];
+function tierOfProject(d,name){const b=(d.board||[]).find(x=>x.project===name);if(b&&b.tier)return b.tier;const s=(d.spend||[]).find(x=>x.project===name);return s&&s.tier}
+function alignHtml(d,part){
+  const plan={}; Object.entries(d.allocation||{}).forEach(([k,v])=>{const n=num(v); if(n!=null) plan[k]=n>1?n/100:n});
+  const byPillar=plan.career!=null&&plan["career-core"]==null, T2P={"career-core":"career","career-surface":"career",maintenance:"fleet_hq"};
+  const tot={}; (d.spend||[]).forEach(s=>{if(num(s.usd)!=null){const k=byPillar?(s.pillar||T2P[s.tier]||s.tier):s.tier; tot[k]=(tot[k]||0)+s.usd}});
+  // prefer done-task counts by pillar (all agents) over the spend ledger (Sinny sessions only)
+  const AG=(d.agents||[]).filter(a=>a&&a.done_7d_by_pillar&&typeof a.done_7d_by_pillar==="object"), byTask=byPillar&&AG.length>0;
+  const spendTot={...tot}, spendSum=Object.values(spendTot).reduce((a,b)=>a+b,0);
+  if(byTask){Object.keys(tot).forEach(k=>delete tot[k]); AG.forEach(a=>Object.entries(a.done_7d_by_pillar).forEach(([k,v])=>{if(num(v)) tot[k]=(tot[k]||0)+num(v)}))}
+  const sum=Object.values(tot).reduce((a,b)=>a+b,0);
+  const ORD=byPillar?["career","digigov","growth","relationships","fleet_hq"]:TIER_ORDER, CK=byPillar?"career":"career-core";
+  const tiers=[...ORD,...Object.keys({...plan,...tot}).filter(k=>!ORD.includes(k))].filter(k=>plan[k]!=null||tot[k]);
+  let say;
+  if(!sum) say=`<p class="say muted">No fleet spend recorded this week yet.</p>`;
+  else{
+    const a=(tot[CK]||0)/sum, pl=plan[CK];
+    const top=Object.entries(tot).sort((x,y)=>y[1]-x[1])[0], topProj=byTask?null:(d.spend||[]).filter(s=>(byPillar?(s.pillar||T2P[s.tier]||s.tier):s.tier)===top[0]).sort((x,y)=>y.usd-x.usd)[0];
+    const gap=pl!=null?a-pl:0, col=pl==null?"inherit":gap>=-0.1?"var(--good)":gap>=-0.25?"var(--warn)":"var(--bad)";
+    say=`<p class="say">${byPillar?"Career":"Career-core"} got <b style="color:${col}">${Math.round(a*100)}%</b> of ${byTask?`fleet work this week (${tot[CK]||0} of ${sum} done tasks)`:byPillar?"Sinny-session spend this week":"fleet effort this week"}${pl!=null?` vs a <b>${Math.round(pl*100)}%</b> plan`:""}.`+
+      (pl!=null&&gap<-0.1&&top[0]!==CK?` Most went to ${esc(TIER_LABEL[top[0]]||top[0])} (${Math.round(top[1]/sum*100)}%${topProj?`, mostly ${esc(topProj.project)}`:""}).`:pl!=null?" On plan.":"")+`</p>`+(byTask?`<p class="muted" style="margin:0;font-size:12px">Counted from tasks every agent finished in 7 days, sorted by goal from title and path.${spendSum?` Sinny-session spend: career ${Math.round((spendTot[CK]||0)/spendSum*100)}%.`:""}</p>`:byPillar?`<p class="muted" style="margin:0;font-size:12px">Spend covers Sinny sessions only; Pinny and Binny research runs free and isn't counted, so career and digigov read low.</p>`:"");
+  }
+  const seg=(src,den)=>tiers.map(k=>{const v=(src[k]||0)/(den||1);return v>0?`<i style="width:${(v*100).toFixed(1)}%;background:${TIER_COLOR[k]||"var(--maint)"}" title="${esc((TIER_LABEL[k]||k)+" "+Math.round(v*100)+"%")}"></i>`:""}).join("");
+  const psum=Object.values(plan).reduce((a,b)=>a+(num(b)||0),0);
+  const legend=`<div class="legend">${tiers.map(k=>`<span><i class="dot" style="background:${TIER_COLOR[k]||"var(--maint)"}"></i>${esc(TIER_LABEL[k]||k)} ${sum?Math.round((tot[k]||0)/sum*100):0}%${plan[k]!=null?` <span class="muted">/ ${Math.round(plan[k]*100)}%</span>`:""}</span>`).join("")}</div>`;
+  // Career build: career-core workers, or any task starting "Career"
+  const ws=(d.workers||[]).filter(w=>w&&typeof w==="object"&&(tierOfProject(d,w.project)==="career-core"||/^career/i.test(w.task||"")));
+  const rank=w=>{const s=String(w.status||"").toLowerCase();return s==="working"||s==="running"?0:s.startsWith("queued")?1:s.startsWith("done")?3:2};
+  const live=ws.filter(w=>rank(w)<3).sort((a,b)=>rank(a)-rank(b)), done=ws.filter(w=>rank(w)===3).length;
+  const rowT=w=>{const t=w.project+" · "+w.task, u=w.url||(/^https?:/.test(w.session||"")?w.session:"");return u?link(u,t):esc(t)};
+  const CB=(d.goals&&Array.isArray(d.goals.career_build))?d.goals.career_build.filter(x=>x&&(x.title||x.step)):null;
+  const cbPill=st=>{const s=String(st||"").toLowerCase();return s.startsWith("blocked")?["bad","blocked"]:s==="working"?["warn","building"]:s==="review"?["warn","review"]:s==="done"?["good","done"]:["","queued"]};
+  const build=CB&&CB.length?`<ul class="build" aria-label="Career build">${CB.map(x=>{const [c,l]=cbPill(x.status);const why=/^blocked:\s*/i.test(x.status||"")?String(x.status).replace(/^blocked:\s*/i,""):"";
+      return `<li><span class="pill ${c}">${esc(l)}</span><span class="nm">${x.step?`<b class="mono">${esc(x.step)}</b> `:""}${x.url?link(x.url,x.title||"Step "+x.step):esc(x.title||"")}${why?` <span class="muted">· ${esc(why)}</span>`:""}</span></li>`}).join("")}</ul>`
+    :`<ul class="build" aria-label="Career build">${live.length?live.slice(0,4).map(w=>{const r=rank(w);
+      return `<li><span class="pill ${r===0?"warn":r===1?"":"good"}">${esc(r===0?"building":String(w.status||"—"))}</span><span class="nm">${rowT(w)}</span></li>`}).join("")
+      :`<li><span class="pill bad">none</span><span class="nm muted">No career-core build running${plan["career-core"]!=null?" while the plan wants "+Math.round(plan["career-core"]*100)+"%":""}.</span></li>`}
+      ${done?`<li><span></span><span class="muted" style="font-size:13px">${done} career task${done===1?"":"s"} done this week</span></li>`:""}</ul>`;
+  if(part==="build"){
+    if(CB&&CB.length&&CB.every(x=>/^done/i.test(String(x.status||"")))) return ""; if(0) return `<p class="muted cbdone">Career build: ${CB.map(x=>esc(x.step||"")).filter(Boolean).join(", ")} done ✓</p>`;
+    return `<section class="panel align" aria-labelledby="cb"><h2 id="cb">Career build</h2>${build}</section>`;}
+  return `<section class="panel align" aria-labelledby="al"><h2 id="al">Fleet effort vs plan</h2>${say}
+    <div class="stack" role="img" aria-label="Actual effort by tier">${seg(tot,sum)}</div><div class="lab"><span>this week</span></div>
+    <div class="stack plan" role="img" aria-label="Planned effort by tier">${seg(plan,psum)}</div><div class="lab"><span>plan</span></div>
+    ${legend}</section>`;
+}
+function fleetSummary(d,u,state){
+  const ws=(d.workers||[]).filter(w=>w&&typeof w==="object"), run=ws.filter(w=>/^(working|running)$/i.test(w.status||w.state||"")).length;
+  const iss=(d.issues||[]).length, hi=(d.issues||[]).filter(i=>i.severity==="critical"||i.severity==="high").length;
+  return `<span class="h">Fleet</span><span class="muted">${run} working</span><span class="muted">fuel ${Math.round(u*100)}% <span class="pill ${state[0]}" style="font-size:10px;padding:1px 7px">${state[1]}</span></span>`+
+    `<span class="${hi?"":"muted"}"${hi?' style="color:var(--bad)"':""}>${iss} issue${iss===1?"":"s"}${hi?` · ${hi} high`:""}</span>${d.cost&&num(d.cost.total)!=null?`<span class="muted">$${d.cost.total.toFixed(0)} API-eq</span>`:""}<span class="chev" aria-hidden="true">›</span>`;
+}
+function needTier(n){const t=String(n&&n.tier||"").toLowerCase(); if(t==="now"||t==="week"||t==="later") return t;
+  if(!isDate(n&&n.due)) return "later"; const h=(new Date(asDay(n.due))-Date.now())/36e5; return h<=48?"now":h<=24*7?"week":"later"}
+function curTab(){const h=location.hash.slice(1);
+  if(h==="life"||h==="fleet"){try{localStorage.setItem("hq.tab",h)}catch(_){} return h}
+  try{return localStorage.getItem("hq.tab")==="fleet"?"fleet":"life"}catch(_){return "life"}}
+function tabsHtml(d,tab,u,state){
+  const nn=(d.needs||[]).filter(n=>needTier(n)==="now").length, hi=(d.issues||[]).filter(i=>i.severity==="critical"||i.severity==="high").length;
+  const t=(k,l,extra)=>`<a role="tab" href="#${k}" class="tab${tab===k?" on":""}" aria-selected="${tab===k}">${l}${extra||""}</a>`;
+  return `<nav class="tabs" role="tablist" aria-label="HQ views">${t("life","Life")}${t("fleet","Fleet",`<span class="tx">${Math.round(u*100)}% used${hi?` · <b class="hibadge">${hi} high</b>`:""}</span>`)}
+    ${nn?`<button type="button" class="nb" data-goneeds>${nn} need${nn===1?"s":""} you</button>`:""}</nav>`;
+}
+function home(d){
+  const PC=cfgOf(d), u=d.week.u7, t=PC?target((new Date(d.week.reset)-new Date(d.updated))/3600e3,PC):null, gap=t==null?0:u-t;
+  const state=t==null?["","No pace line"]:gap>=-0.03?["good","On pace"]:gap>=-0.10?["warn","Behind"]:["bad","Well behind"];
+  /* Needs: reading the context (title, "Open ↗", preview) never files an answer. An option that is really a
+     link ("Open …", "View …", "Review …") renders as a link to n.url, not as an answer button. */
+  const isOpen=o=>/^(open|view|see|read|review)\b/i.test(String(o||""))&&!/\b(later|skip|done|no)\b/i.test(String(o||""));
+  /* A detail that bundles several items ("repo #N: …" PR lists, or "a; b; c") reads as a list; PR refs link to GitHub. */
+  const detailHtml=t=>{t=String(t||""); const PR=/(?:^|\s)([A-Za-z0-9._-]+) #(\d+): /g, hits=[...t.matchAll(PR)];
+    if(hits.length>=2){const intro=t.slice(0,hits[0].index).trim(), items=hits.map((h,k)=>({repo:h[1],n:h[2],txt:t.slice(h.index+h[0].length,k+1<hits.length?hits[k+1].index:t.length).trim()}));
+      return `${intro?`<div class="muted">${esc(intro)}</div>`:""}<ul class="dlist">${items.map(x=>`<li><a href="https://github.com/zuzivian/${esc(x.repo)}/pull/${esc(x.n)}" target="_blank" rel="noopener">${esc(x.repo)} #${esc(x.n)} ↗</a> <span class="muted">${esc(x.txt)}</span></li>`).join("")}</ul>`}
+    const parts=t.split(/;\s+/).filter(Boolean);
+    return parts.length>=3?`<ul class="dlist">${parts.map(x=>`<li class="muted">${esc(x)}</li>`).join("")}</ul>`:`<div class="muted">${esc(t)}</div>`};
+  const card=(n,i,cls)=>{
+    const opts=(n.options||["Done","Later"]), ans=n.url?opts.filter(o=>!isOpen(o)):opts, openOpt=n.url?opts.find(isOpen):null;
+    const dh=detailHtml(n.detail||n.note||""), prList=dh.includes("/pull/")&&/github\.com\/[^/]+\/[^/]+\/pull\//.test(n.url||"");
+    const pl=n.prep_link, plU=pl?(/^https:\/\//.test(pl)?pl:/^[\w./-]+\.md$/.test(pl)?"https://github.com/zuzivian/ops-bus/blob/main/"+pl.replace(/^\.?\//,""):""):"";
+    const prepL=plU?`<a class="openlink" href="${esc(plU)}" target="_blank" rel="noopener">Prep ↗</a>`:"";
+    const openL=prepL+(n.url&&!prList?`<a class="openlink" href="${esc(needUrl(n.url))}" target="_blank" rel="noopener">${esc(openOpt||(cls?"Open plan":"Open"))} ↗</a>`:"");
+    const prev=n.preview?`<a class="openlink" href="${esc(n.preview)}" target="_blank" rel="noopener">▶ Preview</a>`:"";
+    return `<div class="card need${cls?" "+cls:""}">${cls?`<div class="wp-k">Week plan · your call</div>`:""}<div class="t">${cls?"":i+1+". "}${esc(n.title)}${(()=>{const m=num(n.est_min), dd=isDate(n.due)?(ptDay(asDay(n.due))<ptDay(Date.now())?"overdue":ptDay(asDay(n.due))===ptDay(Date.now())?"today":"by "+fmtD(asDay(n.due)).replace(/^\w+, /,"")):""; const t=[m!=null?m+" min":"",dd].filter(Boolean).join(", "); return t?` <span class="muted" style="font-weight:400;font-size:13px">(${t})</span>`:""})()}${n.from?` <span class="pill" style="font-size:10px;padding:1px 7px;vertical-align:middle">${esc(n.from)}</span>`:""}</div>${(()=>{const c=n.consequence||n.risk||(/no more approval|standing (approval|authority)|auto-?merge|without asking|permission|always allow/i.test(String(n.title)+" "+String(n.detail||""))?"Changes standing authority for the fleet. Read the details before Done.":"");return c?`<div class="conseq">⚠ ${esc(c)}</div>`:""})()}${dh}
+     ${openL||prev?`<div class="reply">${openL}${prev}</div>`:""}
+     ${n.recommend&&isDate(n.auto_apply_at)?`<p class="muted" style="margin:6px 0 0;font-size:13px">Default: <b>${esc(n.recommend)}</b> · auto-applies ${esc(fmtT(n.auto_apply_at))}${n.reversible===true?" (reversible)":""}</p>`:""}
+     ${ans.length?`<div class="reply" aria-label="Answers"><span class="muted" style="font-size:12px">Answer:</span>${ans.map(o=>`<button class="code" data-copy="${esc((i+1)+" → "+o)}" data-title="${esc(n.title)}">${esc(o)}${o===n.recommend?" ★":""}</button>`).join("")}</div>`:""}</div>`};
+  const dow=new Date(new Date().toLocaleString("en-US",PT)).getDay(), wpI=dow===0||dow===1?d.needs.findIndex(n=>n.project==="weekly-review"):-1;
+  const wplan=wpI>=0?`<section class="wplan" aria-label="Week plan"${d.needs.length===1?' id="n"':""}>${card(d.needs[wpI],wpI,"wp")}</section>`:"";
+  const waiting=d.needs_waiting||[];
+  const rest=d.needs.map((n,i)=>[n,i]).filter(([,i])=>i!==wpI);
+  const waitHtml=waiting.length?`<p class="muted" style="margin:10px 0 0;font-size:13px">Waiting on agents (you're done): ${waiting.map(n=>esc(String(n.title).slice(0,60))).join(" · ")}</p>`:"";
+  const TN=rest.filter(([n])=>needTier(n)==="now"), TW=rest.filter(([n])=>needTier(n)==="week"), TL=rest.filter(([n])=>needTier(n)==="later");
+  const NCAP=4, dueTxt=n=>{if(!isDate(n.due)) return ""; const k=ptDay(asDay(n.due)), t=ptDay(Date.now()); return k<t?"overdue":k===t?"today":fmtD(asDay(n.due)).replace(/^(\w+), /,"$1 ")};
+  const autoL=n=>n.recommend&&isDate(n.auto_apply_at)?`<div class="muted" style="font-size:12px">Default: ${esc(n.recommend)} · auto-applies ${esc(fmtT(n.auto_apply_at))}</div>`:"";
+  const mini=([n,i],grouped)=>`<li class="nmini"><span>${n.url&&/^https:\/\//.test(needUrl(n.url))?`<a href="${esc(needUrl(n.url))}" target="_blank" rel="noopener">${esc(n.title)}</a>`:esc(n.title)}${autoL(n)}</span><span class="muted">${esc([grouped&&!/overdue|today/.test(dueTxt(n))?"":dueTxt(n),num(n.est_min)!=null?num(n.est_min)+" min":""].filter(Boolean).join(" · "))}</span></li>`;
+  const needs=(TN.length?TN.slice(0,NCAP).map(([n,i])=>card(n,i)).join("")+(TN.length>NCAP?`<div class="needs-more" hidden>${TN.slice(NCAP).map(([n,i])=>card(n,i)).join("")}</div><button type="button" class="more needs-all" data-needsall>${TN.length-NCAP} more for now</button>`:"")
+      :`<div class="empty">Nothing needs you right now${rest.length?"":" ✓"}.</div>`)
+    +(TW.length?`<details class="closed ntier"><summary>This week · ${TW.length}</summary><ul class="lst nminil">${(()=>{const dk=([n])=>isDate(n.due)?ptDay(asDay(n.due)):"~", G={};
+      TW.forEach(r=>(G[dk(r)]=G[dk(r)]||[]).push(r));
+      return Object.keys(G).sort().map(k=>`<li class="nday">${k==="~"?"No date":esc(fmtD(asDay(k)).replace(/^(\w+), /,"$1 "))}</li>${G[k].map(r=>mini(r,1)).join("")}`).join("")})()}</ul></details>`:"")
+    +((()=>{const NR=(d.triage||{}).notion_ready===true||d.notion_later===true, nL=TL.length+(NR?(num(d.in_notion)||0):0); if(!nL) return "";
+      return NR?`<p class="muted ntier" style="margin:8px 0 0">${(d.triage||{}).notion_url&&/^https:\/\//.test(d.triage.notion_url)?link(d.triage.notion_url,nL+" later · in Notion"):`${nL} later · in Notion`}</p>`
+      :`<details class="closed ntier"><summary class="muted">${TL.length} later, moving to Notion</summary><ul class="lst nminil">${TL.map(mini).join("")}</ul></details>`})());
+  const crew=d.workers.length?d.workers.map(w=>`<div class="row"><span class="name">${esc(w.project)} <span class="muted">· ${esc(w.task)}</span></span>${(()=>{const st=String(w.status||w.state||"").toLowerCase();return `<span class="pill ${st==="working"||st==="running"?"warn":st.includes("block")?"bad":st.startsWith("queued")?"":"good"}">${esc(w.status||w.state||"—")}</span>`})()}</div>`).join(""):`<div class="empty">No workers running.</div>`;
+  const maxc=Math.max(...d.spend.map(s=>s.usd),1);
+  const spend=d.spend.map(s=>`<div class="row"><span class="name">${esc(PALIAS[s.project]&&(d.board||[]).some(b=>b.project===PALIAS[s.project])?PALIAS[s.project]:s.project)}</span><span class="mono muted">$${s.usd.toFixed(0)}</span></div><div class="hbar"><i style="width:${(s.usd/maxc*100).toFixed(1)}%;background:${TIER_COLOR[s.tier]||"var(--maint)"}"></i></div>`).join("");
+  const tab=curTab();
+  const life=`${sinceHtml(d)}${wplan}${todayHtml(d)}
+   ${rest.length?`<section class="panel" aria-labelledby="n" style="margin-bottom:16px"><h2 id="n">Needs you now · ${TN.length}${(()=>{const m=TN.reduce((t,[n])=>t+(num(n.est_min)||0),0), all=TN.every(([n])=>num(n.est_min)!=null); return m?` <span class="muted" style="font-size:12px;letter-spacing:0;text-transform:none">· ${all?"":"≥"}${m} min</span>`:""})()}${TW.length+TL.length?` <span class="muted" style="font-size:12px;letter-spacing:0;text-transform:none">· ${rest.length} in all</span>`:""}</h2>
+     ${rest.some(([n])=>!Array.isArray(n.options)||n.options.length)?`<p class="muted" style="margin:-4px 0 10px;font-size:13px"><span class="long">${ONE?"Tap an answer to send it to the autopilot in one tap. ":"Tap an answer to open a prefilled GitHub issue; Submit there sends it to the autopilot. "}</span><span class="short">${ONE?"One tap sends. ":"Opens GitHub → tap Submit. "}</span>★ = my pick.</p><p class="muted keyhint">Keys: <kbd>j</kbd>/<kbd>k</kbd> pick a need · <kbd>1</kbd>–<kbd>9</kbd> choose an answer, <kbd>Enter</kbd> sends · <kbd>?</kbd> all shortcuts</p>`:""}
+     <div class="cards">${needs}</div>${waitHtml}
+</section>`:""}
+   ${mergeHtml(d)}${nightHtml(d)}${goalsHtml(d)}<div style="margin-bottom:16px">${weekHtml(d)}</div>${researchHtml(d)}${alignHtml(d,"build")}`;
+  const fleet=()=>`${watchHtml(d)}${agentsHtml(d.agents,fpOf(d))}${decHtml(d,"fleet")?`<div style="margin:16px 0">${decHtml(d,"fleet")}</div>`:""}${alignHtml(d)}<div class="grid" style="margin-top:16px">
+   <section class="panel" aria-labelledby="g"><h2 id="g">Weekly fuel · Stanford account</h2>
+     <div class="gauge-top"><div class="big mono">${Math.round(u*100)}% <span class="muted" style="font-size:14px;font-weight:600">used</span></div>
+       <div class="stat"><span class="muted">Target now</span><b>${t==null?"—":Math.round(t*100)+"%"}</b></div>
+       <div class="stat"><span class="muted">Resets</span><b>${esc(fmtT(d.week.reset))}</b></div>
+       <span class="pill ${state[0]}" title="Pace = share of the weekly limit the plan expects used by now">${gap>0.01?`${Math.round(gap*100)} pts over pace`:gap<-0.01?`${Math.round(-gap*100)} pts under pace`:state[1]}</span></div>
+     ${typeof d.week.u5==="number"&&isFinite(d.week.u5)?`<div class="muted" style="margin-top:10px" title="Claude also limits usage per rolling 5-hour window. The pacer stops starting new workers above the ceiling.">Short-term limit (rolling 5 h) · ${Math.round(d.week.u5*100)}% used${typeof d.pacing.five_hour_ceiling==="number"?` · new workers pause above ${Math.round(d.pacing.five_hour_ceiling*100)}%`:""}</div>
+     <div class="bar5"><i style="width:${Math.min(d.week.u5*100,100)}%"></i></div>`:`<div class="muted" style="margin-top:10px">Short-term limit (rolling 5 h) · <i>no reading yet</i></div>`}
+     ${PC?gaugeChart(d):""}${proChart(d)}</section>
+   <section class="panel" aria-labelledby="pb"><h2 id="pb">Projects</h2>${boardHtml(d.board)}</section>
+   <section class="panel" aria-labelledby="is"><h2 id="is">Fleet issues · ${(d.issues||[]).length}</h2>${issuesHtml(d.issues)}
+     ${(d.chinny_queue||[]).length?`<details class="closed"><summary class="muted">Chinny's queue · ${d.chinny_queue.length}</summary>${d.chinny_queue.map(i=>`<div class="row"><a href="${esc(i.url)}" target="_blank" rel="noopener" class="name">${esc(i.title.replace(/^Codex:\s*/,""))}</a><span class="muted" style="font-size:12px;white-space:nowrap">${esc(i.detail.split(" · ")[0])}</span></div>`).join("")}</details>`:""}
+     ${(d.issues_closed||[]).length?`<details class="closed"><summary class="muted">Closed this week · ${d.issues_closed.length}</summary>${d.issues_closed.map(i=>`<div class="row"><a href="${esc(i.url)}" target="_blank" rel="noopener" class="name"><s>${esc(i.title)}</s></a><span class="muted" style="font-size:12px">${esc(i.detail.split(" · ").pop())}</span></div>`).join("")}</details>`:""}
+     <p class="muted" style="margin:8px 0 0;font-size:12px">${d.issues_at?`Live from GitHub (${esc(((d.gh_issues||{}).repos||[]).map(r=>r.split("/").pop()).join(", "))}) · read ${esc(fmtT(d.issues_at))} PT. Synced every 15 min; a closed issue leaves on the next sync.`:`From the supervisor's list${d.updated?` · ${esc(fmtT(d.updated))} PT`:""}. Not yet mirrored from GitHub.`}</p></section>
+   ${(()=>{const orphan=(d.workers||[]).filter(w=>!(d.board||[]).some(b=>sameProj(w.project,b.project)||(b.project==="temasek-1360"&&String(w.project).startsWith("temasek"))));
+     return orphan.length?`<section class="panel" aria-labelledby="cw"><h2 id="cw">Other work · ${orphan.length}</h2><div class="rows">${orphan.map(w=>`<div class="row"><span class="name">${esc(w.project)} <span class="muted">· ${esc(w.task)}</span></span><span class="pill">${esc(w.status||w.state||"—")}</span></div>`).join("")}</div><p class="muted" style="margin:8px 0 0;font-size:12px">Work on each project is in its card above; tap a card for details.</p></section>`:""})()}
+   <section class="panel" aria-labelledby="c"><h2 id="c">API-equivalent cost · this week · $${(d.cost&&d.cost.total||0).toFixed(0)}</h2>
+     ${costHtml(d.cost,d.updated)}
+     <p class="muted" style="margin:10px 0 0;font-size:13px">What these tokens would cost at API list prices (Claude Code's own estimate per session). Plan usage, not a bill.</p></section>
+   <section class="panel" aria-labelledby="s"><h2 id="s">Burn by project · sessions started this week</h2><div class="rows">${spend}</div></section>
+  </div>`;
+  // Fleet is built only when shown, and a Fleet data gap can't take Life down with it
+  let body=life; if(tab==="fleet"){try{body=fleet()}catch(e){body=`<p class="empty">The Fleet view hit a data gap (${esc(String(e&&e.message||e))}). Life still works.</p>`}}
+  return tabsHtml(d,tab,u,state)+body;
+}
+
+function primer(m){
+  if(!m) return `<a class="back" href="#life">← Back</a><p class="empty">That brief isn't ready yet. Briefs refresh daily for the next 72 hours.</p>`;
+  const people=(m.people||[]).map(p=>`<div class="card"><div class="t">${p.notion_url&&/^https:\/\//.test(p.notion_url)?link(p.notion_url,p.name):esc(p.name)}</div><div>${esc(p.who||[p.role,p.org].filter(Boolean).join(" · "))}</div>
+     ${p.last_time?`<div><b>Last time:</b> ${esc(p.last_time)}</div>`:""}
+     ${p.open_loops?.length?`<div><b>Open loops</b><ul>${p.open_loops.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>`:""}
+     ${p.their_world?`<div><b>Their world:</b> ${esc(p.their_world)}</div>`:""}
+     ${p.pipeline?`<div><b>Pipeline:</b> ${esc(p.pipeline)}</div>`:""}
+     ${p.rapport?.length?`<div><b>Rapport:</b> ${p.rapport.map(esc).join(" · ")}</div>`:""}</div>`).join("");
+  return `<div class="primer"><a class="back" href="#life">← Back to HQ</a>
+    <div><h1 style="font-size:26px">${esc(m.title)}</h1><div class="muted mono">${esc(fmtT(m.when))}${m.location?" · "+esc(m.location):""}</div>
+    ${m.thin_record?`<span class="pill warn" style="margin-top:6px">Thin record</span>`:""} <span class="pill good" style="margin-top:6px">Not from Notion</span></div>
+    <section class="panel">${people||'<p class="empty">Nothing recorded.</p>'}</section>
+    <section class="panel"><h2>${(m.questions||[]).length===1?"1 question":(m.questions||[]).length+" questions"}</h2><ol>${(m.questions||[]).map(q=>`<li>${esc(q)}</li>`).join("")}</ol></section>
+    ${m.flags?.length?`<section class="panel"><h2>Flags</h2><ul>${m.flags.map(f=>`<li>${esc(f)}</li>`).join("")}</ul></section>`:""}
+    <p class="muted" style="font-size:12px">Sources: ${(m.sources||[]).map(esc).join(" · ")||"none"}</p></div>`;
+}
+
+/* Stale-data warning: the feed writes about every 15 minutes, so >30 min old means something upstream is stuck. */
+function staleHtml(d){
+  const t=new Date(d&&d.updated); if(isNaN(t)) return "";
+  const min=Math.round((Date.now()-t)/60000); if(min<=30) return "";
+  const age=min<120?min+" min":Math.round(min/60)+" h";
+  return `<div class="stalebar${min>180?" bad":""}" role="status"><b>Data is ${age} old.</b><span>The numbers below may be out of date; the feed normally updates every 15 min.</span></div>`;
+}
+function render(){
+  const v=document.getElementById("view"); if(!DATA){v.innerHTML='<p class="empty">Loading the latest status…</p>';return}
+  document.getElementById("updated").textContent="Updated "+(matchMedia("(max-width:640px)").matches&&ptDay(DATA.updated)===ptDay(Date.now())?new Date(DATA.updated).toLocaleTimeString("en-US",{...PT,hour:"numeric",minute:"2-digit"}):fmtT(DATA.updated)+" PT");
+  const h=location.hash.slice(1);
+  v.innerHTML=staleHtml(DATA)+(h.startsWith("m-")?primer((DATA.meetings||[]).find(m=>"m-"+m.id===(()=>{try{return decodeURIComponent(h)}catch(_){return h}})())):home(DATA));
+  v.querySelectorAll(".agent").forEach(el=>el.addEventListener("click",e=>{
+    if(!matchMedia("(max-width:640px)").matches||e.target.closest("a")) return;
+    const t=el.querySelector(".tip"); if(t) openPop(el.querySelector(".nm").firstChild.textContent.trim(), t.innerHTML);
+  }));
+  v.querySelectorAll("[data-iss]").forEach(b=>b.addEventListener("click",()=>issuePop(DATA.issues[+b.dataset.iss])));
+  v.querySelectorAll("[data-goneeds]").forEach(b=>b.addEventListener("click",e=>{e.preventDefault();
+    const go=()=>{const n=document.getElementById("n");if(n)n.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth",block:"start"})};
+    if(curTab()!=="life"){location.hash="life";setTimeout(go,30)}else go()}));
+  v.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>{const go=()=>{const e=document.getElementById(b.dataset.go);if(e)e.scrollIntoView({block:"start",behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth"})};
+    if(b.dataset.tab&&curTab()!==b.dataset.tab){location.hash=b.dataset.tab;setTimeout(go,60)}else go()}));
+  v.querySelectorAll("[data-decall]").forEach(b=>b.addEventListener("click",decAllPop));
+  v.querySelectorAll("[data-reverse]").forEach(b=>b.addEventListener("click",()=>reversePop(+b.dataset.reverse)));
+  v.querySelectorAll("[data-decok]").forEach(b=>b.addEventListener("click",()=>{SEEN_BEFORE=new Date().toISOString();DEC_OK=true;try{localStorage.setItem("hq.lastVisit",SEEN_BEFORE)}catch(_){} render()}));
+  v.querySelectorAll("[data-rf]").forEach(b=>b.addEventListener("click",()=>{RFILT=b.dataset.rf||null;try{RFILT?localStorage.setItem("hq.rfilt",RFILT):localStorage.removeItem("hq.rfilt")}catch(_){} const y=scrollY;render();scrollTo(0,y)}));
+  const rq=v.querySelector("#rq"); if(rq) rq.addEventListener("input",()=>{const q=rq.value.trim().toLowerCase(), l=document.getElementById("rlist"); if(!l) return;
+    l.classList.toggle("all",!!q); const mb=v.querySelector("[data-rmore]"); if(mb) mb.style.display=q?"none":"";
+    let n=0; l.querySelectorAll("li").forEach(li=>{const hit=!q||li.dataset.t.includes(q); li.style.display=hit?"":"none"; if(hit)n++});
+    let e=document.getElementById("rq-n"); if(!e){e=document.createElement("p");e.id="rq-n";e.className="muted";e.style.cssText="margin:6px 0 0;font-size:12px";l.after(e)} e.textContent=q?`${n} match${n===1?"":"es"}`:""});
+  v.querySelectorAll("[data-rmore]").forEach(b=>b.addEventListener("click",()=>{const l=document.getElementById("rlist");if(l)l.classList.add("all");b.remove()}));
+  v.querySelectorAll("[data-overdue]").forEach(b=>b.addEventListener("click",overduePop));
+  v.querySelectorAll("[data-needsall]").forEach(b=>b.addEventListener("click",()=>{const m=v.querySelector(".needs-more");if(m)m.hidden=false;b.remove()}));
+  v.querySelectorAll("[data-more]").forEach(b=>b.addEventListener("click",()=>{const l=document.getElementById("wkl");if(l)l.classList.add("all");b.remove()}));
+  v.querySelectorAll("[data-goal]").forEach(b=>b.addEventListener("click",()=>goalPop(+b.dataset.goal)));
+  v.querySelectorAll("[data-proj]").forEach(b=>b.addEventListener("click",()=>projectPop(b.dataset.proj)));
+  v.querySelectorAll("[data-copy]").forEach(b=>b.addEventListener("click",()=>b.dataset.title?answer(b,b.dataset.copy,b.dataset.title):copy(b,b.dataset.copy)));
+  if(h.startsWith("m-")) window.scrollTo(0,0);
+  if(KF>=0) kMark(false);
+}
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-kit]"); if(b) kitPop()});
+function kitRows(){return (Array.isArray(DATA.keep_in_touch)?DATA.keep_in_touch:[]).filter(x=>x&&(x.first_name||x.company)).slice().sort((a,b)=>String(a.follow_up_due||"9").localeCompare(String(b.follow_up_due||"9")))}
+function kitPop(){const it=kitRows(), dd=x=>isDate(x)?fmtD(asDay(x)).replace(/^\w+, /,""):"";
+  const met=x=>isDate(x.last_touch)&&isDate(x.follow_up_due)&&asDay(x.last_touch)>=asDay(x.follow_up_due);
+  const nm=x=>esc([x.first_name,x.company].filter(Boolean).join(" · "));
+  openPop("Keep in touch · "+it.length,`<ul class="lst">${it.map(x=>`<li>${/^https:\/\//.test(x.notion_url||"")?`<a href="${esc(x.notion_url)}" target="_blank" rel="noopener"><b>${nm(x)}</b> ↗</a>`:`<b>${nm(x)}</b>`}
+      <div class="muted" style="font-size:13px">${[x.follow_up_due?"follow-up due "+dd(x.follow_up_due):"",isDate(x.last_touch)?"last touch "+dd(x.last_touch):"no touch yet"].filter(Boolean).join(" · ")}${met(x)?' · <span style="color:var(--good)">touched on or after the due date, may be done</span>':""}</div>
+      ${x.reason?`<div style="font-size:13px">${esc(x.reason)}</div>`:""}</li>`).join("")}</ul>
+    <p class="muted" style="margin:0;font-size:12px">From Notion's keep-in-touch filter. Open one to log the touch or move the date.</p>`)}
+function overduePop(){const it=((((DATA.goals||{}).progress||{}).tasks||{}).overdue_items||[]).filter(x=>x&&x.title);
+  const ago=x=>{if(!isDate(x.due))return "";const n=Math.round((new Date(ptDay(Date.now())+"T12:00:00-08:00")-new Date(asDay(x.due)))/dayMs);return n>0?`${n} day${n===1?"":"s"} late`:"due today"};
+  openPop("Overdue tasks",`<ul class="lst">${it.map(x=>`<li>${/^https:\/\//.test(x.url||"")?link(x.url,x.title):esc(x.title)}${x.due?` <span class="muted">· ${esc(ago(x))}</span>`:""}</li>`).join("")}</ul>
+    <p class="muted" style="margin:0;font-size:12px">From Notion. Open one to finish or reschedule it there.</p>`)}
+/* Keyboard (desktop / fine pointer): j/k pick a need, 1-9 focus its answer (Enter sends), g l / g f tabs, ? help. */
+let KF=-1, gAt=0;
+const kOn=()=>matchMedia("(pointer:fine)").matches||innerWidth>=860;
+function kNeeds(){return [...document.querySelectorAll("#view .card.need")]}
+function kMark(scroll){const c=kNeeds(); if(KF>=c.length) KF=c.length-1;
+  c.forEach((x,i)=>x.classList.toggle("kf",i===KF));
+  if(scroll&&c[KF]){c[KF].setAttribute("tabindex","-1");c[KF].focus({preventScroll:true});c[KF].scrollIntoView({block:"nearest",behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth"})}}
+function keysPop(){openPop("Keyboard shortcuts",`<dl class="keys">
+  <dt><kbd>j</kbd> <kbd>k</kbd></dt><dd>Next / previous need</dd>
+  <dt><kbd>1</kbd>–<kbd>9</kbd></dt><dd>Pick that answer on the selected need (the first one if none); <kbd>Enter</kbd> sends it</dd>
+  <dt><kbd>g</kbd> <kbd>l</kbd></dt><dd>Life tab</dd><dt><kbd>g</kbd> <kbd>f</kbd></dt><dd>Fleet tab</dd>
+  <dt><kbd>/</kbd></dt><dd>Search research</dd><dt><kbd>r</kbd></dt><dd>Refresh data</dd><dt><kbd>?</kbd></dt><dd>This help</dd><dt><kbd>Esc</kbd></dt><dd>Close a popup</dd></dl>`)}
+addEventListener("keydown",e=>{
+  if(!kOn()||e.metaKey||e.ctrlKey||e.altKey||e.isComposing) return;
+  const t=e.target; if(t&&(t.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+  if(document.querySelector("dialog[open]")) return;
+  const k=e.key, now=Date.now();
+  if(gAt&&now-gAt<1200&&(k==="l"||k==="f")){gAt=0;e.preventDefault();location.hash=k==="l"?"life":"fleet";return}
+  gAt=0;
+  if(k==="g"){gAt=now;return}
+  if(k==="?"){e.preventDefault();keysPop();return}
+  if(k==="/"){const go=()=>{const q=document.getElementById("rq"); if(q){q.scrollIntoView({block:"center"});q.focus({preventScroll:true})}};
+    if(curTab()!=="life"){e.preventDefault();location.hash="life";setTimeout(go,60);return} if(document.getElementById("rq")){e.preventDefault();go()} return}
+  if(k==="r"){e.preventDefault();load();toast("Refreshing…");return}
+  const c=kNeeds(); if(!c.length) return;
+  if(k==="j"||k==="k"){e.preventDefault();KF=KF<0?0:Math.max(0,Math.min(c.length-1,KF+(k==="j"?1:-1)));kMark(true);return}
+  if(/^[1-9]$/.test(k)){const card=c[KF<0?0:KF], b=[...card.querySelectorAll("button.code[data-title]:not(:disabled)")][+k-1];
+    if(!b) return; e.preventDefault(); if(KF<0){KF=0;kMark(false)} b.focus(); toast("“"+b.textContent.trim()+"” selected · Enter sends")}
+});
+/* Suggest an HQ change: a short note becomes a prefilled ops-bus issue "HQ idea: …", which reaches the supervisor. */
+function ideaPop(){
+  openPop("Suggest an HQ change",`<label for="idea-t" class="muted" style="font-size:13px">What should HQ do better? One line is enough.</label>
+    <textarea id="idea-t" maxlength="300" placeholder="e.g. Show which meeting is next at the top"></textarea>
+    <div class="act"><button type="button" class="pri" id="idea-go">${ONE?"Send idea":"Open issue on GitHub"}</button></div>
+    <p class="muted" style="margin:0;font-size:12px">${ONE?"Files it in ops-bus with one tap; the autopilot picks it up next round.":"Opens a prefilled issue in ops-bus. Tap Submit there and the autopilot picks it up next round."}</p>`);
+  const ta=document.getElementById("idea-t"); setTimeout(()=>ta.focus(),30);
+  document.getElementById("idea-go").addEventListener("click",()=>{
+    const txt=ta.value.trim().replace(/\s+/g," "); if(!txt){ta.focus();toast("Write a line first");return}
+    const short=txt.length>80?txt.slice(0,77)+"…":txt;
+    const u=ISSUE_NEW+"?title="+encodeURIComponent("HQ idea: "+short)+"&body="+encodeURIComponent(txt+"\n\n(from the HQ Suggest button"+(DATA&&DATA.updated?", data "+DATA.updated:"")+")");
+    const go=document.getElementById("idea-go"), body=txt+"\n\n(from the HQ Suggest button"+(DATA&&DATA.updated?", data "+DATA.updated:"")+")";
+    if(ONE&&!go.dataset.fallback){go.disabled=true;go.textContent="Sending…";
+      fileIssue("HQ idea: "+short,body).then(j=>{document.getElementById("pop").close();toast("Idea sent ✓"+(j&&j.number?" (#"+j.number+")":""))})
+        .catch(()=>{go.disabled=false;go.dataset.fallback="1";go.textContent="Finish on GitHub ↗";toast("One-click send failed. Tap again to finish on GitHub")});return}
+    if(openExt(u)){document.getElementById("pop").close();toast("Opened ✓ tap Submit on GitHub")}
+    else{try{navigator.clipboard.writeText(u)}catch(_){} toast("Couldn't open GitHub. Copied the issue link")}
+  });
+}
+document.getElementById("idea").addEventListener("click",ideaPop);
+let RET=null, LASTH=location.hash.slice(1);
+document.addEventListener("click",e=>{const a=e.target.closest&&e.target.closest('a[href^="#m-"]');if(a)RET=window.scrollY},true);
+addEventListener("hashchange",()=>{const h=location.hash.slice(1), from=LASTH; LASTH=h; render();
+  if((h==="life"||h==="")&&from.startsWith("m-")&&RET!=null){const y=RET;RET=null;requestAnimationFrame(()=>window.scrollTo(0,y))}
+  else if(h==="life"||h==="fleet")window.scrollTo(0,0)});
+/* Anything in the data that waits on Nat becomes a Need, wherever it was filed: fleet issues owned by Nat,
+   and items flagged needs_nat (e.g. a PR to merge, a secret to add). They carry a link, never answer buttons. */
+function ghMirror(d){const G=d&&d.gh_issues; if(!G||!Array.isArray(G.items)) return d;
+  const SEV=["critical","high","medium","low"], ago=t=>t&&!isNaN(new Date(t))?fmtD(t).replace(/^\w+, /,""):"";
+  const map=i=>({severity:SEV.includes(i.severity)?i.severity:"medium",area:i.area||(i.queue?"chinny":i.repo),title:i.title,
+    detail:[`${i.repo} #${i.number}`,i.queue?i.queue.replace("codex:","Chinny ")+"":"",i.state==="closed"&&i.closed?"closed "+ago(i.closed):"opened "+ago(i.since)].filter(Boolean).join(" · "),
+    url:/^https:\/\/github\.com\//.test(i.url||"")?i.url:"",owner:/^zuzivian$/i.test(i.owner||"")?"Nat":i.owner,since:ago(i.since),closed:i.closed,gh:1,queue:i.queue});
+  const open=G.items.filter(i=>i.state==="open"&&!i.queue), shut=G.items.filter(i=>i.state==="closed");
+  d.chinny_queue=G.items.filter(i=>i.state==="open"&&i.queue).map(map);
+  d.issues_sup=d.issues||[]; d.issues=open.map(map).sort((a,b)=>SEV.indexOf(a.severity)-SEV.indexOf(b.severity));
+  d.issues_closed=shut.map(map).sort((a,b)=>String(b.closed).localeCompare(String(a.closed))); d.issues_at=G.at; return d}
+function natNeeds(d){if(!d||!Array.isArray(d.needs)) return d; const seen=new Set(d.needs.map(n=>String(n.title||"").toLowerCase()));
+  const own=x=>/^(nat\b|zuzivian$)/i.test(String(x&&x.owner||""))||x&&(x.needs_nat===true||/^nat$/i.test(String(x.needs||"")));
+  // one card per thing: an action row wins over the fleet issue that tracks the same thing
+  // (linked by x.issue, or sharing a distinctive ref: an ALL_CAPS name, "PR #N", or a file name like X.md)
+  const refs=t=>new Set((String(t||"").match(/\b[A-Z][A-Z0-9]*_[A-Z0-9_]+\b|PR #\d+|\b[\w-]+\.(?:md|json|yml|py|js)\b/g)||[]).map(x=>x.toLowerCase()));
+  const acts=(d.nat_actions||[]).filter(x=>x&&x.title).map(x=>({project:x.project||"fleet",title:x.title,detail:x.detail||"",url:x.url,issue:x.issue,options:x.options||[],consequence:x.consequence||x.risk||"",state:x.state||x.status||"",due:x.due,est_min:x.est_min,prep_link:x.prep_link,since:x.since,tier:x.tier,recommend:x.recommend,reversible:x.reversible,auto_apply_at:x.auto_apply_at,from:"Your action"}));
+  const dup=i=>acts.some(a=>(a.issue&&a.issue===i.url)||[...refs(i.title+" "+(i.detail||""))].some(r=>refs(a.title+" "+a.detail+" "+(a.url||"")).has(r)));
+  const iss=(d.issues||[]).filter(own).filter(i=>!dup(i)).map(i=>({project:"fleet",title:i.title,detail:i.detail||"",url:i.url,options:[],from:"Fleet issue"}));
+  const FP=fpOf(d), stall=[];
+  for(const a of d.agents||[]){const P=paceOf(FP,a); if(P&&P.stalled&&P.idle!=null&&P.idle>120)
+    stall.push({project:"fleet",title:`${a.name||a.key} hasn't run for ${idleTxt(P.idle)}; check its schedule`,detail:`${P.waiting!=null?P.waiting+" tasks waiting. ":""}It only wakes on its own app schedule${P.lastRun?`; last ran ${fmtT(P.lastRun)} PT`:""}.`,options:[],from:"Fleet"})}
+  const add=acts.concat(iss,stall).filter(n=>!seen.has(String(n.title||"").toLowerCase()));
+  d.needs=d.needs.concat(add);
+  // already done by Nat, now being checked by an agent: not his to do, so out of every count
+  const V=n=>/^(verifying|waiting|done_pending)$/i.test(String(n.state||n.status||""))||/\b(fleet ops|supervisor) is verifying\b|reported this done/i.test(String(n.detail||""));
+  d.needs_waiting=d.needs.filter(V); d.needs=d.needs.filter(n=>!V(n));
+  if(d.needs.some(n=>isDate(n.due))) d.needs=d.needs.map((n,i)=>[n,i]).sort((a,b)=>(isDate(a[0].due)?ptDay(asDay(a[0].due)):"9").localeCompare(isDate(b[0].due)?ptDay(asDay(b[0].due)):"9")||a[1]-b[1]).map(x=>x[0]); return d}
+function load(){return fetch("data.json",{cache:"no-store"}).then(r=>r.json()).then(d=>{DATA=natNeeds(ghMirror(d));try{render()}catch(e){document.getElementById("view").innerHTML='<p class="empty">HQ hit a display error ('+esc(String(e&&e.message||e))+'). Ask the autopilot chat to fix it.</p>'}}).catch(()=>{if(DATA){try{render()}catch(_){}}else document.getElementById("view").innerHTML='<p class="empty">Couldn\'t load status data. Ask the autopilot chat to republish HQ.</p>'})}
+load().then(()=>{if(DATA&&typeof DATA.one_click==="boolean"){ONE=DATA.one_click;if(ONE)try{render()}catch(_){}}else probeOne()});
+/* Refresh every 5 min while the tab is visible (not while a popup is open), and on return to the tab. */
+setInterval(()=>{const pop=document.getElementById("pop");if(document.visibilityState==="visible"&&!(pop&&pop.open))load()},5*60e3);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&DATA&&Date.now()-new Date(DATA.updated)>5*60e3)load()});
+render();
+/* External links: the artifact frame can block plain target=_blank clicks. Open them with window.open;
+   if the frame refuses popups, copy the link and say so, so a tap never silently does nothing. */
+function toast(msg){let t=document.getElementById("toast");if(!t){t=document.createElement("div");t.id="toast";
+  t.setAttribute("role","status");t.style.cssText="position:fixed;left:50%;bottom:16px;transform:translateX(-50%);max-width:calc(100% - 32px);background:var(--ink);color:var(--panel);padding:10px 14px;border-radius:8px;font-size:14px;z-index:9;overflow-wrap:anywhere";document.body.appendChild(t)}
+  t.textContent=msg;t.hidden=false;clearTimeout(t._h);t._h=setTimeout(()=>t.hidden=true,4000)}
+document.addEventListener("click",e=>{
+  const a=e.target.closest&&e.target.closest("a[href]"); if(!a) return;
+  const href=a.getAttribute("href"); if(!/^https?:/i.test(href)) return;
+  e.preventDefault();
+  if(!openExt(href)){ try{window.top.location.href=href;return}catch(_){}
+    try{navigator.clipboard.writeText(href).then(()=>toast("Link copied: paste it in a new tab"),()=>toast(href))}catch(_){toast(href)} }
+});
+</script>
