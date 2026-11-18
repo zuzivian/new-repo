@@ -1,0 +1,163 @@
+{
+  "enabled": true,
+  "timezone": "America/Los_Angeles",
+  "pacing": {
+    "weekly_target": 0.92,
+    "ramp_start_hours_before_reset": 96,
+    "slow_phase_target": 0.15,
+    "final_sweep_hours": 24,
+    "min_gap": 0.03,
+    "five_hour_ceiling": 0.7,
+    "worker_cost_7d": 0.004,
+    "worker_cost_5h": 0.025,
+    "max_workers": 6,
+    "max_workers_when_user_active": 1,
+    "calibration_note": "2026-11-07: 3 short workers + 1 orchestrator moved seven_day 0.24->0.25 and five_hour 0.04->0.11 in ~40 min.",
+    "max_workers_slow_phase": 2
+  },
+  "workers": {
+    "model": null,
+    "max_unreviewed_autopilot_commits": 12,
+    "skip_if_manual_activity_within_hours": 3,
+    "max_runs_without_review": 2
+  },
+  "projects": [
+    {
+      "name": "derby-day",
+      "repo": "zuzivian/derby-day",
+      "enabled": true,
+      "weight": 3,
+      "base_branch": "claude/game-polish-accessibility-8bh1a2",
+      "base_branch_note": "Use PR #81's branch while #81 is open; otherwise the default branch.",
+      "brief": "Browser football game. Nat's standing ask (2026-11-06): ongoing polish, no new major features. Premium feel, accessible, fun on web and mobile. Respect the bundle budget and keep unit + e2e tests green. Good targets: open items in NOTES.md, known flaky e2e tests, unverified reduced-motion variants, small UX rough edges found by playing through with Playwright.",
+      "tier": "growth"
+    },
+    {
+      "name": "natwong-dev",
+      "repo": "zuzivian/natwong-dev",
+      "enabled": true,
+      "weight": 1,
+      "brief": "Nat's personal site; Vercel deploys main. Quality work only: performance, accessibility, SEO hygiene, tests, build health. Do NOT change bio, resume, personal copy or add pages, and never link /resume.pdf anywhere.",
+      "approved_tasks": [
+        "GitHub Actions workflow running scripts/check.py (2026-11-09); 404 page NOT approved"
+      ],
+      "note": "Autopilot PR merged 2026-11-10; next run uses a new branch (-2).",
+      "tier": "career-surface"
+    },
+    {
+      "name": "ad-constellation",
+      "repo": "zuzivian/ad-constellation",
+      "enabled": true,
+      "weight": 2,
+      "brief": "Follow NOTES.md / README / open issues for direction. Advance the next listed item; otherwise do a quality pass (bugs, tests, accessibility, docs).",
+      "max_runs_without_review": 4,
+      "approval_note": "Nat 2026-11-09 PT: 2 more runs without review.",
+      "tier": "career-core"
+    },
+    {
+      "name": "skyviu",
+      "repo": "zuzivian/skyviu",
+      "enabled": true,
+      "weight": 1,
+      "brief": "Follow NOTES.md / README / open issues for direction. Advance the next listed item; otherwise do a quality pass (bugs, tests, accessibility, docs).",
+      "max_runs_without_review": 4,
+      "approval_note": "Nat 2026-11-09 PT: 2 more runs without review.",
+      "approved_tasks": [
+        "CI workflow running the smoke test (2026-11-09)"
+      ],
+      "note": "Autopilot PR merged 2026-11-10; next run uses a new branch (-2).",
+      "tier": "career-core"
+    },
+    {
+      "name": "temasek-1360",
+      "repo": "zuzivian/temasek-1360",
+      "enabled": true,
+      "weight": 1,
+      "brief": "Follow NOTES.md / README / open issues for direction. Advance the next listed item; otherwise do a quality pass (bugs, tests, accessibility, docs).",
+      "tier": "growth"
+    },
+    {
+      "name": "temasek-1360-server",
+      "repo": "zuzivian/temasek-1360",
+      "enabled": true,
+      "weight": 2,
+      "branch": "autopilot/temasek-1360-server-2",
+      "base_branch": "main",
+      "brief": "Step 1 merged 2026-11-10 (#3). Nat approved step 2 2026-11-10 PT: shared world, send each client only nearby state (deltas). Do not start step 3+.",
+      "tier": "growth"
+    },
+    {
+      "name": "ring-studio",
+      "repo": "zuzivian/ring-studio",
+      "enabled": true,
+      "weight": 1,
+      "brief": "Enabled by Nat 2026-11-10 PT. Follow NOTES.md / README / open issues for direction. Advance the next listed item; otherwise do a quality pass (bugs, tests, accessibility, docs).",
+      "tier": "maintenance"
+    },
+    {
+      "name": "network-scope",
+      "repo": "zuzivian/network-scope",
+      "enabled": true,
+      "weight": 1,
+      "brief": "Enabled by Nat 2026-11-10 PT. Follow NOTES.md / README / open issues for direction. Advance the next listed item; otherwise do a quality pass (bugs, tests, accessibility, docs).",
+      "tier": "maintenance"
+    },
+    {
+      "name": "marauders-map",
+      "repo": "zuzivian/marauders-map",
+      "enabled": true,
+      "weight": 1,
+      "brief": "Enabled by Nat 2026-11-10 PT. Follow NOTES.md / README / open issues for direction. Advance the next listed item; otherwise do a quality pass (bugs, tests, accessibility, docs).",
+      "tier": "maintenance"
+    },
+    {
+      "name": "drone-rules",
+      "repo": "zuzivian/drone-rules",
+      "enabled": true,
+      "weight": 3,
+      "brief": "Enabled by Nat 2026-11-10 PT (private repo, career core: drone regulation). Follow NOTES.md / README / open issues; advance the next listed item, else quality pass. Private: never copy its content anywhere public.",
+      "tier": "career-core"
+    },
+    {
+      "name": "drones",
+      "repo": "zuzivian/drones",
+      "enabled": true,
+      "weight": 3,
+      "brief": "Enabled by Nat 2026-11-10 PT (private repo, career core: drones/aviation). Follow NOTES.md / README / open issues; advance the next listed item, else quality pass. Private: never copy its content anywhere public.",
+      "tier": "career-core"
+    },
+    {
+      "name": "voia-newy",
+      "repo": "zuzivian/voia-newy",
+      "enabled": false,
+      "weight": 1,
+      "brief": "Private repo. Off until Nat opts in.",
+      "tier": "maintenance"
+    },
+    {
+      "name": "digitizing-government",
+      "tier": "career-core",
+      "enabled": true
+    },
+    {
+      "name": "jbooks",
+      "tier": "career-core",
+      "enabled": true
+    },
+    {
+      "name": "HQ",
+      "tier": "maintenance",
+      "enabled": true
+    }
+  ],
+  "allocation": {
+    "note": "Weekly split set by Nat after the Saturday 3pm brief; pacer/worker choice follow it.",
+    "week_of": "2026-11-07",
+    "tiers": {
+      "career-core": 0.5,
+      "career-surface": 0.1,
+      "growth": 0.3,
+      "maintenance": 0.1
+    }
+  }
+}

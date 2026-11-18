@@ -1,0 +1,29 @@
+# Required status check: passes only while the PR carries the `sinny:reviewed` label.
+# Any new commit removes the label, so a PR changed after review needs a fresh review.
+# Make "sinny-gate" a required check in branch protection for the default branch.
+name: sinny-gate
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled, unlabeled, ready_for_review]
+permissions:
+  pull-requests: write
+jobs:
+  sinny-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Drop the review label when new commits land
+        if: github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'sinny:reviewed')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label "sinny:reviewed"
+          echo "New commits after review: label removed, re-review needed." >> "$GITHUB_STEP_SUMMARY"
+          exit 1
+      # Always runs (unless step 1 already failed): a push to an unlabelled PR must fail too.
+      - name: Require the review label
+        env:
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          if echo "$LABELS" | grep -q '"sinny:reviewed"'; then echo "Reviewed by Sinny."; else
+            echo "Waiting for the sinny:reviewed label."; exit 1; fi
