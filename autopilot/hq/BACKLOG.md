@@ -4,6 +4,7 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 
 | # | Finding | Status | Round |
 |---|---------|--------|-------|
+| 75 | Live capacity/outreach feed: popup read "66 / 70" not "66%"; "nothing to trim" shown when the feed sent no trim list; outreach showed a "not tracked yet" line beside its status_label | done R78 | R78 |
 | 74 | Sinny: goals for capacity (≤70% booked) and outreach; "Text today" first in Now | done R77: capacity tile is inverted (good ≤ target, warn to 85, bad above), bar with a tick at the target, 7 day bars with a 70% line; popup lists over days with their trim options and trim_h_to_target (R77b: weekly test also matches *_week for outbound_texts_week); outreach shows "N of 7 this week" plus a family/friends line; "Text today…" sorts first in Now | R77 |
 | 58 | Keep-in-touch chip not openable; coffee-chat tile didn't say which count (Pinny #6, #2) | done: list from keep_in_touch, sorted by due, flags touched-since; "Other counts: Notion typed · all touchpoints" | R58 |
 | 73 | "This week" grew to 10–11 flat rows (Sinny: group by due day) | done R76: day sub-headers (Sun 11/15 …, "No date" last); rows keep minutes, overdue/today still flagged | R76 |
