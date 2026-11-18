@@ -4,6 +4,7 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 
 | # | Finding | Status | Round |
 |---|---------|--------|-------|
+| 76 | nat_actions with disposition.status rolled-back / executed / skipped / closed still rendered as cards; Nat pressed Done on a rolled-back one (Sinny, #63) | done R79: only empty or "proposed" rows become needs; matching needs[] rows are dropped too, and so are their counts and badge | R79 |
 | 75 | Live capacity/outreach feed: popup read "66 / 70" not "66%"; "nothing to trim" shown when the feed sent no trim list; outreach showed a "not tracked yet" line beside its status_label | done R78 | R78 |
 | 74 | Sinny: goals for capacity (≤70% booked) and outreach; "Text today" first in Now | done R77: capacity tile is inverted (good ≤ target, warn to 85, bad above), bar with a tick at the target, 7 day bars with a 70% line; popup lists over days with their trim options and trim_h_to_target (R77b: weekly test also matches *_week for outbound_texts_week); outreach shows "N of 7 this week" plus a family/friends line; "Text today…" sorts first in Now | R77 |
 | 58 | Keep-in-touch chip not openable; coffee-chat tile didn't say which count (Pinny #6, #2) | done: list from keep_in_touch, sorted by due, flags touched-since; "Other counts: Notion typed · all touchpoints" | R58 |
