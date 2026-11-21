@@ -347,6 +347,15 @@ def _goals():
         car = g["progress"].setdefault("career", {})
         for k in ("applied", "interviews", "rejections", "offers"):
             if k in (ce.get("counts") or {}): car["email_" + k] = ce["counts"][k]
+        # Career lead 21 Nov: interviews at parked sectors (aerospace/AV, parked to 4 Jan) are not fall-loop
+        # progress, so they are left out of the HQ interview count and shown as a note instead.
+        PARKED = {"skydio", "zipline", "wing", "joby", "waymo", "aurora", "nuro", "matternet",
+                  "beta technologies", "planet labs", "anduril", "archer"}
+        parked_iv = [i for i in (ce.get("items") or []) if "interview" in str(i.get("stage", "")).lower()
+                     and str(i.get("company", "")).strip().lower() in PARKED]
+        if parked_iv and isinstance(car.get("email_interviews"), int):
+            car["email_interviews"] = max(0, car["email_interviews"] - len(parked_iv))
+            car["email_interviews_parked"] = len(parked_iv)
         car["email_scan_at"] = ce.get("at")
         car["email_not_in_tracker"] = ce.get("not_in_tracker_count")
     except Exception:
