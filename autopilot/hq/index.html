@@ -1327,7 +1327,12 @@ function natNeeds(d){if(!d||!Array.isArray(d.needs)) return d; const seen=new Se
   const V=n=>/^(verifying|waiting|done_pending)$/i.test(String(n.state||n.status||""))||/\b(fleet ops|supervisor) is verifying\b|reported this done/i.test(String(n.detail||""));
   d.needs_waiting=d.needs.filter(V); d.needs=d.needs.filter(n=>!V(n));
   if(d.needs.some(n=>isDate(n.due))) d.needs=d.needs.map((n,i)=>[n,i]).sort((a,b)=>(isDate(a[0].due)?ptDay(asDay(a[0].due)):"9").localeCompare(isDate(b[0].due)?ptDay(asDay(b[0].due)):"9")||a[1]-b[1]).map(x=>x[0]); return d}
-function load(){return fetch("data.json",{cache:"no-store"}).then(r=>r.json()).then(d=>{DATA=natNeeds(ghMirror(d));try{render()}catch(e){document.getElementById("view").innerHTML='<p class="empty">HQ hit a display error ('+esc(String(e&&e.message||e))+'). Ask the autopilot chat to fix it.</p>'}}).catch(()=>{if(DATA){try{render()}catch(_){}}else document.getElementById("view").innerHTML='<p class="empty">Couldn\'t load status data. Ask the autopilot chat to republish HQ.</p>'})}
+/* Data source: /api/data on the deployed site (auth-gated), data.json for a static copy or local preview.
+   Try the API first; fall back when it is missing or returns something other than JSON. */
+const getJSON=u=>fetch(u,{cache:"no-store"}).then(r=>{if(!r.ok||!/json/i.test(r.headers.get("content-type")||"")) throw new Error(u+" "+r.status); return r.json()});
+let DATA_SRC=null;
+const fetchData=()=>DATA_SRC?getJSON(DATA_SRC):getJSON("/api/data").then(d=>{DATA_SRC="/api/data";return d},()=>getJSON("data.json").then(d=>{DATA_SRC="data.json";return d}));
+function load(){return fetchData().then(d=>{DATA=natNeeds(ghMirror(d));try{render()}catch(e){document.getElementById("view").innerHTML='<p class="empty">HQ hit a display error ('+esc(String(e&&e.message||e))+'). Ask the autopilot chat to fix it.</p>'}}).catch(()=>{if(DATA){try{render()}catch(_){}}else document.getElementById("view").innerHTML='<p class="empty">Couldn\'t load status data. Ask the autopilot chat to republish HQ.</p>'})}
 load().then(()=>{if(DATA&&typeof DATA.one_click==="boolean"){ONE=DATA.one_click;if(ONE)try{render()}catch(_){}}else probeOne()});
 /* Refresh every 5 min while the tab is visible (not while a popup is open), and on return to the tab. */
 setInterval(()=>{const pop=document.getElementById("pop");if(document.visibilityState==="visible"&&!(pop&&pop.open))load()},5*60e3);
