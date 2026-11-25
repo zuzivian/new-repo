@@ -5,7 +5,7 @@ HQ is Nat's personal goals + fleet dashboard. The page is `autopilot/hq/index.ht
 ## Rules
 - Change only `autopilot/hq/index.html` (and `autopilot/hq/static/*` if the issue says so). Never touch `build.py`, data files, `.github/` or anything outside `autopilot/hq/`.
 - Never add real personal data, names, emails, tokens or secrets. Test with the fixture data the issue provides, or with `data.json` as-is.
-- Keep `fetch("data.json"` as the data load (the sync rewrites it to `/api/data`).
+- Keep the data load as R85 has it: try `fetch("/api/data")` first, fall back to `fetch("data.json")` for local runs. Do not remove either path.
 - Missing fields must render as "no feed yet" or hide; never show 0 for null, never throw.
 - Accessibility: buttons are `<button>`, focus visible, contrast AA, works at 390 px wide with no horizontal scroll.
 - Match the existing look (CSS variables at the top of the file). No new external requests, fonts or CDNs.
