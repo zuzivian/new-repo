@@ -109,6 +109,7 @@ for pcfg in cfg["projects"]:
                              "running": 0, "queued": 0, "codex": 0, "done": 0, "needs": 0, "paused": False})
     b["enabled"] = b["enabled"] or bool(pcfg.get("enabled", True))
 for w in state.get("workers", []):
+    if w.get("project") in ("fleet-ops", "sinny"): continue  # agents, not projects: Fleet view only, not the board
     r = _repo_of(w.get("project", ""))
     b = board.setdefault(r, {"project": r, "tier": "maintenance", "enabled": True, "running": 0, "queued": 0,
                              "codex": 0, "done": 0, "needs": 0, "paused": False})
