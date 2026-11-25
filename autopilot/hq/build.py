@@ -432,6 +432,12 @@ for _p in cfg.get("projects", []):
     _rr = (_p.get("repo") or "").split("/")[-1]
     if _rr: _known_repos[_repo_of(_p["name"])] = _rr
 _known_repos.update({"HQ": "new-repo", "ops-bus": "ops-bus"})
+# A worker row may name its repo ("repo": "zuzivian/<name>") for projects not in config.json (e.g. rides), and a tier.
+for _w in state.get("workers", []):
+    if isinstance(_w.get("repo"), str) and _w.get("project"):
+        _known_repos.setdefault(_repo_of(_w["project"]), _w["repo"].split("/")[-1])
+        if _w.get("tier") and _repo_of(_w["project"]) in board and board[_repo_of(_w["project"])].get("tier") == "maintenance":
+            board[_repo_of(_w["project"])]["tier"] = _w["tier"]
 for _r, _b in board.items():
     _b["repo"] = _known_repos.get(_r)
 projects_board = sorted(board.values(), key=lambda b: (ORDER[b["status"]], b["project"]))
