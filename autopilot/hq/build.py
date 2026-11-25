@@ -786,6 +786,12 @@ try:
                           "wins": (out.get("wins") or [])[:5]}
 except Exception:
     out["week_review"] = None
+# 2026-11-25 HQ v2 Fleet view ask (2): today/tomorrow calendar blocks [{start, end, kind, title?}] from <scratch>/calendar.json.
+try:
+    _cal = load(os.path.join(scratch, "calendar.json"), {}) or {}
+    out["calendar_blocks"] = _cal.get("blocks", []); out["calendar_at"] = _cal.get("at")
+except Exception:
+    out["calendar_blocks"] = []
 # Fill board[].repo from the gh_issues / merge-queue repo lists for tiles config.json has no repo for.
 try:
     for _lst in ("gh_issues", "merge_queue"):
