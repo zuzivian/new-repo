@@ -520,6 +520,10 @@ function issuePop(i){
 }
 const PALIAS={HQ:"new-repo","new-repo":"HQ"};
 const sameProj=(a,b)=>a===b||PALIAS[a]===b;
+// Repo link only for real repos: board.repo from the feed, else a repo the data itself links to. Never a guessed URL.
+function projRepo(d,b,name){const r=typeof b.repo==="string"&&/^[\w.-]+$/.test(b.repo)?b.repo:null; if(r) return r;
+  const want=name==="HQ"?"new-repo":name, seen=new Set((JSON.stringify(d).match(/github\.com\/zuzivian\/[\w.-]+/g)||[]).map(x=>x.split("/").pop()));
+  return seen.has(want)?want:null}
 function projectPop(name){
   const d=DATA, b=(d.board||[]).find(x=>x.project===name)||{project:name,status:"idle"};
   const has=s=>String(s||"").toLowerCase().includes(name.toLowerCase());
@@ -530,7 +534,7 @@ function projectPop(name){
   const li=(arr,f)=>arr.length?`<ul class="lst">${arr.map(f).join("")}</ul>`:'<div class="muted">None.</div>';
   openPop(name,`<dl class="kv"><dt>Status</dt><dd style="color:${ST_COLOR[b.status]||"inherit"};font-weight:600">${esc(b.status)}</dd>
     <dt>Tier</dt><dd>${esc(b.tier||"—")}</dd><dt>Last push</dt><dd>${b.last_activity?esc(ago(b.last_activity)+" · "+fmtT(b.last_activity)):'<span class="muted">not visible to the fleet</span>'}</dd>${b.next_step?`<dt>Next step</dt><dd>${esc(b.next_step)}</dd>`:""}<dt>Spend this week</dt><dd>${sp?"$"+sp.usd.toFixed(2):"—"}</dd>
-    <dt>Repo</dt><dd>${(r=>link("https://github.com/zuzivian/"+r,"github.com/zuzivian/"+r))(name==="HQ"?"new-repo":name)}</dd></dl>
+    ${(r=>r?`<dt>Repo</dt><dd>${link("https://github.com/zuzivian/"+r,"github.com/zuzivian/"+r)}</dd>`:"")(projRepo(d,b,name))}</dl>
     <div><b>Needs you</b>${li(ns,n=>`<li>${link(n.url,n.title)||esc(n.title)}${n.preview?` · ${link(n.preview,"preview")}`:""}<div class="muted">${esc(n.detail||"")}</div></li>`)}</div>
     <div><b>Work</b>${li(ws,w=>`<li>${esc(w.task)} · <span class="muted">${esc(w.status)}</span>${w.session&&/^https?:/.test(w.session)?` · ${link(w.session,"open")}`:""}</li>`)}</div>
     <div><b>Issues</b>${li(is,i=>`<li><span class="sev" style="--sv:${SEV_COLOR[i.severity]}">${esc(i.severity)}</span> ${esc(i.title)}</li>`)}</div>`);
