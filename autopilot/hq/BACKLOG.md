@@ -4,6 +4,7 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 
 | # | Finding | Status | Round |
 |---|---------|--------|-------|
+| 78 | Long Needs details ran on; clamp to 3 lines with a More/Less toggle (Chinny PR #15) | done R81: PR #15 diff applied as-is on the current page. The More/Less button sets aria-expanded and also works inside "N more for now" | R81 |
 | 77 | Project popup Repo row linked github.com/zuzivian/<name> for every project; career, drones and digitizing-government were 404s (Nat) | done R80: Repo row only when board.repo is set, or when the data already links that repo (HQ maps to new-repo); never a guessed URL. Fleet Ops: add board[].repo in build.py to cover the rest | R80 |
 | 76 | nat_actions with disposition.status rolled-back / executed / skipped / closed still rendered as cards; Nat pressed Done on a rolled-back one (Sinny, #63) | done R79: only empty or "proposed" rows become needs; matching needs[] rows are dropped too, and so are their counts and badge | R79 |
 | 75 | Live capacity/outreach feed: popup read "66 / 70" not "66%"; "nothing to trim" shown when the feed sent no trim list; outreach showed a "not tracked yet" line beside its status_label | done R78 | R78 |
