@@ -425,6 +425,15 @@ try:  # (e) HQ has no repo of its own: use the newest commit on the HQ branch
     if _hq.startswith("20") and "HQ" in board: board["HQ"]["last_activity"] = _hq
 except Exception:
     pass
+# board[].repo: the real GitHub repo name (bare, under zuzivian/) or None. Only from known sources:
+# config.json projects[].repo, the gh_issues / merge-queue repo lists, plus HQ (new-repo) and ops-bus. Never guessed.
+_known_repos = {}
+for _p in cfg.get("projects", []):
+    _rr = (_p.get("repo") or "").split("/")[-1]
+    if _rr: _known_repos[_repo_of(_p["name"])] = _rr
+_known_repos.update({"HQ": "new-repo", "ops-bus": "ops-bus"})
+for _r, _b in board.items():
+    _b["repo"] = _known_repos.get(_r)
 projects_board = sorted(board.values(), key=lambda b: (ORDER[b["status"]], b["project"]))
 
 # ---- HQ strip data: done counts, blocked, allocation, watchdog fixes (all defensive) ----
@@ -676,6 +685,16 @@ except Exception:
     out["merge_queue"] = []
 try:
     out["watchdog"] = {**(out.get("watchdog") or {}), "fixes": _fixes()}
+except Exception:
+    pass
+# Fill board[].repo from the gh_issues / merge-queue repo lists for tiles config.json has no repo for.
+try:
+    for _lst in ("gh_issues", "merge_queue"):
+        for _x in (out.get(_lst) or []):
+            if isinstance(_x, dict) and isinstance(_x.get("repo"), str):
+                _nm = _x["repo"].split("/")[-1]
+                for _b in out.get("board", []):
+                    if _b.get("repo") is None and _b.get("project") == _repo_of(_nm): _b["repo"] = _nm
 except Exception:
     pass
 with open(os.path.join(HERE, "data.json"), "w") as fh:
