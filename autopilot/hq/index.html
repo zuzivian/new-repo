@@ -1115,7 +1115,7 @@ function home(d){
       :`<details class="closed ntier"><summary class="muted">${TL.length} later, moving to Notion</summary><ul class="lst nminil">${TL.map(mini).join("")}</ul></details>`})());
   const crew=d.workers.length?d.workers.map(w=>`<div class="row"><span class="name">${esc(w.project)} <span class="muted">· ${esc(w.task)}</span></span>${(()=>{const st=String(w.status||w.state||"").toLowerCase();return `<span class="pill ${st==="working"||st==="running"?"warn":st.includes("block")?"bad":st.startsWith("queued")?"":"good"}">${esc(w.status||w.state||"—")}</span>`})()}</div>`).join(""):`<div class="empty">No workers running.</div>`;
   const SP=(Array.isArray(d.spend)?d.spend:[]).filter(s=>s&&num(s.usd)!=null&&s.usd>0), maxc=Math.max(...SP.map(s=>s.usd),1);
-  const isPaused=s=>/^paused$/i.test(String(s.status||""))||(d.board||[]).some(b=>sameProj(s.project,b.project)&&/^paused$/i.test(String(b.status||"")));
+  const isPaused=s=>s.paused===true||/^paused$/i.test(String(s.status||""))||(d.board||[]).some(b=>sameProj(s.project,b.project)&&/^paused$/i.test(String(b.status||"")));
   const basis=(SP.find(s=>typeof s.basis==="string"&&s.basis.trim())||{}).basis||(typeof d.spend_basis==="string"?d.spend_basis:"");
   const spend=SP.map(s=>{const pz=isPaused(s);return `<div class="row${pz?" paused":""}"><span class="name">${esc(PALIAS[s.project]&&(d.board||[]).some(b=>b.project===PALIAS[s.project])?PALIAS[s.project]:s.project)}${pz?' <span class="muted">· paused</span>':""}</span><span class="mono muted">$${s.usd.toFixed(0)}</span></div><div class="hbar${pz?" paused":""}"><i style="width:${(s.usd/maxc*100).toFixed(1)}%;background:${pz?"var(--line)":TIER_COLOR[s.tier]||"var(--maint)"}"></i></div>`}).join("");
   const tab=curTab();
