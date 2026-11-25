@@ -413,6 +413,16 @@ def _goals():
         car["applied_total"] = max(notion_sent, int(car.get("email_applied") or 0))
         car["applied_total_note"] = f"max of Notion {notion_sent} (applied+interviewing+offers+rejected) and Gmail scan {car.get('email_applied')}"
         car["email_not_in_tracker"] = max(0, int(car.get("email_applied") or 0) - notion_sent) if car.get("email_applied") is not None else car.get("email_not_in_tracker")
+        # 2026-11-25 Sinny: the funnel must not contradict the reconciled Gmail scan (goals/career_email.json).
+        # funnel = scan counts (applied, fall-loop interviews, offers, rejections); Notion "applied" stays as tracker_applied.
+        car["tracker_applied"] = car.get("applied")
+        car["funnel"] = {"tracked": car.get("tracked") if car.get("tracked") is not None else notion_sent,
+                         "applied": car["applied_total"],
+                         "interviewing": int(car.get("email_interviews") or 0),
+                         "offers": int(car.get("email_offers") or 0),
+                         "rejected": int(car.get("email_rejections") or 0),
+                         "interviews_parked": int(car.get("email_interviews_parked") or 0),
+                         "basis": "Gmail scan (reconciled)" + (f" {car.get('email_scan_at')[:10]}" if car.get("email_scan_at") else "") + f"; Notion tracker shows {car.get('applied')} applied"}
     except Exception:
         pass
     for pillar, vals in (g.pop("overrides", None) or {}).items():
