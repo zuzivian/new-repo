@@ -151,7 +151,8 @@ function moment(d,Qn){
   const next=meets.find(m=>{const mu=minsUntil(m.when);return mu>-30&&mu<=45});
   const wk=Qn.find(n=>n.project==="weekly-review");
   if(next) return {kind:"meet",m:next};
-  if((dow==="Sun"||dow==="Sat"||dow==="Mon"&&h<12)&&wk) return {kind:"week",n:wk};
+  const WR=d.week_review&&d.week_review.show===true?d.week_review:null;
+  if((dow==="Sun"||dow==="Sat"||dow==="Mon"&&h<12)&&(wk||WR)) return {kind:"week",n:wk||null,wr:WR};
   if(h>=18||h<4) return {kind:"eve"};
   if(h>=4&&h<10) return {kind:"morning"};
   return {kind:act(Qn)?"decide":"zero"};
@@ -199,8 +200,11 @@ function nowCard(d,M,Qn){
       ${ppl.slice(0,2).map(p=>`<p><b>${esc(p.name)}</b>${p.who?` · ${esc(p.who)}`:""}${p.last_time?`<br><span style="opacity:.8">Last time: ${esc(p.last_time)}</span>`:""}</p>`).join("")}
       ${(m.questions||[]).length?`<ul>${m.questions.slice(0,3).map(q=>`<li>${esc(q)}</li>`).join("")}</ul>`:""}
       ${m.id?`<a class="cta" href="index.html#m-${esc(encodeURIComponent(m.id))}">Full brief →</a>`:""}</section>`}
-  if(M.kind==="week"){const n=M.n, i=Qn.indexOf(n);
-    return `<section class="now"><div class="glow"></div><div class="k">Week plan</div><h2>${esc(n.title)}</h2>${n.detail?`<p>${esc(n.detail)}</p>`:""}${answers(n,i)}</section>`}
+  if(M.kind==="week"){const n=M.n, i=n?Qn.indexOf(n):-1, W=M.wr, wins=W&&Array.isArray(W.wins)?W.wins.filter(w=>w&&w.text).slice(0,5):[];
+    return `<section class="now"><div class="glow"></div><div class="k">${W?`Week in review${W.week_of?" · from "+esc(dayLbl(asDay(W.week_of))):""}`:"Week plan"}</div>
+      ${W?`<div class="row2"><div><div class="n mono">${num(W.done)??"—"}</div><div class="l">tasks done this week</div></div>${num(W.planned)!=null?`<div><div class="n mono">${W.planned}</div><div class="l">planned</div></div>`:""}${streakNum(d)?`<div><div class="n mono">🔥 ${streakNum(d)}</div><div class="l">day streak</div></div>`:""}</div>
+        ${wins.length?`<div class="k" style="margin-top:14px">Wins</div><ul>${wins.map(w=>`<li>${link(w.url)?`<a href="${esc(link(w.url))}" target="_blank" rel="noopener" style="color:#fff">${esc(w.text)}</a>`:esc(w.text)}</li>`).join("")}</ul>`:""}`:""}
+      ${n?`<h2 style="margin-top:${W?16:8}px${W?";font-size:19px":""}">${esc(n.title)}</h2>${n.detail?`<p>${esc(n.detail)}</p>`:""}${answers(n,i)}`:""}</section>`}
   if(M.kind==="morning"){const c=capToday(d), first=Qn[0];
     return `<section class="now"><div class="glow"></div><div class="k">Today · ${esc(dayLbl(NOW()))}</div>
       <h2>${first?esc(first.title):"A clear day. Nothing needs you yet."}</h2>${first&&dueOf(first)?`<p>${esc(dueOf(first).txt)}${num(first.est_min)?` · about ${first.est_min} min`:""}</p>`:""}
@@ -211,7 +215,7 @@ function nowCard(d,M,Qn){
   if(M.kind==="decide"){const n=Qn[0];
     return `<section class="now"><div class="glow"></div><div class="k">${act(Qn)===1?"One decision":"Next decision · "+act(Qn)+" waiting"}</div><h2>${esc(n.title)}</h2>
       ${n.detail?`<p>${esc(String(n.detail).slice(0,220))}${String(n.detail).length>220?"…":""}</p>`:""}${answers(n,0)}</section>`}
-  if(M.kind==="zero") return zeroCard();
+  if(M.kind==="zero") return zeroCard(d);
   // evening: what got done, tomorrow's first thing
   const done=(d.agents||[]).reduce((t,a)=>t+(num(a.done_24h)||0),0), decs=(d.decisions||[]).filter(x=>isDate(x.at)&&NOW()-new Date(x.at)<864e5).length;
   const r=G(d).relationships||{}, wk=num(r.coffee_chats_calendar_this_week);
@@ -224,7 +228,8 @@ function nowCard(d,M,Qn){
     <h2 style="margin-top:16px;font-size:19px">Tomorrow, first: ${tm1?`${esc(tm1.title)} at ${esc(tm(tm1.when))}`:tn?esc(tn.title):"nothing booked yet"}</h2>
     ${act(Qn)?`<p>${act(Qn)} thing${act(Qn)===1?"":"s"} still need${act(Qn)===1?"s":""} you; ${Qn.filter(n=>{const u=dueOf(n);return u&&u.over}).length} overdue.</p>`:`<p>Inbox zero. Enjoy the evening ✨</p>`}</section>`;
 }
-function zeroCard(){return `<section class="now zero"><div class="glow"></div><div class="k">All clear</div><h2>Nothing needs you right now ✨</h2><p>The fleet has it. Check back after your next meeting.</p></section>`}
+const streakNum=d=>{const S=d&&d.streak; return S&&num(S.days)>0?S.days:0};
+function zeroCard(d){const n=streakNum(d);return `<section class="now zero"><div class="glow"></div><div class="k">All clear${n?` · 🔥 ${n}-day streak`:""}</div><h2>Nothing needs you right now ✨</h2><p>${n?`${n} evening${n===1?"":"s"} in a row with nothing waiting. Keep it going.`:"The fleet has it. Check back after your next meeting."}</p></section>`}
 function goals(d){
   const P=G(d), c=P.capacity||{}, cap=num(c.booked_pct_next7), r=P.relationships||{}, cc=num(r.coffee_chats_calendar), k=P.career||{};
   const F=k.funnel&&typeof k.funnel==="object"?k.funnel:{tracked:k.tracked,applied:k.applied,interviewing:k.interviewing,offers:k.offers}; // reconciled funnel wins over the Notion-only counts
@@ -245,7 +250,7 @@ function goals(d){
 /* ---------- render ---------- */
 function render(){
   const d=D, Qn=queue(d), M=moment(d,Qn), B=broken(d), app=document.getElementById("app");
-  const primaryIdx=M.kind==="decide"?0:M.kind==="week"?Qn.indexOf(M.n):-1;
+  const primaryIdx=M.kind==="decide"?0:M.kind==="week"&&M.n?Qn.indexOf(M.n):-1;
   const rest=Qn.map((n,i)=>[n,i]).filter(([,i])=>i!==primaryIdx);
   const nowT=rest.filter(([n])=>String(n.tier||"now").toLowerCase()!=="later"), later=rest.filter(([n])=>String(n.tier||"").toLowerCase()==="later");
   const sub=[act(Qn)?`${act(Qn)} thing${act(Qn)===1?"":"s"} need${act(Qn)===1?"s":""} you`:"Nothing needs you",(()=>{const c=num((G(d).capacity||{}).booked_pct_next7);return c==null?"":`${c}% booked this week`})()].filter(Boolean).join(" · ");
@@ -253,7 +258,7 @@ function render(){
     ${B.length?`<div class="alarm" role="alert"><span class="dot"></span><div><b>Something's broken.</b> ${B.map(esc).join(" · ")}</div></div>`:""}
     ${nowCard(d,M,Qn)}${chips(d,Qn)}
     <h3 class="sec" id="queue">Needs you <span class="c">${act(Qn)?act(Qn)+" · soonest first":""}</span></h3>
-    <div class="q">${nowT.length?nowT.map(([n,i])=>needCard(n,i)).join(""):act(Qn)?"":`<div class="zeroq"><div class="e">🎉</div><b>Inbox zero</b>Nothing is waiting on you.</div>`}</div>
+    <div class="q">${nowT.length?nowT.map(([n,i])=>needCard(n,i)).join(""):act(Qn)?"":`<div class="zeroq"><div class="e">🎉</div><b>Inbox zero</b>Nothing is waiting on you.${streakNum(d)?` 🔥 ${streakNum(d)}-day streak.`:""}</div>`}</div>
     ${later.length?`<details class="later"><summary>${later.length} for later</summary><ul>${later.map(([n])=>`<li><span>${esc(n.title)}</span><span>${dueOf(n)?esc(dueOf(n).txt):""}</span></li>`).join("")}</ul></details>`:""}
     ${goals(d)}
     <a class="fleet" href="index.html#fleet"><div><b>Fleet &amp; machine</b><div class="s">${(d.agents||[]).length} agents · usage, cost, projects, issues</div></div><span aria-hidden="true">→</span></a>
