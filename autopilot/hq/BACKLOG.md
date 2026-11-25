@@ -4,6 +4,7 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 
 | # | Finding | Status | Round |
 |---|---------|--------|-------|
+| 83 | Nat: "overhaul HQ: boring, cluttered, key info hidden" | slice 1 shipped R86 at hq/v2.html: a Now card chosen by time and context (meeting brief, morning, decision, evening, week plan, all clear), one Needs queue with one-tap answers and a check animation, inbox zero, a capacity gauge, a coffee-chat ring, warm companies, an applications funnel; fleet stays on the classic page. IA in V2.md | R86 |
 | 82 | Live HQ "Couldn't load status data": branch page fetched data.json, Vercel serves /api/data (Sinny) | done R85: load() tries /api/data first (needs ok + JSON content-type), falls back to data.json and remembers which worked; no sync rewrite needed | R85 |
 | 81 | Live page drifted: ops-bus hq/index.html was last synced 18 Nov; PR #71 added /api/file links (opsLink/hqLinks) straight into ops-bus | done R84: took ops-bus main hq/index.html as the base, re-applied R83/R83b on top; this branch is now the live page plus R83 | R84 |
 | 80 | Burn panel: show spend basis and grey out paused projects (Sinny) | done R83: muted basis line under the title (spend[].basis, or spend_basis); rows with paused:true, status paused, or a paused board tile are greyed with "· paused" | R83 |
