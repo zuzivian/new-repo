@@ -756,6 +756,10 @@ try:
     _sp = os.path.join(scratch, "streak.json"); _sk = load(_sp, {}) or {}
     _hist = _sk.get("history", {})
     _open = sum(1 for n in out.get("needs", []) if str(n.get("tier") or "").lower() != "later")
+    # v2's queue also counts live nat_actions (disposition empty or "proposed"), non-later tier.
+    _open += sum(1 for a in out.get("nat_actions", []) if isinstance(a, dict)
+                 and str(((a.get("disposition") or {}).get("status")) or "proposed").lower() == "proposed"
+                 and str(a.get("tier") or "").lower() != "later")
     if _nowpt.hour >= 21:
         _hist[_nowpt.strftime("%Y-%m-%d")] = (_open == 0)
     _days, _d = 0, _nowpt.date()
@@ -765,7 +769,7 @@ try:
     _since = (_d + dt.timedelta(days=1)).isoformat() if _days else None
     _sk = {"history": dict(sorted(_hist.items())[-60:])}
     with open(_sp, "w") as _fh: json.dump(_sk, _fh, indent=1)
-    out["streak"] = {"days": _days, "since": _since, "rule": "days with 0 non-later needs at the 21:00 PT check", "open_now": _open}
+    out["streak"] = {"days": _days, "since": _since, "rule": "days with 0 non-later needs or live nat_actions at the 21:00 PT check", "open_now": _open}
 except Exception:
     out["streak"] = None
 # week_review: shown Sun/Mon (PT). done = worker tasks finished in the last 7 days; top wins of the week.
