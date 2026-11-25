@@ -92,3 +92,4 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 | — | Desktop keyboard shortcuts; one-line phone header; 2-line tile labels | done | R19 |
 | — | v2 morning card: first thing skips later-tier items (was "Start with this" with 0 needs); shows first calendar block when clear | done | R63 |
 | — | v2 pixel-RPG restyle (Nat: "think pixel art, not the card look"): dialog windows with nameplates, menu-cursor answers, HP bars, sprite party; inline OFL pixel fonts | done | R64 |
+| — | Root swap: v2 (pixel) is now hq/index.html; classic moved to classic.html (/classic); v2.html redirects to / | done | R64 |
