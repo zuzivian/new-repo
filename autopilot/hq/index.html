@@ -521,7 +521,7 @@ function openPop(title,html){
     d.innerHTML='<div class="hd"><h3 id="pop-t"></h3><button type="button" class="x" aria-label="Close">×</button></div><div class="bd"></div>';
     document.body.appendChild(d);d.querySelector(".x").addEventListener("click",()=>d.close());
     d.addEventListener("click",e=>{if(e.target===d)d.close()});}
-  d.querySelector("#pop-t").textContent=title; d.querySelector(".bd").innerHTML=html;
+  d.querySelector("#pop-t").textContent=title; d.querySelector(".bd").innerHTML=hqLinks(html);
   const wasOpen=d.open;
   if(!wasOpen){d._opener=document.activeElement&&document.activeElement!==document.body?document.activeElement:null;if(d.showModal) d.showModal(); else d.setAttribute("open","");
     try{history.pushState({hqpop:1},"",location.href)}catch(_){}}
@@ -585,7 +585,16 @@ function copy(btn,text){
 }
 function openExt(u){let w=null;try{w=window.open(u,"_blank")}catch(_){} if(w){try{w.opener=null}catch(_){}} return w}
 const ISSUE_NEW="https://github.com/zuzivian/ops-bus/issues/new";
-const needUrl=u=>/^https?:\/\//.test(u)?u:"https://github.com/zuzivian/ops-bus/blob/main/"+String(u).replace(/^\.?\//,"");
+/* ops-bus is private, so github.com/zuzivian/ops-bus/blob|tree/main/<path> 404s in any browser not signed in to GitHub.
+   opsLink turns those URLs (and bare repo paths) into /api/file?path=..., which serves the file through HQ. hqLinks applies it
+   to every href in rendered HTML at the two innerHTML sinks, so URLs that arrive whole in data are rewritten too. Issues, PRs,
+   commits and other repos are left alone. */
+const OPS_BLOB=/^https:\/\/github\.com\/zuzivian\/ops-bus\/(?:blob|tree)\/main\/([^?#]*)(#.*)?$/;
+const opsLink=u=>{u=String(u??"");const m=u.match(OPS_BLOB);let p=m?m[1]:/^https?:\/\//.test(u)?null:u.replace(/^\.?\//,"");
+  if(p==null) return u; try{p=decodeURIComponent(p)}catch(_){} p=p.replace(/\/+$/,""); return p?"/api/file?path="+encodeURIComponent(p)+(m&&m[2]||""):u};
+const hqLinks=h=>String(h).replace(/href="(https:\/\/github\.com\/zuzivian\/ops-bus\/(?:blob|tree)\/main\/[^"]*)"/g,
+  (_,u)=>'href="'+esc(opsLink(u.replace(/&quot;/g,'"').replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&amp;/g,"&")))+'"');
+const needUrl=opsLink;
 /* Answer buttons message the supervisor session directly through the viewer's
    Claude Code Remote connector; if that isn't available, fall back to copy. */
 const CCR="Claude Code Remote";
@@ -837,7 +846,7 @@ function overnightHtml(d){const O=d&&d.overnight; if(!O) return "";
   if(!H.length&&!M.length&&!R.length&&!A.length) return "";
   return `<section class="panel overnight" aria-labelledby="ov"><h2 id="ov">Overnight${since?` · since ${esc(fmtT(O.since))} PT`:""}</h2>
     ${H.length?`<ul class="ovh">${H.map(x=>{const t=typeof x==="string"?x:x.text||"", m=t.match(/\s*\(((?:research|goals|hq)\/[\w./-]+\.md)\)/);
-      return `<li>${m?`${esc(t.replace(m[0],""))} <a href="https://github.com/zuzivian/ops-bus/blob/main/${esc(m[1])}" target="_blank" rel="noopener">Read ↗</a>`:esc(t)}</li>`}).join("")}</ul>`:""}
+      return `<li>${m?`${esc(t.replace(m[0],""))} <a href="${esc(opsLink(m[1]))}" target="_blank" rel="noopener">Read ↗</a>`:esc(t)}</li>`}).join("")}</ul>`:""}
     <div class="ovg">${M.length?`<details><summary>${M.length} PR${M.length===1?"":"s"} merged</summary><ul class="lst2">${M.map(x=>`<li>${pr(x)}</li>`).join("")}</ul></details>`:""}
     ${R.length?`<details><summary>${R.length} must-read${R.length===1?"":"s"}${num(O.research_files)!=null&&num(O.research_files)>R.length?` <span class="muted">of ${num(O.research_files)} new files</span>`:""}</summary><ul class="lst2">${R.map(x=>`<li>${rs(x)}</li>`).join("")}</ul></details>`:""}
     ${A.length?`<div class="muted ova">${A.map(([k,v])=>`${esc(k.replace(/^./,c=>c.toUpperCase()))} ${num(v)??num(v.done)}`).join(" · ")} tasks done</div>`:""}</div></section>`}
@@ -847,7 +856,7 @@ function researchHtml(d){const R=(Array.isArray(d&&d.research)?d.research:[]).fi
   if(!R.length) return "";
   const AL={"digitizing-government":"Digigov"}, aLab=a=>AL[a]||a.replace(/-/g," ").replace(/^./,c=>c.toUpperCase());
   const areas=[...new Set(R.map(x=>String(x.area||"other").toLowerCase()))].sort((a,b)=>R.filter(x=>String(x.area||"other").toLowerCase()===b).length-R.filter(x=>String(x.area||"other").toLowerCase()===a).length), f=areas.includes(RFILT)?RFILT:null, L=f?R.filter(x=>String(x.area||"other").toLowerCase()===f):R;
-  const url=x=>/^https:\/\//.test(x.url||x.path||"")?(x.url||x.path):x.path?"https://github.com/zuzivian/ops-bus/blob/main/"+String(x.path).replace(/^\.?\//,""):"";
+  const url=x=>/^https:\/\//.test(x.url||x.path||"")?opsLink(x.url||x.path):x.path?opsLink(x.path):"";
   const chip=(k,l,n)=>`<button type="button" class="chip${(k||null)===f?" on":""}" data-rf="${esc(k||"")}" aria-pressed="${(k||null)===f}">${esc(l)} <span class="muted">${n}</span></button>`;
   return `<section class="panel" aria-labelledby="rl"><h2 id="rl">Research library · ${R.length}</h2>
     ${R.length>8?`<input type="search" id="rq" class="rq" placeholder="Search ${R.length} files" aria-label="Search research titles" autocomplete="off">`:""}
@@ -960,7 +969,7 @@ function goalPop(i){
     ${p.key==="career"&&liveRoles(G)?`<p><b>${esc(liveRoles(G))}</b>${((G.progress||{}).career||{}).live_roles_note?`<br><span class="muted" style="font-size:13px">${esc((String(G.progress.career.live_roles_note).match(/:\s*([^.]+)\./)||[,""])[1])}</span>`:""}</p>`:""}
     ${p.key==="career"?ctHtml(DATA):""}${p.key==="growth"?gpHtml(DATA):""}
     ${(()=>{const RS=(DATA.research||[]).filter(x=>x&&x.title&&String(x.area||"").toLowerCase()===p.key).sort((a,b)=>String(b.at||"").localeCompare(String(a.at||"")));
-      const u=x=>/^https:\/\//.test(x.url||"")?x.url:x.path?"https://github.com/zuzivian/ops-bus/blob/main/"+String(x.path).replace(/^\.?\//,""):"";
+      const u=x=>/^https:\/\//.test(x.url||"")?opsLink(x.url):x.path?opsLink(x.path):"";
       return RS.length?`<div><b>Research for this goal · ${RS.length}</b><ul class="lst2">${RS.slice(0,6).map(x=>`<li>${u(x)?link(u(x),x.title):esc(x.title)}</li>`).join("")}</ul></div>`:""})()}
     ${r.m?`<div class="tt"><span class="mono" style="font-size:22px;font-weight:600">${r.cur==null?esc(((G.progress||{})[p.key]||{}).status_label||"—"):esc(/_pct$/.test(r.m||"")||r.max&&/pct/.test(r.m||"")?r.cur+"%":r.target!=null?r.cur+" / "+r.target:String(r.cur))}</span><span class="muted" style="align-self:center">${esc(r.label)}</span></div>
       <div style="color:${col};font-weight:600;font-size:14px">${esc(r.pace)}</div>`:""}
@@ -1088,7 +1097,7 @@ function home(d){
   const card=(n,i,cls)=>{
     const opts=(n.options||["Done","Later"]), ans=n.url?opts.filter(o=>!isOpen(o)):opts, openOpt=n.url?opts.find(isOpen):null;
     const dh=detailHtml(n.detail||n.note||""), prList=dh.includes("/pull/")&&/github\.com\/[^/]+\/[^/]+\/pull\//.test(n.url||"");
-    const pl=n.prep_link, plU=pl?(/^https:\/\//.test(pl)?pl:/^[\w./-]+\.md$/.test(pl)?"https://github.com/zuzivian/ops-bus/blob/main/"+pl.replace(/^\.?\//,""):""):"";
+    const pl=n.prep_link, plU=pl?(/^https:\/\//.test(pl)?opsLink(pl):/^[\w./-]+\.md$/.test(pl)?opsLink(pl):""):"";
     const prepL=plU?`<a class="openlink" href="${esc(plU)}" target="_blank" rel="noopener">Prep ↗</a>`:"";
     const openL=prepL+(n.url&&!prList?`<a class="openlink" href="${esc(needUrl(n.url))}" target="_blank" rel="noopener">${esc(openOpt||(cls?"Open plan":"Open"))} ↗</a>`:"");
     const prev=n.preview?`<a class="openlink" href="${esc(n.preview)}" target="_blank" rel="noopener">▶ Preview</a>`:"";
@@ -1104,7 +1113,7 @@ function home(d){
   const TN=rest.filter(([n])=>needTier(n)==="now").sort((a,b)=>(/^text today/i.test(String(b[0].title||""))?1:0)-(/^text today/i.test(String(a[0].title||""))?1:0)), TW=rest.filter(([n])=>needTier(n)==="week"), TL=rest.filter(([n])=>needTier(n)==="later");
   const NCAP=4, dueTxt=n=>{if(!isDate(n.due)) return ""; const k=ptDay(asDay(n.due)), t=ptDay(Date.now()); return k<t?"overdue":k===t?"today":fmtD(asDay(n.due)).replace(/^(\w+), /,"$1 ")};
   const autoL=n=>n.recommend&&isDate(n.auto_apply_at)?`<div class="muted" style="font-size:12px">Default: ${esc(n.recommend)} · auto-applies ${esc(fmtT(n.auto_apply_at))}</div>`:"";
-  const mini=([n,i],grouped)=>`<li class="nmini"><span>${n.url&&/^https:\/\//.test(needUrl(n.url))?`<a href="${esc(needUrl(n.url))}" target="_blank" rel="noopener">${esc(n.title)}</a>`:esc(n.title)}${autoL(n)}</span><span class="muted">${esc([grouped&&!/overdue|today/.test(dueTxt(n))?"":dueTxt(n),num(n.est_min)!=null?num(n.est_min)+" min":""].filter(Boolean).join(" · "))}</span></li>`;
+  const mini=([n,i],grouped)=>`<li class="nmini"><span>${n.url&&/^(https:\/\/|\/api\/file\?)/.test(needUrl(n.url))?`<a href="${esc(needUrl(n.url))}" target="_blank" rel="noopener">${esc(n.title)}</a>`:esc(n.title)}${autoL(n)}</span><span class="muted">${esc([grouped&&!/overdue|today/.test(dueTxt(n))?"":dueTxt(n),num(n.est_min)!=null?num(n.est_min)+" min":""].filter(Boolean).join(" · "))}</span></li>`;
   const needs=(TN.length?TN.slice(0,NCAP).map(([n,i])=>card(n,i)).join("")+(TN.length>NCAP?`<div class="needs-more" hidden>${TN.slice(NCAP).map(([n,i])=>card(n,i)).join("")}</div><button type="button" class="more needs-all" data-needsall>${TN.length-NCAP} more for now</button>`:"")
       :`<div class="empty">Nothing needs you right now${rest.length?"":" ✓"}.</div>`)
     +(TW.length?`<details class="closed ntier"><summary>This week · ${TW.length}</summary><ul class="lst nminil">${(()=>{const dk=([n])=>isDate(n.due)?ptDay(asDay(n.due)):"~", G={};
@@ -1189,7 +1198,7 @@ function render(){
   const v=document.getElementById("view"); if(!DATA){v.innerHTML='<p class="empty">Loading the latest status…</p>';return}
   document.getElementById("updated").textContent="Updated "+(matchMedia("(max-width:640px)").matches&&ptDay(DATA.updated)===ptDay(Date.now())?new Date(DATA.updated).toLocaleTimeString("en-US",{...PT,hour:"numeric",minute:"2-digit"}):fmtT(DATA.updated)+" PT");
   const h=location.hash.slice(1);
-  v.innerHTML=staleHtml(DATA)+(h.startsWith("m-")?primer((DATA.meetings||[]).find(m=>"m-"+m.id===(()=>{try{return decodeURIComponent(h)}catch(_){return h}})())):home(DATA));
+  v.innerHTML=hqLinks(staleHtml(DATA)+(h.startsWith("m-")?primer((DATA.meetings||[]).find(m=>"m-"+m.id===(()=>{try{return decodeURIComponent(h)}catch(_){return h}})())):home(DATA)));
   clampDetails(v);
   v.querySelectorAll(".agent").forEach(el=>el.addEventListener("click",e=>{
     if(!matchMedia("(max-width:640px)").matches||e.target.closest("a")) return;

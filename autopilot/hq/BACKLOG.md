@@ -4,6 +4,7 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 
 | # | Finding | Status | Round |
 |---|---------|--------|-------|
+| 81 | Live page drifted: ops-bus hq/index.html was last synced 18 Nov; PR #71 added /api/file links (opsLink/hqLinks) straight into ops-bus | done R84: took ops-bus main hq/index.html as the base, re-applied R83/R83b on top; this branch is now the live page plus R83 | R84 |
 | 80 | Burn panel: show spend basis and grey out paused projects (Sinny) | done R83: muted basis line under the title (spend[].basis, or spend_basis); rows with paused:true, status paused, or a paused board tile are greyed with "· paused" | R83 |
 | 79 | Nat: "Burn by project · sessions started this week" was blank, and the Pro graph showed tokens, not % of the weekly limit | done R82: panel renamed "Burn by project · this week", with an empty state that names the week start. Pro chart is now "Weekly fuel · Pro account", drawn like Stanford: % used, target now, reset, pace pill, dashed pacing target, fast phase, now line and an as-of stamp with STALE. Its 7-day window ends at agents[pinny].util_reset. Tokens moved to one muted line | R82 |
 | 78 | Long Needs details ran on; clamp to 3 lines with a More/Less toggle (Chinny PR #15) | done R81: PR #15 diff applied as-is on the current page. The More/Less button sets aria-expanded and also works inside "N more for now" | R81 |
