@@ -90,3 +90,4 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 | — | Week plan need on Sun/Mon gets its own card | done | R18 |
 | — | Gmail scan counts beside the Notion funnel | done | R18 |
 | — | Desktop keyboard shortcuts; one-line phone header; 2-line tile labels | done | R19 |
+| — | v2 morning card: first thing skips later-tier items (was "Start with this" with 0 needs); shows first calendar block when clear | done | R63 |

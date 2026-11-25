@@ -243,9 +243,9 @@ function nowCard(d,M,Qn){
       ${W?`<div class="row2"><div><div class="n mono">${num(W.done)??"—"}</div><div class="l">tasks done this week</div></div>${num(W.planned)!=null?`<div><div class="n mono">${W.planned}</div><div class="l">planned</div></div>`:""}${streakNum(d)?`<div><div class="n mono">🔥 ${streakNum(d)}</div><div class="l">day streak</div></div>`:""}</div>
         ${wins.length?`<div class="k" style="margin-top:14px">Wins</div><ul>${wins.map(w=>`<li>${link(w.url)?`<a href="${esc(link(w.url))}" target="_blank" rel="noopener" style="color:#fff">${esc(w.text)}</a>`:esc(w.text)}</li>`).join("")}</ul>`:""}`:""}
       ${n?`<h2 style="margin-top:${W?16:8}px${W?";font-size:19px":""}">${esc(n.title)}</h2>${n.detail?`<p>${esc(n.detail)}</p>`:""}${answers(n,i)}`:""}</section>`}
-  if(M.kind==="morning"){const c=capToday(d), first=Qn[0];
+  if(M.kind==="morning"){const c=capToday(d), first=Qn.find(notLater), nb=(Array.isArray(d.calendar_blocks)?d.calendar_blocks:[]).filter(b=>b&&isDate(b.start)&&ptDay(b.start)===ptDay(NOW())&&new Date(b.start)>NOW()).sort((x,y)=>new Date(x.start)-new Date(y.start))[0];
     return `<section class="now"><div class="glow"></div><div class="k">Today · ${esc(dayLbl(NOW()))}</div>
-      <h2>${first?esc(first.title):"A clear day. Nothing needs you yet."}</h2>${first&&dueOf(first)?`<p>${esc(dueOf(first).txt)}${num(first.est_min)?` · about ${first.est_min} min`:""}</p>`:""}
+      <h2>${first?esc(first.title):"A clear morning. Nothing needs you ✨"}</h2>${!first&&nb?`<p>First on the calendar: ${esc(tm(nb.start))} · ${esc(nb.title||({meeting:"Meeting",class:"Class",focus:"Focus"})[nb.kind]||"Busy")}</p>`:""}${first&&dueOf(first)?`<p>${esc(dueOf(first).txt)}${num(first.est_min)?` · about ${first.est_min} min`:""}</p>`:""}
       <div class="row2"><div><div class="n mono">${meets.length}</div><div class="l">meeting${meets.length===1?"":"s"} today</div></div>
         <div><div class="n mono">${act(Qn)}</div><div class="l">need${act(Qn)===1?"s":""} you</div></div>
         <div><div class="n mono" style="color:${c?c.pct>=85?"var(--bad)":c.pct>70?"var(--warn)":"var(--good)":"inherit"}">${c?c.pct+"%":"—"}</div><div class="l">of today booked</div></div></div>
