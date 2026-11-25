@@ -718,6 +718,27 @@ try:
     out["watchdog"] = {**(out.get("watchdog") or {}), "fixes": _fixes()}
 except Exception:
     pass
+# 2026-11-25 HQ v2 data ask (2): wins[] = worker tasks finished in the last 24 h (ops-bus requests/done added),
+# skipping recurring/timed housekeeping. Short strings + url. Title only (no result text: it can hold private detail).
+try:
+    import subprocess as _sp2, re as _re2
+    _log = _sp2.run(["git", "-C", "/home/user/ops-bus", "log", "--since=24 hours ago", "--diff-filter=A",
+                     "--name-only", "--format=@%cI", "--", "requests/done"], capture_output=True, text=True, timeout=20).stdout
+    _wins, _seen, _at = [], set(), None
+    for _ln in _log.splitlines():
+        if _ln.startswith("@"): _at = _ln[1:]; continue
+        if not _ln.endswith(".md") or _ln in _seen: continue
+        _seen.add(_ln); _base = _ln.split("/")[-1]
+        if _re2.search(r"-(binny|pinny|minny)-r-|drive-inbox|notion-tasks-sync|heartbeat|usage-reading", _base): continue
+        try: _txt = open("/home/user/ops-bus/" + _ln).read()
+        except OSError: continue
+        _m = _re2.search(r"^title:\s*(.+)$", _txt, _re2.M); _st = _re2.search(r"^status:\s*(\S+)", _txt, _re2.M)
+        if not _m or (_st and _st.group(1) != "done") or "CANCELLED" in _txt: continue
+        _title = _re2.sub(r"^(Binny|Pinny|Minny)\s*-\s*", "", _m.group(1).strip())
+        _wins.append({"text": _title[:140], "url": "https://github.com/zuzivian/ops-bus/blob/main/" + _ln, "at": _at})
+    out["wins"] = sorted(_wins, key=lambda w: w["at"] or "", reverse=True)[:12]
+except Exception:
+    out["wins"] = []
 # Fill board[].repo from the gh_issues / merge-queue repo lists for tiles config.json has no repo for.
 try:
     for _lst in ("gh_issues", "merge_queue"):
