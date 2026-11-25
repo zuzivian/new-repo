@@ -650,7 +650,8 @@ function pillarRead(p,prog,d){
   const yk=keys.find(k=>k!==m&&/year/i.test(k)&&tnum(T[k])!=null);
   const k2=yk||p.key==="outreach"?null:keys.find(k=>k!==m&&num(g[k])!=null), sec=yk&&cur!=null?`Year goal: ${cur}/${tnum(T[yk])}`:k2?`${k2.replace(/_/g," ")} ${num(g[k2])}/${tnum(T[k2])}`.replace(/^(\w)/,c=>c.toUpperCase()):"";
   // funnel (no numeric target): show the stages that are reported
-  const FUN=["tracked","applied","interviewing","offers"], funnel=target==null&&FUN.some(k=>num(g[k])!=null)?FUN.filter(k=>num(g[k])!=null).map(k=>`${num(g[k])} ${k}`).join(" · "):"";
+  const FG=g.funnel&&typeof g.funnel==="object"?g.funnel:g; // reconciled funnel (Gmail scan) wins over Notion-only counts
+  const FUN=["tracked","applied","interviewing","offers"], funnel=target==null&&FUN.some(k=>num(FG[k])!=null)?FUN.filter(k=>num(FG[k])!=null).map(k=>`${num(FG[k])} ${k}`).join(" · "):"", funnelSrc=FG!==g&&typeof FG.basis==="string"?FG.basis:"";
   const EM=[["email_applied","applied"],["email_interviews","interviews"],["email_rejections","rejections"],["email_offers","offers"]].filter(([k])=>num(g[k])!=null);
   const mail=EM.length?{txt:EM.map(([k,l])=>`${num(g[k])} ${num(g[k])===1?l.replace(/s$/,""):l}`).join(" · "),at:isDate(g.email_scan_at)?g.email_scan_at:null,gap:num(g.email_not_in_tracker)||0}:null;
   const pend=p.key==="outreach"&&g.status_label?[]:keys.filter(k=>k!==m&&!/_by$/.test(k)&&!/year/i.test(k)&&num(g[k])==null&&k in g).map(k=>`goal ${tnum(T[k])} ${k.replace(/_/g," ")} · not tracked yet`);
@@ -665,7 +666,7 @@ function pillarRead(p,prog,d){
     const pace=cur==null?(g.note?String(g.note):"Not reported yet"):(cur<=target?`${target-cur}${pc} under the ${target}${pc?"%":""} cap`:`${cur-target}${pc} over the ${target}${pc?"%":""} cap`)+(od?` · ${od} day${od===1?"":"s"} over`:"");
     return {m,label,target,cur,state,pace,dl,sec:"",funnel:"",cal:false,need:null,rate:null,weekly:false,overdue:[],mail:null,warm:null,pend:[],max:true,bad};
   }
-  if(target==null) return {m,label,target,cur,state:cur==null?"nf":"",pace:cur==null?(g.note?String(g.note):"Not reported yet"):"No target set"+(dl?" · deadline "+fmtD(asDay(dl)).replace(/^\w+, /,""):""),dl,sec,funnel,cal,mail,warm,pend};
+  if(target==null) return {m,label,target,cur,state:cur==null?"nf":"",pace:cur==null?(g.note?String(g.note):"Not reported yet"):"No target set"+(dl?" · deadline "+fmtD(asDay(dl)).replace(/^\w+, /,""):""),dl,sec,funnel,funnelSrc,cal,mail,warm,pend};
   let need=null,rate=null,state="nf",pace=cur==null?(g.note?String(g.note):prog?"Not reported yet":"Waiting on the progress feed"):"";
   if(cur!=null){
     if(cur>=target){state="good";pace=weekly?"Done for this week":"Target reached ✓"}
@@ -756,7 +757,7 @@ function goalsHtml(d){
         return todo!=null?`<span class="gm gact"><b>Apply this week: ${todo}</b>${lv!=null?` · ${lv} eligible live`:""}</span>`:""})():""}
       <span class="gv">${nf?esc(((G.progress||{})[p.key]||{}).status_label||"no feed yet"):p.key==="outreach"&&r.target!=null?`${r.cur}<small> of ${r.target}${r.weekly?" this week":""}</small>`:r.warm?`${r.cur}<small> warm of ${r.warm.of} targets${r.target!=null?` · goal ${r.target}`:""}</small>`:/_pct$/.test(r.m||"")?`${r.cur}%<small>${r.target!=null&&r.target!==100?` of ${r.target}%`:" done"}</small>`:`${r.cur}<small>${r.target!=null?"/"+r.target+(r.dl&&!r.weekly&&/^Year goal/.test(r.sec||"")?` by ${esc(fmtD(asDay(r.dl)).replace(/^\w+, /,""))}`:""):" "+esc(r.label.replace(/\s*\(.*\)\s*$/,""))}</small>`}</span>
       ${r.warm?`<span class="gm ctsum">${[r.warm.ident!=null?`${r.warm.ident} named contact${r.warm.ident===1?"":"s"}`:"",`${r.warm.open} to open`,r.warm.closed?`${r.warm.closed} closed, swap pending`:""].filter(Boolean).join(" · ")}</span>`:""}
-      ${r.warm||(nf&&((G.progress||{})[p.key]||{}).status_label&&!r.funnel)?"":`<span class="gm"${r.funnel?' style="white-space:normal"':""}>${r.funnel&&r.mail?'<span class="src">Notion</span> ':""}${esc(r.funnel||(r.m?r.label:(p.goal||"")))}</span>`}
+      ${r.warm||(nf&&((G.progress||{})[p.key]||{}).status_label&&!r.funnel)?"":`<span class="gm"${r.funnel?' style="white-space:normal"':""}>${r.funnel&&r.mail&&!r.funnelSrc?'<span class="src">Notion</span> ':""}${esc(r.funnel||(r.m?r.label:(p.goal||"")))}</span>`}
       ${p.key==="relationships"&&r.m==="coffee_chats_calendar"?(()=>{const g=(G.progress||{}).relationships||{}, t=num(g.coffee_chats_typed), a=num(g.coffee_chats_all_excl_orientation);
         return t!=null||a!=null?`<span class="gm ctsum">Other counts: ${[t!=null?`Notion typed ${t}`:"",a!=null?`all touchpoints ${a}`:""].filter(Boolean).join(" · ")}</span>`:""})():""}
       ${ff?`<span class="gm ctsum">${esc(ff)}</span>`:""}
@@ -983,7 +984,7 @@ function goalPop(i){
     ${cc?`<div><div class="muted" style="font-size:12px;margin-bottom:2px">${ccT} · per week, last ${cc.vals.length} weeks${cc.cw?" (this week so far)":""}</div>${cc.svg}</div>`:""}
     ${k2?`<div><div class="muted" style="font-size:12px;margin-bottom:2px">classmates logged · running total (+${k2.vals[k2.vals.length-1]-k2.vals[0]} in ${k2.vals.length} wks)</div>${k2.svg}</div>`:""}
     ${p.key==="career"&&g&&num(g.applied_total)!=null?`<div class="muted" style="font-size:13px">${num(g.applied_total)} applications sent${g.applied_total_note?` · ${esc(g.applied_total_note)}`:""}</div>`:""}
-    ${r.funnel?`<div><b>Funnel</b> <span class="muted">(Notion tracker)</span>: ${esc(r.funnel)}</div>`:""}
+    ${r.funnel?`<div><b>Funnel</b> <span class="muted">(${esc(r.funnelSrc||"Notion tracker")})</span>: ${esc(r.funnel)}</div>`:""}
     ${r.mail?`<div><b>Inbox</b> <span class="muted">(Gmail scan${r.mail.at?", "+esc(fmtT(r.mail.at))+" PT":""})</span>: ${esc(r.mail.txt)}${r.mail.gap>0?`<div class="flag" style="margin-top:4px">≈${r.mail.gap} applications in email aren't in the Notion tracker yet</div>`:""}</div>`:""}
     ${sec.length?`<ul class="facts">${sec.map(x=>`<li>${/overdue keep-in-touch/.test(x)&&kitRows().length?`<button type="button" class="linkbtn hot" data-kit>${esc(x)} ›</button>`:esc(x)}</li>`).join("")}</ul>`:""}
     <details><summary class="muted" style="cursor:pointer;font-size:13px">Targets</summary><dl class="kv" style="margin-top:6px">${Object.entries(T).map(([k,v])=>`<dt>${esc(k.replace(/_/g," "))}</dt><dd class="mono">${esc(tv(v))}</dd>`).join("")}</dl></details>
