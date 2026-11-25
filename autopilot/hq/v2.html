@@ -227,6 +227,7 @@ function nowCard(d,M,Qn){
 function zeroCard(){return `<section class="now zero"><div class="glow"></div><div class="k">All clear</div><h2>Nothing needs you right now ✨</h2><p>The fleet has it. Check back after your next meeting.</p></section>`}
 function goals(d){
   const P=G(d), c=P.capacity||{}, cap=num(c.booked_pct_next7), r=P.relationships||{}, cc=num(r.coffee_chats_calendar), k=P.career||{};
+  const F=k.funnel&&typeof k.funnel==="object"?k.funnel:{tracked:k.tracked,applied:k.applied,interviewing:k.interviewing,offers:k.offers}; // reconciled funnel wins over the Notion-only counts
   const ring=(v,max,col)=>{const R=26,C=2*Math.PI*R, f=Math.max(0,Math.min(1,(v||0)/max));return `<svg class="ring" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="${R}" fill="none" stroke="#232838" stroke-width="7"/><circle cx="32" cy="32" r="${R}" fill="none" stroke="${col}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${(f*C).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 32 32)"/></svg>`};
   const days=(c.days||[]).filter(x=>x&&num(x.pct)!=null).slice(0,7);
   const capCol=p=>p>=85?"var(--bad)":p>70?"var(--warn)":"var(--acc)";
@@ -238,7 +239,7 @@ function goals(d){
       <div class="gs">${cap==null?"No calendar reading yet":cap<=70?`${70-cap} pts of slack. Room for surprises.`:`${cap-70} pts over. Trim something optional.`}</div></div>
     <div class="goal">${ring(cc,40,"var(--good)")}<div class="gk">Coffee chats</div><div class="gv mono">${cc==null?"—":cc}<small>/40</small></div><div class="gs">${left==null?"":left===0?"Goal hit 🎉":left===1?"1 more to hit 40 🎯":`${left} to go by Dec 12`}</div></div>
     <div class="goal">${ring(num(k.warm_companies),20,"var(--acc2)")}<div class="gk">Warm companies</div><div class="gv mono">${num(k.warm_companies)??"—"}<small>/20</small></div><div class="gs">by Jan 31</div></div>
-    <div class="goal wide"><div class="gk">Applications</div><div class="funnel">${[["tracked",k.tracked],["applied",k.applied],["interviewing",k.interviewing],["offers",k.offers]].map(([l,v])=>`<div><b class="mono">${num(v)??"—"}</b><span>${l}</span></div>`).join("")}</div></div>
+    <div class="goal wide"><div class="gk">Applications</div><div class="funnel">${[["tracked",F.tracked],["applied",F.applied],["interviewing",F.interviewing],["offers",F.offers]].map(([l,v])=>`<div><b class="mono">${num(v)??"—"}</b><span>${l}</span></div>`).join("")}</div>${F.basis?`<div class="gs">${esc(F.basis)}</div>`:""}</div>
   </div>`;
 }
 /* ---------- render ---------- */
