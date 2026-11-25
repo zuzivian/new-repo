@@ -219,6 +219,8 @@ function nowCard(d,M,Qn){
   const tn=Qn.find(n=>{const u=dueOf(n);return u&&(u.over||ptDay(asDay(n.due))<=tk)})||Qn[0];
   return `<section class="now eve"><div class="glow"></div><div class="k">Today, done</div>
     <div class="row2"><div><div class="n mono">${done}</div><div class="l">tasks the fleet finished</div></div><div><div class="n mono">${decs}</div><div class="l">decisions made</div></div>${wk!=null?`<div><div class="n mono">${wk}</div><div class="l">coffee chats this week</div></div>`:""}</div>
+    ${(()=>{const WA=(Array.isArray(d.wins)?d.wins:[]).filter(w=>w&&w.text&&(!isDate(w.at)||NOW()-new Date(w.at)<864e5)), W=WA.slice(0,3);
+      return W.length?`<div class="k" style="margin-top:16px">Wins</div><ul>${W.map(w=>`<li>${link(w.url)?`<a href="${esc(link(w.url))}" target="_blank" rel="noopener" style="color:#fff">${esc(w.text)}</a>`:esc(w.text)}</li>`).join("")}</ul>${WA.length>3?`<p style="font-size:13px;opacity:.75">+${WA.length-3} more today</p>`:""}`:""})()}
     <h2 style="margin-top:16px;font-size:19px">Tomorrow, first: ${tm1?`${esc(tm1.title)} at ${esc(tm(tm1.when))}`:tn?esc(tn.title):"nothing booked yet"}</h2>
     ${act(Qn)?`<p>${act(Qn)} thing${act(Qn)===1?"":"s"} still need${act(Qn)===1?"s":""} you; ${Qn.filter(n=>{const u=dueOf(n);return u&&u.over}).length} overdue.</p>`:`<p>Inbox zero. Enjoy the evening ✨</p>`}</section>`;
 }
