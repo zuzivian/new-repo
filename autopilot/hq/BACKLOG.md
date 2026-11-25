@@ -4,6 +4,7 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 
 | # | Finding | Status | Round |
 |---|---------|--------|-------|
+| 80 | Burn panel: show spend basis and grey out paused projects (Sinny) | done R83: muted basis line under the title (spend[].basis, or spend_basis); rows paused in spend or on the board are greyed with "· paused" | R83 |
 | 79 | Nat: "Burn by project · sessions started this week" was blank, and the Pro graph showed tokens, not % of the weekly limit | done R82: panel renamed "Burn by project · this week", with an empty state that names the week start. Pro chart is now "Weekly fuel · Pro account", drawn like Stanford: % used, target now, reset, pace pill, dashed pacing target, fast phase, now line and an as-of stamp with STALE. Its 7-day window ends at agents[pinny].util_reset. Tokens moved to one muted line | R82 |
 | 78 | Long Needs details ran on; clamp to 3 lines with a More/Less toggle (Chinny PR #15) | done R81: PR #15 diff applied as-is on the current page. The More/Less button sets aria-expanded and also works inside "N more for now" | R81 |
 | 77 | Project popup Repo row linked github.com/zuzivian/<name> for every project; career, drones and digitizing-government were 404s (Nat) | done R80: Repo row only when board.repo is set, or when the data already links that repo (HQ maps to new-repo); never a guessed URL. Fleet Ops: add board[].repo in build.py to cover the rest | R80 |

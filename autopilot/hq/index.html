@@ -263,6 +263,7 @@ details.fleet[open]>summary{margin-bottom:14px}
 .cdays{display:block;padding-bottom:12px}.cbars{position:relative;display:grid;grid-template-columns:repeat(7,1fr);gap:3px;height:22px;align-items:end}.cdays.big .cbars{height:60px}
 .cday{position:relative;height:100%;display:flex;align-items:flex-end}.cday>i{display:block;width:100%;border-radius:2px 2px 0 0;min-height:2px}.cday>b{position:absolute;bottom:-12px;left:0;right:0;text-align:center;font-size:9px;font-weight:600;color:var(--ink-2)}
 .cline{position:absolute;left:0;right:0;height:0;border-top:1px dashed var(--ink-2);z-index:1;pointer-events:none}
+.row.paused .name,.row.paused .mono{opacity:.6}
 .goal.nf .gbar{background:repeating-linear-gradient(90deg,var(--track) 0 6px,transparent 6px 10px)}
 /* This week: one timeline of deadlines, meetings and top tasks. */
 .wk{display:grid;gap:2px;margin:0;padding:0;list-style:none}
@@ -1114,7 +1115,9 @@ function home(d){
       :`<details class="closed ntier"><summary class="muted">${TL.length} later, moving to Notion</summary><ul class="lst nminil">${TL.map(mini).join("")}</ul></details>`})());
   const crew=d.workers.length?d.workers.map(w=>`<div class="row"><span class="name">${esc(w.project)} <span class="muted">· ${esc(w.task)}</span></span>${(()=>{const st=String(w.status||w.state||"").toLowerCase();return `<span class="pill ${st==="working"||st==="running"?"warn":st.includes("block")?"bad":st.startsWith("queued")?"":"good"}">${esc(w.status||w.state||"—")}</span>`})()}</div>`).join(""):`<div class="empty">No workers running.</div>`;
   const SP=(Array.isArray(d.spend)?d.spend:[]).filter(s=>s&&num(s.usd)!=null&&s.usd>0), maxc=Math.max(...SP.map(s=>s.usd),1);
-  const spend=SP.map(s=>`<div class="row"><span class="name">${esc(PALIAS[s.project]&&(d.board||[]).some(b=>b.project===PALIAS[s.project])?PALIAS[s.project]:s.project)}</span><span class="mono muted">$${s.usd.toFixed(0)}</span></div><div class="hbar"><i style="width:${(s.usd/maxc*100).toFixed(1)}%;background:${TIER_COLOR[s.tier]||"var(--maint)"}"></i></div>`).join("");
+  const isPaused=s=>/^paused$/i.test(String(s.status||""))||(d.board||[]).some(b=>sameProj(s.project,b.project)&&/^paused$/i.test(String(b.status||"")));
+  const basis=(SP.find(s=>typeof s.basis==="string"&&s.basis.trim())||{}).basis||(typeof d.spend_basis==="string"?d.spend_basis:"");
+  const spend=SP.map(s=>{const pz=isPaused(s);return `<div class="row${pz?" paused":""}"><span class="name">${esc(PALIAS[s.project]&&(d.board||[]).some(b=>b.project===PALIAS[s.project])?PALIAS[s.project]:s.project)}${pz?' <span class="muted">· paused</span>':""}</span><span class="mono muted">$${s.usd.toFixed(0)}</span></div><div class="hbar${pz?" paused":""}"><i style="width:${(s.usd/maxc*100).toFixed(1)}%;background:${pz?"var(--line)":TIER_COLOR[s.tier]||"var(--maint)"}"></i></div>`}).join("");
   const tab=curTab();
   const life=`${sinceHtml(d)}${wplan}${todayHtml(d)}
    ${rest.length?`<section class="panel" aria-labelledby="n" style="margin-bottom:16px"><h2 id="n">Needs you now · ${TN.length}${(()=>{const m=TN.reduce((t,[n])=>t+(num(n.est_min)||0),0), all=TN.every(([n])=>num(n.est_min)!=null); return m?` <span class="muted" style="font-size:12px;letter-spacing:0;text-transform:none">· ${all?"":"≥"}${m} min</span>`:""})()}${TW.length+TL.length?` <span class="muted" style="font-size:12px;letter-spacing:0;text-transform:none">· ${rest.length} in all</span>`:""}</h2>
@@ -1141,7 +1144,7 @@ function home(d){
    <section class="panel" aria-labelledby="c"><h2 id="c">API-equivalent cost · this week · $${(d.cost&&d.cost.total||0).toFixed(0)}</h2>
      ${costHtml(d.cost,d.updated)}
      <p class="muted" style="margin:10px 0 0;font-size:13px">What these tokens would cost at API list prices (Claude Code's own estimate per session). Plan usage, not a bill.</p></section>
-   <section class="panel" aria-labelledby="s"><h2 id="s">Burn by project · this week</h2><div class="rows">${spend||`<div class="empty">No session burn recorded since the week started (${esc(fmtT(d.week&&d.week.reset?new Date(new Date(d.week.reset)-7*864e5).toISOString():d.updated))} PT). It fills in once a session spends tokens.</div>`}</div></section>
+   <section class="panel" aria-labelledby="s"><h2 id="s">Burn by project · this week</h2>${basis?`<p class="muted" style="margin:-6px 0 8px;font-size:12px">${esc(basis)}</p>`:""}<div class="rows">${spend||`<div class="empty">No session burn recorded since the week started (${esc(fmtT(d.week&&d.week.reset?new Date(new Date(d.week.reset)-7*864e5).toISOString():d.updated))} PT). It fills in once a session spends tokens.</div>`}</div></section>
   </div>`;
   // Fleet is built only when shown, and a Fleet data gap can't take Life down with it
   let body=life; if(tab==="fleet"){try{body=fleet()}catch(e){body=`<p class="empty">The Fleet view hit a data gap (${esc(String(e&&e.message||e))}). Life still works.</p>`}}
