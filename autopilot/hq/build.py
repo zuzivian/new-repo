@@ -34,16 +34,37 @@ primers = load(os.path.join(scratch, "primers.json"), {"primers": []})
 reset = dt.datetime.fromisoformat(state["week"]["reset"])
 week_start = reset - dt.timedelta(days=7)
 tier_of = {p["name"]: p.get("tier", "maintenance") for p in cfg["projects"]}
-tier_of.update({"temasek-1360": "growth", "new-repo": "maintenance", "career": "career-core"})  # career = Nat's #1 goal
+tier_of.update({"temasek-1360": "growth", "new-repo": "maintenance", "career": "career-core", "rides": "growth", "HQ": "maintenance", "Sinny": "maintenance"})  # career = Nat's #1 goal
 
+# 2026-11-25 (Sinny/Nat: panel was blank because long-lived sessions were created before this week):
+# burn THIS WEEK = cost_usd now minus cost_usd at the week baseline. Baseline lives in <scratch>/usage_week_baseline.json
+# and resets when week.reset rolls over. A session created this week has baseline 0; one first seen mid-week is
+# baselined at first sight. If the baseline was first created mid-week, the basis says so.
+_bp = os.path.join(scratch, "usage_week_baseline.json")
+_base = load(_bp, {}) or {}
+_now_utc = dt.datetime.now(dt.timezone.utc)
+if _base.get("week_start") != week_start.isoformat():
+    _mid = bool(_base) is False and _now_utc > week_start.astimezone(dt.timezone.utc) + dt.timedelta(hours=1)
+    _base = {"week_start": week_start.isoformat(), "created_at": _now_utc.isoformat(timespec="minutes"),
+             "mid_week": _mid, "sessions": {}}
 spend = {}
 for s in usage.get("sessions", []):
     u = s.get("usage") or {}
+    cur = float(u.get("cost_usd") or 0)
     created = dt.datetime.fromisoformat(s["created_at"].replace("Z", "+00:00"))
-    if created < week_start or not u.get("cost_usd"):
+    if s["id"] not in _base["sessions"]:
+        _base["sessions"][s["id"]] = 0.0 if created >= week_start else cur
+    d = cur - float(_base["sessions"][s["id"]])
+    if d <= 0.005:
         continue
     repo = s.get("repo") or "none"
-    spend[repo] = spend.get(repo, 0.0) + float(u["cost_usd"])
+    spend[repo] = spend.get(repo, 0.0) + d
+try:
+    with open(_bp, "w") as _fh: json.dump(_base, _fh, indent=1)
+except OSError:
+    pass
+SPEND_BASIS = ("delta since " + dt.datetime.fromisoformat(_base["created_at"]).astimezone(dt.timezone(dt.timedelta(hours=-8))).strftime("%a %d %b %H:%M PT")
+               + " (first baseline; full weeks from the next reset)") if _base.get("mid_week") else "delta since week start"
 # API-equivalent cost by provider -> model. cost_usd comes from the Claude Code CLI, which prices tokens at
 # API list rates. Providers without token data (Codex, Pro) come in as "other" rows with a note.
 prov = {}
@@ -68,10 +89,13 @@ PILLAR_OF = {"natwong-dev": "career", "ad-constellation": "career", "skyviu": "c
              "career": "career", "digitizing-government": "digigov", "digigov": "digigov",
              "relationships": "relationships", "growth": "growth", "exponent": "growth",
              "derby-day": "growth", "temasek-1360": "growth", "ring-studio": "growth",
-             "HQ": "fleet_hq", "new-repo": "fleet_hq", "ops-bus": "fleet_hq", "fleet": "fleet_hq"}
+             "HQ": "fleet_hq", "new-repo": "fleet_hq", "ops-bus": "fleet_hq", "fleet": "fleet_hq",
+             "Sinny": "fleet_hq", "rides": "growth"}
+PAUSED_PROJECTS = {"digitizing-government", "digigov"}  # Nat 24 Nov: digigov dead until revived
 spend_rows = sorted(
     ({"project": k, "usd": round(v, 2), "tier": tier_of.get(k, "maintenance"),
-      "pillar": PILLAR_OF.get(k, "fleet_hq" if tier_of.get(k, "maintenance") == "maintenance" else "growth")}
+      "pillar": PILLAR_OF.get(k, "fleet_hq" if tier_of.get(k, "maintenance") == "maintenance" else "growth"),
+      "basis": SPEND_BASIS, **({"paused": True} if k in PAUSED_PROJECTS else {})}
      for k, v in spend.items()),
     key=lambda r: -r["usd"])
 
