@@ -95,7 +95,7 @@ PAUSED_PROJECTS = {"digitizing-government", "digigov"}  # Nat 24 Nov: digigov de
 spend_rows = sorted(
     ({"project": k, "usd": round(v, 2), "tier": tier_of.get(k, "maintenance"),
       "pillar": PILLAR_OF.get(k, "fleet_hq" if tier_of.get(k, "maintenance") == "maintenance" else "growth"),
-      "basis": SPEND_BASIS, **({"paused": True} if k in PAUSED_PROJECTS else {})}
+      "basis": SPEND_BASIS, **({"paused": True, "status": "paused"} if k in PAUSED_PROJECTS else {})}
      for k, v in spend.items()),
     key=lambda r: -r["usd"])
 
@@ -693,6 +693,7 @@ out = {
     "workers": [w for w in state.get("workers", []) if not str(w.get("status","")).startswith("done")]
                + [w for w in state.get("workers", []) if str(w.get("status","")).startswith("done")][:6],
     "spend": spend_rows,
+    "spend_basis": SPEND_BASIS,
     "meetings": meetings,
     "pro": state.get("pro", {"note": "Not connected yet."}),
     "supervisor": state.get("supervisor"),
