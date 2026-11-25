@@ -749,6 +749,39 @@ try:
     out["wins"] = sorted(_wins, key=lambda w: w["at"] or "", reverse=True)[:12]
 except Exception:
     out["wins"] = []
+# 2026-11-25 HQ v2 data asks (3) and (4).
+# streak = consecutive days with zero non-"later" needs at the 21:00 PT check; history kept in <scratch>/streak.json.
+try:
+    _pt = dt.timezone(dt.timedelta(hours=-8)); _nowpt = dt.datetime.now(_pt)
+    _sp = os.path.join(scratch, "streak.json"); _sk = load(_sp, {}) or {}
+    _hist = _sk.get("history", {})
+    _open = sum(1 for n in out.get("needs", []) if str(n.get("tier") or "").lower() != "later")
+    if _nowpt.hour >= 21:
+        _hist[_nowpt.strftime("%Y-%m-%d")] = (_open == 0)
+    _days, _d = 0, _nowpt.date()
+    if _d.isoformat() not in _hist: _d -= dt.timedelta(days=1)
+    while _hist.get(_d.isoformat()) is True:
+        _days += 1; _d -= dt.timedelta(days=1)
+    _since = (_d + dt.timedelta(days=1)).isoformat() if _days else None
+    _sk = {"history": dict(sorted(_hist.items())[-60:])}
+    with open(_sp, "w") as _fh: json.dump(_sk, _fh, indent=1)
+    out["streak"] = {"days": _days, "since": _since, "rule": "days with 0 non-later needs at the 21:00 PT check", "open_now": _open}
+except Exception:
+    out["streak"] = None
+# week_review: shown Sun/Mon (PT). done = worker tasks finished in the last 7 days; top wins of the week.
+try:
+    _wd = _nowpt.weekday()  # Mon=0 .. Sun=6
+    _done7 = 0; _wk_wins = []
+    _log7 = _sp2.run(["git", "-C", "/home/user/ops-bus", "log", "--since=7 days ago", "--diff-filter=A", "--name-only",
+                      "--format=", "--", "requests/done"], capture_output=True, text=True, timeout=20).stdout.split()
+    _real = [f for f in dict.fromkeys(_log7) if f.endswith(".md") and not _re2.search(r"-(binny|pinny|minny)-r-|drive-inbox|notion-tasks-sync|heartbeat|usage-reading", f)]
+    _done7 = len(_real)
+    out["week_review"] = {"show": _wd in (6, 0), "week_of": (_nowpt.date() - dt.timedelta(days=(_wd + 1) % 7 if _wd != 6 else 0)).isoformat(),
+                          "done": _done7, "planned": None,
+                          "planned_note": "No machine-readable weekly plan yet; Sinny's Sunday review lists the plan.",
+                          "wins": (out.get("wins") or [])[:5]}
+except Exception:
+    out["week_review"] = None
 # Fill board[].repo from the gh_issues / merge-queue repo lists for tiles config.json has no repo for.
 try:
     for _lst in ("gh_issues", "merge_queue"):
