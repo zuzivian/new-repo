@@ -349,23 +349,41 @@ function gaugeChart(d){
   <div class="legend"><span><i class="dot" style="background:var(--core)"></i>Used</span><span><i class="dot" style="background:var(--ink-2)"></i>Target (dashed)</span><span><i class="dot" style="background:var(--accent)"></i>Now</span></div>`;
 }
 
-function proChart(d){ // Pro account: cumulative new tokens over the same Sat-Sat week as the gauge above (plan % isn't visible for Pro)
-  const tl=d.cost&&d.cost.pro&&d.cost.pro.timeline; if(!tl||!tl.length) return "";
-  const W=640,H=130,L=34,R=10,T=10,B=22, reset=new Date(d.week.reset).getTime(), start=reset-168*3600e3, x=t=>L+(t-start)/(168*3600e3)*(W-L-R);
-  let cum=0,cr=0; const pts=[[start,0]]; tl.forEach(b=>{const t=new Date(b.t).getTime(); if(t<start||t>reset) return; pts.push([t,cum]); cum+=b.new; cr+=b.cache_read; pts.push([t,cum])});
-  if(pts.length<2) return "";
-  const now=Math.min(new Date(d.updated).getTime(),reset); pts.push([now,cum]);
-  const max=Math.max(cum,1), y=v=>T+(1-v/max)*(H-T-B), tok=n=>n>=1e6?(n/1e6).toFixed(1)+"M":n>=1e3?Math.round(n/1e3)+"k":String(n);
-  const days=["Sat","Sun","Mon","Tue","Wed","Thu","Fri","Sat"]; let grid="";
-  for(let i=0;i<=7;i++){const gx=x(start+i*86400e3); grid+=`<line x1="${gx}" x2="${gx}" y1="${T}" y2="${H-B}" stroke="var(--line)"/><text x="${gx}" y="${H-6}" text-anchor="middle">${days[i]}</text>`}
-  for(const f of [0,.5,1]) grid+=`<line x1="${L}" x2="${W-R}" y1="${y(max*f)}" y2="${y(max*f)}" stroke="var(--line)" stroke-dasharray="${f?2:0} 3"/><text x="${L-6}" y="${y(max*f)+3}" text-anchor="end">${tok(max*f)}</text>`;
-  const line=pts.map((p,i)=>(i?"L":"M")+x(p[0]).toFixed(1)+","+y(p[1]).toFixed(1)).join(""), last=pts[pts.length-1];
-  return `<h2 style="margin-top:16px">Pro account · tokens this week</h2>
-  <svg class="chart" style="margin-top:4px" viewBox="0 0 ${W} ${H}" role="img" aria-label="Pro account cumulative new tokens this week">${grid}
-  <path d="${line}L${x(last[0]).toFixed(1)},${y(0)}L${x(start)},${y(0)}Z" fill="var(--accent)" opacity=".15"/>
-  <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2.5"/><circle cx="${x(last[0])}" cy="${y(last[1])}" r="4" fill="var(--accent)"/></svg>
-  <div class="legend"><span><i class="dot" style="background:var(--accent)"></i>New tokens (input + output + cache write): ${tok(cum)}</span><span>Cache re-reads ${tok(cr)} not counted</span></div>
-  <div class="muted" style="font-size:13px">Pro plan % isn't visible from the Pro runner, so this is token volume, not share of the weekly limit.</div>`;
+function proChart(d){ // Pro (Pinny): % of weekly limit over its own 7-day window, drawn like the Stanford chart above
+  const a=(d.agents||[]).find(x=>x&&x.key==="pinny"), PC=cfgOf(d);
+  const resetOk=a&&isDate(a.util_reset), reset=resetOk?new Date(a.util_reset).getTime():null;
+  const tl=d.cost&&d.cost.pro&&d.cost.pro.timeline, tok=n=>n>=1e6?(n/1e6).toFixed(1)+"M":n>=1e3?Math.round(n/1e3)+"k":String(n);
+  const tokLine=(()=>{if(!tl||!tl.length||!reset) return ""; const st=reset-168*3600e3; let cum=0; tl.forEach(b=>{const t=new Date(b.t).getTime(); if(t>=st&&t<=reset) cum+=num(b.new)||0}); return cum?`<div class="muted" style="font-size:12px">Tokens this window: ${tok(cum)} new (input + output + cache write)</div>`:""})();
+  if(!a) return "";
+  const u=utilOf(a.util), now=Date.now();
+  const pts=(a.series||[]).map(p=>[new Date(p.t).getTime(),utilOf(p.u)]).filter(p=>isFinite(p[0])&&p[1]!=null).sort((x,y)=>x[0]-y[0]);
+  if(u==null&&!pts.length) return `<h2 style="margin-top:16px">Weekly fuel · Pro account</h2><div class="muted">No Pro usage reading yet.</div>${tokLine}`;
+  const R=reset&&reset>now-3600e3?reset:null;
+  const W=640,H=200,L=34,Rr=10,T=10,B=26, end=R||now, start=end-168*3600e3, x=t=>L+(t-start)/(168*3600e3)*(W-L-Rr), y=v=>T+(1-v)*(H-T-B);
+  const inW=pts.filter(p=>p[0]>=start&&p[0]<=end+3600e3);
+  const t=PC&&R?target((R-now)/3600e3,PC):null, gap=t==null||u==null?null:u-t;
+  let tp=""; if(PC&&R) for(let h=168;h>=0;h-=2){const tt=R-h*3600e3; tp+=(tp?"L":"M")+x(tt).toFixed(1)+","+y(target(h,PC)).toFixed(1)}
+  const ap=inW.map((p,i)=>(i?"L":"M")+x(p[0]).toFixed(1)+","+y(p[1]).toFixed(1)).join(""), last=inW[inW.length-1];
+  const area=inW.length>1?ap+`L${x(last[0]).toFixed(1)},${y(0)}L${x(inW[0][0]).toFixed(1)},${y(0)}Z`:"";
+  const dl=tt=>esc(new Date(tt).toLocaleDateString("en-US",{...PT,weekday:"short"}));
+  let grid=""; for(let i=0;i<=7;i++){const gx=x(start+i*864e5); grid+=`<line x1="${gx}" x2="${gx}" y1="${T}" y2="${H-B}" stroke="var(--line)" stroke-width="1"/><text x="${gx}" y="${H-8}" text-anchor="middle">${dl(start+i*864e5)}</text>`}
+  for(const v of [0,.25,.5,.75,1]) grid+=`<line x1="${L}" x2="${W-Rr}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-dasharray="${v?2:0} 3"/><text x="${L-6}" y="${y(v)+3}" text-anchor="end">${v*100}%</text>`;
+  const fast=PC&&R?x(R-PC.ramp_start_hours_before_reset*3600e3):null;
+  const at=[a.util_at,last?new Date(last[0]).toISOString():null].filter(isDate).map(z=>new Date(z).getTime()), asOf=at.length?Math.max(...at):null, old=asOf&&now-asOf>2*3600e3;
+  return `<h2 style="margin-top:16px">Weekly fuel · Pro account</h2>
+  <div class="gauge-top"><div class="big mono">${u==null?"—":Math.round(u*100)+"%"} <span class="muted" style="font-size:14px;font-weight:600">used</span></div>
+    <div class="stat"><span class="muted">Target now</span><b>${t==null?"—":Math.round(t*100)+"%"}</b></div>
+    <div class="stat"><span class="muted">Resets</span><b>${R?esc(fmtT(new Date(R).toISOString())):"not reported"}</b></div>
+    ${gap==null?"":`<span class="pill ${gap>=-0.03?"good":gap>=-0.10?"warn":"bad"}" title="Pace = share of the weekly limit the plan expects used by now">${gap>0.01?`${Math.round(gap*100)} pts over pace`:gap<-0.01?`${Math.round(-gap*100)} pts under pace`:"on pace"}</span>`}</div>
+  <svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Pro account: share of weekly limit used${u==null?"":`, ${Math.round(u*100)}% now`}${t==null?"":`, target ${Math.round(t*100)}%`}">
+  ${grid}${fast!=null?`<rect x="${fast}" y="${T}" width="${Math.max(0,W-Rr-fast)}" height="${H-T-B}" fill="var(--accent)" opacity=".06"/><text x="${fast+4}" y="${T+11}">fast phase</text>`:""}
+  ${tp?`<path d="${tp}" fill="none" stroke="var(--ink-2)" stroke-width="1.5" stroke-dasharray="5 4"/>`:""}
+  ${area?`<path d="${area}" fill="var(--core)" opacity=".15"/>`:""}${ap?`<path d="${ap}" fill="none" stroke="var(--core)" stroke-width="2.5"/>`:""}
+  ${last?`<circle cx="${x(last[0])}" cy="${y(last[1])}" r="4.5" fill="var(--core)"/>`:""}
+  ${now<=end?`<line x1="${x(now)}" x2="${x(now)}" y1="${T}" y2="${H-B}" stroke="var(--accent)" stroke-width="1.5"/>`:""}
+  </svg>
+  <div class="legend"><span><i class="dot" style="background:var(--core)"></i>Used</span>${tp?`<span><i class="dot" style="background:var(--ink-2)"></i>Target (dashed)</span>`:""}<span><i class="dot" style="background:var(--accent)"></i>Now</span></div>
+  <div class="muted" style="font-size:12px">${old?`<span class="stbadge">STALE</span> `:""}${asOf?"Read "+esc(fmtT(new Date(asOf).toISOString()))+" PT":"Reading time not reported"} · Pinny's report${a.usage_note?" · "+esc(a.usage_note):""}</div>${tokLine}`;
 }
 
 const ST_COLOR={"needs you":"var(--bad)","running":"var(--good)","queued":"var(--core)","paused":"var(--warn)","idle":"var(--maint)","off":"var(--ink-2)"};
@@ -1095,8 +1113,8 @@ function home(d){
       return NR?`<p class="muted ntier" style="margin:8px 0 0">${(d.triage||{}).notion_url&&/^https:\/\//.test(d.triage.notion_url)?link(d.triage.notion_url,nL+" later · in Notion"):`${nL} later · in Notion`}</p>`
       :`<details class="closed ntier"><summary class="muted">${TL.length} later, moving to Notion</summary><ul class="lst nminil">${TL.map(mini).join("")}</ul></details>`})());
   const crew=d.workers.length?d.workers.map(w=>`<div class="row"><span class="name">${esc(w.project)} <span class="muted">· ${esc(w.task)}</span></span>${(()=>{const st=String(w.status||w.state||"").toLowerCase();return `<span class="pill ${st==="working"||st==="running"?"warn":st.includes("block")?"bad":st.startsWith("queued")?"":"good"}">${esc(w.status||w.state||"—")}</span>`})()}</div>`).join(""):`<div class="empty">No workers running.</div>`;
-  const maxc=Math.max(...d.spend.map(s=>s.usd),1);
-  const spend=d.spend.map(s=>`<div class="row"><span class="name">${esc(PALIAS[s.project]&&(d.board||[]).some(b=>b.project===PALIAS[s.project])?PALIAS[s.project]:s.project)}</span><span class="mono muted">$${s.usd.toFixed(0)}</span></div><div class="hbar"><i style="width:${(s.usd/maxc*100).toFixed(1)}%;background:${TIER_COLOR[s.tier]||"var(--maint)"}"></i></div>`).join("");
+  const SP=(Array.isArray(d.spend)?d.spend:[]).filter(s=>s&&num(s.usd)!=null&&s.usd>0), maxc=Math.max(...SP.map(s=>s.usd),1);
+  const spend=SP.map(s=>`<div class="row"><span class="name">${esc(PALIAS[s.project]&&(d.board||[]).some(b=>b.project===PALIAS[s.project])?PALIAS[s.project]:s.project)}</span><span class="mono muted">$${s.usd.toFixed(0)}</span></div><div class="hbar"><i style="width:${(s.usd/maxc*100).toFixed(1)}%;background:${TIER_COLOR[s.tier]||"var(--maint)"}"></i></div>`).join("");
   const tab=curTab();
   const life=`${sinceHtml(d)}${wplan}${todayHtml(d)}
    ${rest.length?`<section class="panel" aria-labelledby="n" style="margin-bottom:16px"><h2 id="n">Needs you now · ${TN.length}${(()=>{const m=TN.reduce((t,[n])=>t+(num(n.est_min)||0),0), all=TN.every(([n])=>num(n.est_min)!=null); return m?` <span class="muted" style="font-size:12px;letter-spacing:0;text-transform:none">· ${all?"":"≥"}${m} min</span>`:""})()}${TW.length+TL.length?` <span class="muted" style="font-size:12px;letter-spacing:0;text-transform:none">· ${rest.length} in all</span>`:""}</h2>
@@ -1123,7 +1141,7 @@ function home(d){
    <section class="panel" aria-labelledby="c"><h2 id="c">API-equivalent cost · this week · $${(d.cost&&d.cost.total||0).toFixed(0)}</h2>
      ${costHtml(d.cost,d.updated)}
      <p class="muted" style="margin:10px 0 0;font-size:13px">What these tokens would cost at API list prices (Claude Code's own estimate per session). Plan usage, not a bill.</p></section>
-   <section class="panel" aria-labelledby="s"><h2 id="s">Burn by project · sessions started this week</h2><div class="rows">${spend}</div></section>
+   <section class="panel" aria-labelledby="s"><h2 id="s">Burn by project · this week</h2><div class="rows">${spend||`<div class="empty">No session burn recorded since the week started (${esc(fmtT(d.week&&d.week.reset?new Date(new Date(d.week.reset)-7*864e5).toISOString():d.updated))} PT). It fills in once a session spends tokens.</div>`}</div></section>
   </div>`;
   // Fleet is built only when shown, and a Fleet data gap can't take Life down with it
   let body=life; if(tab==="fleet"){try{body=fleet()}catch(e){body=`<p class="empty">The Fleet view hit a data gap (${esc(String(e&&e.message||e))}). Life still works.</p>`}}
