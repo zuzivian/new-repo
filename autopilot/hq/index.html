@@ -255,7 +255,8 @@ function broken(d){ // only real breakage; otherwise invisible
   if(age>3) out.push(`Data is ${Math.round(age)} h old. The feed normally updates every 15 min.`);
   const W=d.watchdog||{}; if((W.stuck||[]).length) out.push(`${W.stuck.length} agent run${W.stuck.length===1?"":"s"} stuck`); if((W.failed_runs||[]).length) out.push(`${W.failed_runs.length} failed run${W.failed_runs.length===1?"":"s"}`);
   const crit=(d.issues||[]).filter(i=>i.severity==="critical"); if(crit.length) out.push(`${crit.length} critical fleet issue${crit.length===1?"":"s"}: ${crit[0].title}`);
-  const FP=d.fleet_pacing&&d.fleet_pacing.agents||{}; const st=Object.keys(FP).filter(k=>FP[k]&&FP[k].stalled===true); if(st.length) out.push(`${st.map(k=>k[0].toUpperCase()+k.slice(1)).join(", ")} stalled with tasks waiting`);
+  const FP=d.fleet_pacing&&d.fleet_pacing.agents||{}; const st=Object.keys(FP).filter(k=>FP[k]&&FP[k].stalled===true); for(const k of st){const f=FP[k], q=num(f.queue), fl=num(f.in_flight), im=num(f.idle_min), why=[fl>0?`${fl} in flight`:"",q>0?`${q} queued`:"",im!=null?`no run for ${im<90?im+" min":Math.round(im/60)+" h"}`:""].filter(Boolean);
+    out.push(`${k[0].toUpperCase()+k.slice(1)} stalled${why.length?" ("+why.join(", ")+")":""}`)}
   return out;
 }
 
