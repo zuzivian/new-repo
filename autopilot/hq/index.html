@@ -193,6 +193,23 @@ h3.sec .c{font:13px var(--px);letter-spacing:0;color:var(--ink-3);text-transform
   .now h2{font-size:26px}
   .doodle{width:64px;height:64px}
 }
+
+/* overworld strip */
+.ow{position:relative;margin:12px 2px 4px;padding-top:10px}
+.ow-row{display:grid;grid-template-columns:repeat(16,1fr);box-shadow:0 0 0 2px var(--ink0)}
+.ow-t svg{display:block;width:100%;height:auto;image-rendering:pixelated}
+.ow-hero{position:absolute;top:-6px;width:16px;margin-left:-8px;animation:hop 1s steps(2) infinite;filter:drop-shadow(1px 1px 0 rgba(0,0,0,.35))}
+.ow-hero svg{display:block;width:16px;height:20px}
+.ow-ax{display:flex;justify-content:space-between;font:9px var(--caps);color:var(--ink-3);margin-top:4px;text-transform:uppercase}
+/* level-up */
+.lvl{position:relative;display:inline-flex;flex-direction:column;align-items:center;gap:4px;margin-bottom:4px}
+.lvl-star{width:48px;height:48px;animation:hop 1s steps(2) infinite}
+.lvl-t{font:400 15px var(--caps);text-transform:uppercase;color:#1d2129;background:var(--hp-y);padding:5px 10px 4px;box-shadow:0 -3px 0 0 #1d2129,0 3px 0 0 #1d2129,-3px 0 0 0 #1d2129,3px 0 0 0 #1d2129;animation:lvlpop .5s steps(4) both}
+.lvl-lv{font:400 11px var(--caps);text-transform:uppercase;color:var(--good)}
+@keyframes lvlpop{0%{transform:scale(.4)}60%{transform:scale(1.15)}100%{transform:none}}
+.lvl .sp{position:absolute;width:6px;height:6px;background:var(--hp-y);box-shadow:0 0 0 2px var(--ink0);animation:spark 1.2s steps(3) infinite}
+.lvl .s1{left:-18px;top:6px}.lvl .s2{right:-16px;top:18px;animation-delay:.4s}.lvl .s3{left:-6px;top:40px;animation-delay:.8s}
+@keyframes spark{0%,100%{opacity:0;transform:scale(.5)}50%{opacity:1;transform:scale(1)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -350,6 +367,7 @@ function dayPlan(d){
   return `<h3 class="sec">Today &amp; tomorrow</h3><div class="plan">${D2.map((x,j)=>`<div class="pday"><div class="ph"><b>${j?"Tomorrow":"Today"}</b><span class="dim">${esc(dayLbl(x.t))}</span>
       ${x.pct!=null?`<span class="mono" style="margin-left:auto;color:${capCol(x.pct)}">${x.pct}% booked</span>`:""}</div>
       ${x.pct!=null?`<div class="bar thin"><i style="width:${Math.min(x.pct,100)}%;background:${capCol(x.pct)}"></i><s style="left:70%"></s></div>`:""}
+      ${overworld(x,j===0)}
       ${(()=>{const KL={meeting:"Meeting",class:"Class",focus:"Focus"}, items=[...x.ms.map(m=>({t:m.when,h:`${m.id?`<a href="classic.html#m-${esc(encodeURIComponent(m.id))}">${esc(m.title)}</a>`:esc(m.title)}${m.location?` <span class="dim">· ${esc(m.location)}</span>`:""}`,k:"meeting"})),
           ...x.bl.map(b=>({t:b.start,e:b.end,h:`${esc(b.title||KL[b.kind]||"Busy")}${b.title&&KL[b.kind]?` <span class="dim">· ${esc(KL[b.kind].toLowerCase())}</span>`:""}`,k:b.kind||"meeting"}))].sort((a,b)=>new Date(a.t)-new Date(b.t));
         return items.length?`<ul class="tl">${items.map(i=>`<li class="k-${esc(i.k)}"><span class="mono">${esc(tm(i.t))}${isDate(i.e)?`<span class="dim">–${esc(tm(i.e))}</span>`:""}</span><span>${i.h}</span></li>`).join("")}</ul>`
@@ -443,7 +461,7 @@ function render(){
     <div class="cols"><div class="col">
     ${nowCard(d,M,Qn)}${chips(d,Qn)}
     <h3 class="sec" id="queue">Needs you <span class="c">${act(Qn)?act(Qn)+" · soonest first":""}</span><span class="keys">j/k move · d done · s skip</span></h3>
-    <div class="q">${nowT.length?nowT.map(([n,i])=>needCard(n,i)).join(""):act(Qn)?`<div class="zeroq" style="padding:14px"><b style="font-size:15px">That's the only one ↑</b>Clear it and you're at inbox zero.</div>`:`<div class="zeroq"><div class="e">🎉</div><b>Inbox zero</b>Nothing is waiting on you.${streakNum(d)?` 🔥 ${streakNum(d)}-day streak.`:""}</div>`}</div>
+    <div class="q">${nowT.length?nowT.map(([n,i])=>needCard(n,i)).join(""):act(Qn)?`<div class="zeroq" style="padding:14px"><b style="font-size:15px">That's the only one ↑</b>Clear it and you're at inbox zero.</div>`:`<div class="zeroq">${lvlUp(streakNum(d))}<b>Inbox zero</b>Nothing is waiting on you.</div>`}</div>
     ${later.length?`<details class="later"><summary>${later.length} for later</summary><ul>${later.map(([n])=>`<li><span>${esc(n.title)}</span><span>${dueOf(n)?esc(dueOf(n).txt):""}</span></li>`).join("")}</ul></details>`:""}
     </div><div class="col side">${goals(d)}${dayPlan(d)}
     <a class="fleet" href="#fleet"><div><b>Fleet &amp; machine</b><div class="s">${(d.agents||[]).length} agents · usage, burn, shipped, issues</div></div><span aria-hidden="true">→</span></a></div></div>`;
@@ -467,6 +485,28 @@ addEventListener("hashchange",()=>{if(D){render();scrollTo(0,0)}});
 function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("on");clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("on"),2600)}
 
 /* ---------- pixel art (inline SVG grids, original sprites, no requests) ---------- */
+
+/* ---------- overworld strip + level-up (original pixel art) ---------- */
+const TILES={
+  grass:["gggggggg","gGgggggg","ggggggGg","gggggggg","ggGggggg","gggggGgg","gggggggg","gGgggggg"],
+  meeting:["...rr...","..rrrr..",".rrrrrr.","rrrrrrrr",".wwwwww.",".wwddww.",".wwddww.","gggggggg"],
+  class:["..yyyy..",".yyyyyy.","yyyyyyyy",".wwwwww.",".wbwwbw.",".wwddww.",".wwddww.","gggggggg"],
+  focus:["...LL...","..LLLL..",".LLLLLL.","LLLLLLLL",".LLLLLL.","...bb...","...bb...","gggggggg"]};
+const TPAL={g:"#7ccf5a",G:"#5aa83e",r:"#e0524a",w:"#fff4dc",d:"#7a4a24",y:"#f0b828",b:"#7a4a24",L:"#2f8f3a"};
+const HERO=["..aaaa..",".aaaaaa.","..ffff..","..fEfE..","..ffff..",".cccccc.","c.cccc.c","..cccc..","..p..p..","..p..p.."];
+function ptHM(t){const P=new Intl.DateTimeFormat("en-US",{timeZone:"America/Los_Angeles",hour:"numeric",minute:"numeric",hourCycle:"h23"}).formatToParts(new Date(t));
+  const g=k=>Number((P.find(x=>x.type===k)||{}).value); return g("hour")+g("minute")/60}
+function overworld(x,today){
+  const H0=7,H1=23, spans=[...x.bl.filter(b=>isDate(b.end)).map(b=>({a:ptHM(b.start),z:ptHM(b.end)||24,k:b.kind||"meeting"})),...x.ms.map(m=>({a:ptHM(m.when),z:ptHM(m.when)+1,k:"meeting"}))];
+  const cells=[];for(let h=H0;h<H1;h++){const hit=spans.find(s=>s.a<h+1&&s.z>h); cells.push(hit&&TILES[hit.k]?hit.k:"grass")}
+  const busy=cells.filter(c=>c!=="grass").length, now=today?ptHM(NOW()):null, pos=now!=null&&now>=H0&&now<H1?((now-H0)/(H1-H0)*100):null;
+  return `<div class="ow" role="img" aria-label="${busy} of ${H1-H0} hours between 7 AM and 11 PM have something on">
+    <div class="ow-row">${cells.map(c=>`<span class="ow-t">${pxsvg(TILES[c],TPAL,"",16,16)}</span>`).join("")}</div>
+    ${pos!=null?`<span class="ow-hero" style="left:${pos.toFixed(1)}%">${pxsvg(HERO,{a:"#3a5ccc",f:"#ffd9b0",E:"#1d2129",c:"#ff6b6b",p:"#1d2129"},"",16,20)}</span>`:""}
+    <div class="ow-ax"><span>7a</span><span>11a</span><span>3p</span><span>7p</span><span>11p</span></div></div>`}
+function lvlUp(n){const star=["...XX...","...YY...","..XYYX..","XXYYYYXX",".XYYYYX.","..XYYX..",".XYXXYX.","XX....XX"];
+  return `<div class="lvl"><span class="sp s1"></span><span class="sp s2"></span><span class="sp s3"></span>${pxsvg(star,{X:"#1d2129",Y:"#ffd23f"},"lvl-star",48,48)}
+    <div class="lvl-t">Level up!</div>${n?`<div class="lvl-lv">LV ${esc(n)} · ${esc(n)}-day streak</div>`:""}</div>`}
 function pxsvg(rows,pal,cls,w,h){ // rows: strings of palette keys; "." is transparent; horizontal runs merge into one rect
   let r="";rows.forEach((row,y)=>{let x=0;while(x<row.length){const c=row[x];let n=1;while(row[x+n]===c)n++;if(c!=="."&&pal[c])r+=`<rect x="${x}" y="${y}" width="${n}" height="1" fill="${pal[c]}"/>`;x+=n}});
   return `<svg class="${cls}" viewBox="0 0 ${rows[0].length} ${rows.length}" width="${w}" height="${h}" shape-rendering="crispEdges" aria-hidden="true">${r}</svg>`}
@@ -506,7 +546,7 @@ let TYPED=false;
 function typeOn(){if(TYPED) return; TYPED=true; const h=document.querySelector(".now h2"); if(!h||h.children.length||matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const full=h.textContent; h.setAttribute("aria-label",full); let n=0; h.textContent=""; const t=setInterval(()=>{n+=2; h.textContent=full.slice(0,n); if(n>=full.length){clearInterval(t);h.removeAttribute("aria-label")}},22)}
 function celebrate(){const p=document.getElementById("pop");p.classList.add("on");setTimeout(()=>p.classList.remove("on"),900)}
-function clearCard(btn){const c=btn.closest(".need")||btn.closest(".now"); if(c&&c.classList.contains("need")){c.classList.add("done");setTimeout(()=>{c.remove();const left=document.querySelectorAll(".q .need").length; if(!left){confetti();document.querySelector(".q").innerHTML=`<div class="zeroq"><div class="e">🎉</div><b>Inbox zero</b>Nothing is waiting on you.</div>`}},460)}
+function clearCard(btn){const c=btn.closest(".need")||btn.closest(".now"); if(c&&c.classList.contains("need")){c.classList.add("done");setTimeout(()=>{c.remove();const left=document.querySelectorAll(".q .need").length; if(!left){confetti();document.querySelector(".q").innerHTML=`<div class="zeroq">${lvlUp(streakNum(D))}<b>Inbox zero</b>Nothing is waiting on you.</div>`}},460)}
   else if(c){c.style.opacity=".6"; c.querySelectorAll(".ans button").forEach(b=>b.disabled=true)}}
 async function answer(btn,n,pick){
   if(!n) return; btn.classList.remove("wiggle"); void btn.offsetWidth; btn.classList.add("wiggle"); const title="HQ answer: "+n.title+" → "+pick;
