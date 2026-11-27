@@ -30,7 +30,7 @@ button{font:inherit;color:inherit}
 .mono{font-variant-numeric:tabular-nums}
 .muted{color:var(--ink-2)}.dim{color:var(--ink-3)}
 /* the pixel window: notched corners from 4 offset shadows, an inner frame line, a hard drop */
-.now,.strip,.q,.goals,.plan,.card,.agents,.alarm,.allgo,.later ul,.tabs,.toast,.fleet,.ans{
+.now,.strip,.q,.goals,.plan,.card,.agents,.alarm,.allgo,.pace,.later ul,.tabs,.toast,.fleet,.ans{
   background:var(--win);margin:4px;border-radius:0;
   box-shadow:0 -4px 0 0 var(--ink0),0 4px 0 0 var(--ink0),-4px 0 0 0 var(--ink0),4px 0 0 0 var(--ink0),inset 0 0 0 3px var(--win),inset 0 0 0 5px var(--frame2);
   filter:drop-shadow(4px 4px 0 var(--drop))}
@@ -42,6 +42,7 @@ button{font:inherit;color:inherit}
 /* broken banner */
 .alarm{display:flex;gap:10px;align-items:flex-start;--win:#ffe1dc;color:#3a1015;padding:12px 14px;margin:4px 4px 18px;font-size:14px}
 .alarm b{color:#3a1015;font-family:var(--caps);font-weight:400;text-transform:uppercase}.alarm a{color:#3a1015!important}
+.pace{display:flex;gap:10px;align-items:flex-start;--win:#fff3cf;color:#3d2c00;padding:10px 14px;margin:4px 4px 18px;font-size:14px}.pace .dim{color:#5c4a14}.pace b{font-family:var(--caps);font-weight:400;font-size:12px;text-transform:uppercase}.pz-i{flex:none;width:18px;height:18px;display:grid;place-items:center;background:#f0b828;color:#1d2129;font:400 12px var(--caps);margin-top:1px}
 .alarm .dot{width:12px;height:12px;background:#e02f3c;margin-top:4px;flex:none;animation:blink 1s steps(1) infinite}
 @keyframes blink{50%{opacity:0}}
 /* NOW = RPG dialog box with a speaker nameplate and a blinking ▼ */
@@ -386,6 +387,11 @@ function gauge(r){
   return `<div class="ug"><div class="wk">Weekly</div><div class="bar thin" role="img" aria-label="${P(r.u)} of weekly limit"><i style="width:${W.toFixed(1)}%;background:${col}"></i>${r.tg!=null?`<s style="left:${Math.round(r.tg*100)}%"></s>`:""}</div>
     <div class="ul"><b class="mono">${P(r.u)}</b> <span class="dim">of weekly${r.tg!=null?` · target ${P(r.tg)}`:""}${off!=null&&Math.abs(off)>=3?` · ${Math.abs(off)} pts ${off<0?"under":"over"}`:""}${r.stale?" · stale":""}</span></div>${r.note?`<div class="dim" style="font-size:12px;margin-top:2px">${esc(r.note)}</div>`:""}</div>`;
 }
+function paceBanner(d){ // Nat 26 Nov rule: alert when an agent is >5 pts behind pace. FYI, not a need.
+  const A=(Array.isArray(d.pace_alerts)?d.pace_alerts:[]).filter(a=>a&&a.agent&&num(a.gap_pts)!=null);
+  if(!A.length) return "";
+  return `<div class="pace" role="status"><span class="pz-i">!</span><div>${A.map(a=>{const why=String(a.text||"").split(/ - /).slice(1).join(" - ");
+    return `<div><b>${esc(cap1(a.agent))} ${esc(a.gap_pts)} pts behind pace</b>${why?` <span class="dim">· ${esc(why)}</span>`:""}</div>`}).join("")}</div></div>`}
 function fleetView(d){
   const rows=fleetRows(d), B=broken(d), ST={stalled:"bad",working:"good","between runs":"acc",queued:"acc",idle:"dim",paused:"dim"};
   const work=rows.filter(r=>r.st==="working").length;
@@ -396,7 +402,7 @@ function fleetView(d){
   const doneW=(d.workers||[]).filter(w=>/^done/i.test(String(w.status||""))).slice(0,4);
   const iss=d.issues||[], mq=d.merge_queue||[], W=d.watchdog||{}, FP=(d.fleet_pacing&&d.fleet_pacing.agents)||{};
   return `${B.length?`<div class="alarm" role="alert"><span class="dot"></span><div><b>Something's broken.</b> ${B.map(esc).join(" · ")}</div></div>`
-      :`<div class="allgo"><span>✨</span> All systems go · ${work} working</div>`}
+      :`<div class="allgo"><span>✨</span> All systems go · ${work} working</div>`}${paceBanner(d)}
     <div class="cols"><div class="col">
     <h3 class="sec">Agents <span class="c">${rows.length} · ${work} working</span></h3>
     <div class="agents">${rows.map((r,i)=>`<div class="ag st-${esc(r.st.replace(/ /g,"-"))}" style="animation-delay:${i*40}ms">
@@ -416,6 +422,7 @@ function fleetView(d){
       <div class="card">${iss.length?`<b>Issues</b><ul class="ship">${iss.slice(0,8).map(i=>`<li><span class="st ${i.severity==="critical"||i.severity==="high"?"bad":"dim"}">${esc(i.severity)}</span> ${link(i.url)?`<a href="${esc(link(i.url))}" target="_blank" rel="noopener">${esc(i.title)}</a>`:esc(i.title)}</li>`).join("")}</ul>`:`<div class="dim">No open fleet issues.</div>`}
         ${mq.length?`<b>Merge queue</b><ul class="ship">${mq.map(p=>`<li>${link(p.url)?`<a href="${esc(link(p.url))}" target="_blank" rel="noopener">${esc(p.repo)} #${esc(p.number)}</a>`:esc(p.repo+" #"+p.number)} ${esc(p.title||"")}</li>`).join("")}</ul>`:""}
         <b>Pacing</b><table class="pt"><tr><th>agent</th><th>used</th><th>target</th><th>queue</th><th>in flight</th></tr>${Object.keys(FP).map(k=>{const f=FP[k]||{};return `<tr><td>${esc(k)}</td><td class="mono">${utilOf(f.used)==null?"—":Math.round(utilOf(f.used)*100)+"%"}</td><td class="mono">${utilOf(f.target)==null?"—":Math.round(utilOf(f.target)*100)+"%"}</td><td class="mono">${num(f.queue)??"—"}</td><td class="mono">${num(f.in_flight)??"—"}</td></tr>`}).join("")}</table>
+        ${(Array.isArray(d.auto_heal)?d.auto_heal:[]).length?`<b>Auto-heal</b><ul class="ship">${d.auto_heal.slice(0,5).map(x=>`<li>${esc(cap1(x.agent||""))}${num(x.gap)!=null?` <span class="dim">(${Math.round(x.gap*100)} pts behind)</span>`:""}: ${esc(x.action||"")}${isDate(x.at)?` <span class="dim">· ${esc(ago(x.at))}</span>`:""}</li>`).join("")}</ul>`:""}
         ${(W.fixes||[]).length?`<b>Recent self-fixes</b><ul class="ship">${W.fixes.slice(0,3).map(x=>`<li>${esc(x.what)} <span class="dim">· ${esc(x.agent||"")}</span></li>`).join("")}</ul>`:""}
         <p style="margin:8px 0 0"><a href="classic.html#fleet">Full classic fleet view →</a></p></div></details>
     </div></div>`;
@@ -432,7 +439,7 @@ function render(){
   const nav=`<nav class="tabs" aria-label="View"><a href="#" class="${fleet?"":"on"}"${fleet?"":' aria-current="page"'}>Today</a><a href="#fleet" class="${fleet?"on":""}"${fleet?' aria-current="page"':""}>Fleet${B.length?' <i class="pip bad"></i>':""}</a></nav>`;
   const head=`<header class="hello"><div><h1>${esc(fleet?"Fleet":greet(M.kind))}</h1><div class="sub">${esc(fleet?`${(d.agents||[]).length} agents · ${(d.workers||[]).filter(w=>!/^done/i.test(String(w.status||""))).length} workers`:sub)}</div></div>
     <div class="hr">${nav}<div class="when mono">${esc(dayLbl(NOW()))} · ${esc(tm(NOW()))}</div></div></header>`;
-  const home=`${B.length?`<div class="alarm" role="alert"><span class="dot"></span><div><b>Something's broken.</b> ${B.map(esc).join(" · ")} <a href="#fleet" style="text-decoration:underline">Fleet →</a></div></div>`:""}
+  const home=`${B.length?`<div class="alarm" role="alert"><span class="dot"></span><div><b>Something's broken.</b> ${B.map(esc).join(" · ")} <a href="#fleet" style="text-decoration:underline">Fleet →</a></div></div>`:""}${paceBanner(d)}
     <div class="cols"><div class="col">
     ${nowCard(d,M,Qn)}${chips(d,Qn)}
     <h3 class="sec" id="queue">Needs you <span class="c">${act(Qn)?act(Qn)+" · soonest first":""}</span><span class="keys">j/k move · d done · s skip</span></h3>
