@@ -406,9 +406,9 @@ function fleetRows(d){
   const FP=(d.fleet_pacing&&d.fleet_pacing.agents)||{}, rows=[];
   for(const a of d.agents||[]){const f=FP[a.key]||FP[{cinny:"chinny",chinny:"cinny"}[a.key]]||{};
     const stalled=f.stalled===true, st=stalled?"stalled":/work|run/i.test(a.status||"")?"working":(num(f.in_flight)>0?"between runs":"idle");
-    const u=utilOf(a.util)??utilOf(f.used), tg=utilOf(f.target)??(a.key==="sinny"?paceT(d.pacing,a.util_reset||(d.week||{}).reset):null), nolimit=f.used===null&&f.target===null&&u==null;
+    const u=utilOf(a.util)??utilOf(f.used), tg=utilOf(f.target)??(a.key==="sinny"?paceT(d.pacing,a.util_reset||(d.week||{}).reset):null), nolimit=f.used===null&&f.target===null&&u==null&&!f.note&&!f.probe;
     const last=[a.util_at,a.last_done&&a.last_done.at,f.last_run,f.last_ping].filter(isDate).sort().pop();
-    rows.push({key:a.key,name:a.name||a.key,role:a.role||"",st,doing:a.doing||"",last,u,tg,nolimit,reset:[a.util_reset,f.reset].find(t=>isDate(t)&&new Date(t)>Date.now())||null,note:a.usage_note||f.usage_note||"",probe:typeof f.probe==="string"?f.probe:"",stale:!!f.stale||!!f.stale_pre_reset,url:a.url,done:num(a.done_24h)})}
+    rows.push({key:a.key,name:a.name||a.key,role:a.role||"",st,doing:a.doing||"",last,u,tg,nolimit,reset:[a.util_reset,f.reset].find(t=>isDate(t)&&new Date(t)>Date.now())||null,note:a.usage_note||f.usage_note||(typeof f.note==="string"?f.note:""),probe:typeof f.probe==="string"?f.probe:"",stale:!!f.stale||!!f.stale_pre_reset,url:a.url,done:num(a.done_24h)})}
   const AK=new Set((d.agents||[]).map(a=>String(a.key||"").toLowerCase()));
   for(const w of d.workers||[]){const s=String(w.status||"").toLowerCase(); if(/^done/.test(s)||AK.has(String(w.project||"").toLowerCase())) continue;
     rows.push({key:w.project,name:cap1(w.title||w.project),started:true,role:w.project,st:/pause/.test(s)?"paused":/queue/.test(s)?"queued":"working",doing:w.task||"",last:w.started||null,u:null,tg:null,worker:true,url:/^https:\/\//.test(w.url||"")?w.url:""})}
