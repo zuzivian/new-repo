@@ -191,6 +191,7 @@ h3.sec .c{font:13px var(--px);letter-spacing:0;color:var(--ink-3);text-transform
   .doodle{width:64px;height:64px}
 }
 
+.krs{list-style:none;margin:8px 0 0;padding:0}.krs li{padding:10px 0;border-top:2px dashed var(--frame2)}.krs li:first-child{border-top:0;padding-top:4px}.krs .kt{font-size:15px}.krs .kv{margin-top:4px;font-size:13px}.krs .kv b{font:400 16px var(--caps)}.krs .kv small{font:12px var(--px);color:var(--ink-2)}.krs .kn{font-size:12.5px;margin-top:4px}
 /* overworld strip */
 .ow{position:relative;margin:12px 2px 4px;padding-top:10px}
 .ow-row{display:grid;grid-template-columns:repeat(16,1fr);box-shadow:0 0 0 2px var(--ink0)}
@@ -337,6 +338,18 @@ function nowCard(d,M,Qn){
 }
 const streakNum=d=>{const S=d&&d.streak; return S&&num(S.days)>0?S.days:0};
 function zeroCard(d){const n=streakNum(d);return `<section class="now zero">${doodle("star")}<div class="k">All clear${n?` · 🔥 ${n}-day streak`:""}</div><h2>Nothing needs you right now ✨</h2><p>${n?`${n} evening${n===1?"":"s"} in a row with nothing waiting. Keep it going.`:"The fleet has it. Check back after your next meeting."}</p></section>`}
+function krBlock(d,F){ // career KRs (Nat adopted the UAS KRs 26 Nov); progress from goals.progress.career.uas_krs, loop KR falls back to the funnel
+  const pil=((d.goals||{}).pillars||[]).find(p=>p&&p.key==="career"), K=(pil&&Array.isArray(pil.krs)?pil.krs:[]).filter(k=>k&&k.text);
+  if(!K.length) return "";
+  const U=(G(d).career||{}).uas_krs||{}, pick=re=>{const k=Object.keys(U).find(x=>re.test(x));return k?U[k]:null};
+  const prog=k=>{const key=String(k.key||"");
+    if(/loop/.test(key)){const u=pick(/loops/);return {now:num(u&&u.now)??num(F.interviewing),tg:num(k.target)??num(u&&u.target)}}
+    if(/warm/.test(key)){const u=pick(/warm/);return {now:num(u&&u.now),tg:num(k.target)??num(u&&u.target),note:u&&u.note}}
+    if(/apply/.test(key)){const u=pick(/apply/);return {now:num(u&&u.applied),tg:num(u&&u.live_eligible_known),note:u&&u.note,of:"eligible live roles known"}}
+    return {now:null,tg:num(k.target)}};
+  return `<div class="goal wide"><div class="gk">Career KRs · UAS</div><ul class="krs">${K.map(k=>{const r=prog(k), f=r.now!=null&&r.tg?Math.min(1,r.now/r.tg):null;
+    return `<li><div class="kt">${esc(k.text)}</div><div class="kv"><b class="mono">${r.now==null?"—":r.now}${r.tg!=null?`<small>/${r.tg}</small>`:""}</b>${r.of?` <span class="dim">${esc(r.of)}</span>`:""}${isDate(k.by)?` <span class="dim">· by ${esc(dayLbl(asDay(k.by)))}</span>`:""}</div>
+      ${f!=null?`<div class="hp" aria-hidden="true"><i style="width:${Math.max(f*100,f>0?2:0).toFixed(1)}%;background:${f>=1?"var(--hp-g)":"var(--hp-b)"}"></i></div>`:""}${r.note?`<div class="dim kn">${esc(r.note)}</div>`:""}</li>`}).join("")}</ul></div>`}
 function goals(d){
   const P=G(d), c=P.capacity||{}, cap=num(c.booked_pct_next7), r=P.relationships||{}, cc=num(r.coffee_chats_calendar), k=P.career||{};
   const F=k.funnel&&typeof k.funnel==="object"?k.funnel:{tracked:k.tracked,applied:k.applied,interviewing:k.interviewing,offers:k.offers}; // reconciled funnel wins over the Notion-only counts
@@ -351,6 +364,7 @@ function goals(d){
       <div class="gs">${cap==null?"No calendar reading yet":cap<=70?`${70-cap} pts of slack. Room for surprises.`:`${cap-70} pts over. Trim something optional.`}</div></div>
     <div class="goal"><div class="gk">Coffee chats</div><div class="gv mono">${cc==null?"—":cc}<small>/40</small></div>${ring(cc,40,"var(--hp-g)")}<div class="gs">${left==null?"":left===0?"Goal hit 🎉":left===1?"1 more to hit 40 🎯":`${left} to go by Dec 12`}</div></div>
     <div class="goal"><div class="gk">Warm companies</div><div class="gv mono">${num(k.warm_companies)??"—"}<small>/20</small></div>${ring(num(k.warm_companies),20,"var(--hp-b)")}<div class="gs">by Jan 31</div></div>
+    ${krBlock(d,F)}
     <div class="goal wide"><div class="gk">Applications</div><div class="funnel">${[["tracked",F.tracked],["applied",F.applied],["interviewing",F.interviewing],["offers",F.offers]].map(([l,v])=>`<div><b class="mono">${num(v)??"—"}</b><span>${l}</span></div>`).join("")}</div>${F.basis?`<div class="gs">${esc(F.basis)}</div>`:""}</div>
   </div>`;
 }
