@@ -683,6 +683,10 @@ out = {
     "pacing": cfg["pacing"],
     "allocation": cfg.get("allocation", {}).get("tiers", {}),
     "needs": state.get("needs", []),
+    # Pace-gap guard (Nat 26 Nov: alert when an agent is >5 pts behind pace, auto-heal): rows like
+    # {"agent","gap_pts","text"} from ops-bus usage/pacing.json, plus the last auto-heal actions. Not Nat actions.
+    "pace_alerts": (load(f"{OPS}/usage/pacing.json") or {}).get("pace_alerts", []),
+    "auto_heal": (load(f"{OPS}/usage/pacing.json") or {}).get("auto_heal", [])[-10:],
     # Live rows first; keep only the 6 most recent finished rows so the list doesn't grow forever.
     # Nat's goals (targets from Binny gsb-year1-goals; live counts from Pinny's Notion feed in ops-bus goals/progress.json).
     "goals": _goals(),
