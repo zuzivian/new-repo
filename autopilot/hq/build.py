@@ -374,8 +374,9 @@ def _goals():
             if k in (ce.get("counts") or {}): car["email_" + k] = ce["counts"][k]
         # Career lead 21 Nov: interviews at parked sectors (aerospace/AV, parked to 4 Jan) are not fall-loop
         # progress, so they are left out of the HQ interview count and shown as a note instead.
-        PARKED = {"skydio", "zipline", "wing", "joby", "waymo", "aurora", "nuro", "matternet",
-                  "beta technologies", "planet labs", "anduril", "archer"}
+        # 2026-11-26 Nat adopted UAS KRs (career focus UAS/drone PM/TPM): UAS companies count again (Skydio, Zipline,
+        # Wing, Matternet removed from the parked set); AV/eVTOL/defense stay parked to 4 Jan.
+        PARKED = {"joby", "waymo", "aurora", "nuro", "beta technologies", "planet labs", "anduril", "archer"}
         parked_iv = [i for i in (ce.get("items") or []) if "interview" in str(i.get("stage", "")).lower()
                      and str(i.get("company", "")).strip().lower() in PARKED]
         if parked_iv and isinstance(car.get("email_interviews"), int):
