@@ -97,3 +97,4 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 | — | Fleet usage gauge: 1 decimal under 10%, min visible sliver, "WEEKLY" label, 5h note shown as context (Nat: "pinny stuck at 0%") | done | R66b |
 | — | pace_alerts banner (home + Fleet, amber FYI, not a need/streak) and auto_heal list in Fleet Details (Nat 26 Nov pace rule) | done | R66c |
 | — | Overworld strip per day (7a-11p hour tiles: grass/house/school/tree, walker at now) + level-up box at inbox zero (LV = streak) | done | R66d |
+| — | Light mode only (Nat): dark palettes, prefers-color-scheme rules and dark theme-color removed from root + classic; color-scheme: light | done | R66e |
