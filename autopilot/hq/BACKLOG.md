@@ -99,3 +99,4 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 | — | Overworld strip per day (7a-11p hour tiles: grass/house/school/tree, walker at now) + level-up box at inbox zero (LV = streak) | done | R66d |
 | — | Light mode only (Nat): dark palettes, prefers-color-scheme rules and dark theme-color removed from root + classic; color-scheme: light | done | R66e |
 | — | Career KRs · UAS block in On track (from pillars[career].krs + progress.career.uas_krs; loop KR falls back to funnel.interviewing) | done | R66f |
+| — | Fleet gauges in fixed order Sinny/Pinny/Minny/Chinny/Binny; maxed state (100% -> "Maxed · resets …", yellow not red); honest empty frame ("waiting for first Mac run") that fills when used/target arrive | done | R66g |
