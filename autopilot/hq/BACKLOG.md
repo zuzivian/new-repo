@@ -94,3 +94,4 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 | — | v2 pixel-RPG restyle (Nat: "think pixel art, not the card look"): dialog windows with nameplates, menu-cursor answers, HP bars, sprite party; inline OFL pixel fonts | done | R64 |
 | — | Root swap: v2 (pixel) is now hq/index.html; classic moved to classic.html (/classic); v2.html redirects to / | done | R64 |
 | — | Stalled banner states real cause (in flight / queued / hours since last run) instead of "tasks waiting" (Binny had 0 queued) | done | R64 |
+| — | Fleet usage gauge: 1 decimal under 10%, min visible sliver, "WEEKLY" label, 5h note shown as context (Nat: "pinny stuck at 0%") | done | R66b |

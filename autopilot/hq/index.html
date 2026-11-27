@@ -177,7 +177,7 @@ h3.sec .c{font:13px var(--px);letter-spacing:0;color:var(--ink-3);text-transform
 .ad{font-size:14px;color:var(--ink-2);margin:4px 0 2px;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .st{font:400 10px/1 var(--caps);letter-spacing:.04em;text-transform:uppercase;padding:4px 6px 3px;background:var(--win2);color:var(--ink-2);box-shadow:inset 0 0 0 2px var(--frame2)}
 .st.good{background:#d4f5da;color:#14532a;box-shadow:inset 0 0 0 2px #38b048}.st.bad{color:#fff;background:#c42a33;box-shadow:none;animation:blink 1s steps(1) infinite}.st.acc{background:#d9e6ff;color:#1c3f8f;box-shadow:inset 0 0 0 2px #4a7cf0}
-.ug{margin-top:6px;font-size:13px}.ul{margin-top:6px}.ul b{font:400 13px var(--caps)}
+.ug{margin-top:6px;font-size:13px}.ug .wk{font:400 10px var(--caps);text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin:6px 0 -4px 2px}.ul{margin-top:6px}.ul b{font:400 13px var(--caps)}
 .brow{display:flex;justify-content:space-between;font-size:14.5px;margin-top:12px}.brow .mono{font:400 13px var(--caps)}.brow.pz{opacity:.55}
 .ship{margin:2px 0 6px;padding-left:0;list-style:none}.ship li{padding:7px 0;font-size:14px;border-top:2px dashed var(--frame2);overflow-wrap:anywhere}.ship li:first-child{border-top:0}
 .det{margin-top:18px}.det summary{cursor:pointer;min-height:44px;display:flex;align-items:center;gap:6px;font:400 12px var(--caps);text-transform:uppercase}
@@ -382,8 +382,9 @@ function gauge(r){
   if(r.worker) return "";
   if(r.u==null) return `<div class="ug dim">${r.nolimit?"no limit":r.note?esc(r.note):"no usage feed"}</div>`;
   const off=r.tg==null?null:Math.round((r.u-r.tg)*100), col=r.u>=.9?"var(--bad)":off!=null&&off<=-10?"var(--warn)":"var(--acc)";
-  return `<div class="ug"><div class="bar thin"><i style="width:${Math.round(r.u*100)}%;background:${col}"></i>${r.tg!=null?`<s style="left:${Math.round(r.tg*100)}%"></s>`:""}</div>
-    <div class="ul"><b class="mono">${Math.round(r.u*100)}%</b> <span class="dim">of weekly${r.tg!=null?` · target ${Math.round(r.tg*100)}%`:""}${off!=null&&Math.abs(off)>=3?` · ${Math.abs(off)} pts ${off<0?"under":"over"}`:""}${r.stale?" · stale":""}</span></div></div>`;
+  const P=v=>{const x=v*100; return (x>0&&x<10?(Math.round(x*10)/10).toFixed(1).replace(/\.0$/,""):String(Math.round(x)))+"%"}, W=r.u>0?Math.max(r.u*100,1.5):0;
+  return `<div class="ug"><div class="wk">Weekly</div><div class="bar thin" role="img" aria-label="${P(r.u)} of weekly limit"><i style="width:${W.toFixed(1)}%;background:${col}"></i>${r.tg!=null?`<s style="left:${Math.round(r.tg*100)}%"></s>`:""}</div>
+    <div class="ul"><b class="mono">${P(r.u)}</b> <span class="dim">of weekly${r.tg!=null?` · target ${P(r.tg)}`:""}${off!=null&&Math.abs(off)>=3?` · ${Math.abs(off)} pts ${off<0?"under":"over"}`:""}${r.stale?" · stale":""}</span></div>${r.note?`<div class="dim" style="font-size:12px;margin-top:2px">${esc(r.note)}</div>`:""}</div>`;
 }
 function fleetView(d){
   const rows=fleetRows(d), B=broken(d), ST={stalled:"bad",working:"good","between runs":"acc",queued:"acc",idle:"dim",paused:"dim"};
