@@ -429,7 +429,9 @@ function gauge(r){
     <div class="ul"><b class="mono">${P(r.u)}</b> <span class="dim">of weekly${r.tg!=null?` · target ${P(r.tg)}`:""}${off!=null&&Math.abs(off)>=3?` · ${Math.abs(off)} pts ${off<0?"under":"over"}`:""}${r.stale?" · stale":""}</span></div>${r.note?`<div class="dim" style="font-size:12px;margin-top:2px">${esc(r.note)}</div>`:""}</div>`;
 }
 function paceBanner(d){ // Nat 26 Nov rule: alert when an agent is >5 pts behind pace. FYI, not a need.
-  const A=(Array.isArray(d.pace_alerts)?d.pace_alerts:[]).filter(a=>a&&a.agent&&num(a.gap_pts)!=null);
+  const RW=fleetRows(d), gapOf=k=>{const r=RW.find(x=>String(x.key).toLowerCase()===String(k).toLowerCase()&&x.u!=null&&x.tg!=null);return r?Math.round((r.tg-r.u)*100):null};
+  // same reading + target as the usage rows, so the banner and the row never disagree; Fleet Ops' gap_pts only when the page has no reading
+  const A=(Array.isArray(d.pace_alerts)?d.pace_alerts:[]).filter(a=>a&&a.agent).map(a=>({...a,gap_pts:gapOf(a.agent)??num(a.gap_pts)})).filter(a=>a.gap_pts!=null&&a.gap_pts>5);
   if(!A.length) return "";
   return `<div class="pace" role="status"><span class="pz-i">!</span><div>${A.map(a=>{const why=String(a.text||"").split(/ - /).slice(1).join(" - ");
     return `<div><b>${esc(cap1(a.agent))} ${esc(a.gap_pts)} pts behind pace</b>${why?` <span class="dim">· ${esc(why)}</span>`:""}</div>`}).join("")}</div></div>`}
