@@ -192,6 +192,13 @@ h3.sec .c{font:13px var(--px);letter-spacing:0;color:var(--ink-3);text-transform
 }
 
 .krs{list-style:none;margin:8px 0 0;padding:0}.krs li{padding:10px 0;border-top:2px dashed var(--frame2)}.krs li:first-child{border-top:0;padding-top:4px}.krs .kt{font-size:15px}.krs .kv{margin-top:4px;font-size:13px}.krs .kv b{font:400 16px var(--caps)}.krs .kv small{font:12px var(--px);color:var(--ink-2)}.krs .kn{font-size:12.5px;margin-top:4px}
+.ur{padding:6px 8px}.urow{display:grid;grid-template-columns:26px 78px minmax(0,1fr) 72px;gap:10px;align-items:center;padding:7px 8px;color:var(--ink);text-decoration:none;border-top:2px dashed var(--frame2)}
+.urow:first-child{border-top:0}.urow:hover,.urow:focus-visible{background:var(--win2);outline:none}
+.urow.behind{background:#fff3cf}.urow.behind:hover{background:#ffeab0}
+.uav{width:26px;height:26px;position:relative}.uav svg{width:26px;height:26px;display:block;image-rendering:pixelated}.uav .z{display:none}
+.un{font:400 11px var(--caps);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.urow .bar{margin-top:0}.bar.nl{background:repeating-linear-gradient(90deg,var(--track) 0 4px,transparent 4px 8px);opacity:.6}
+.uv{font:400 11px var(--caps);text-transform:uppercase;text-align:right;white-space:nowrap}
 /* overworld strip */
 .ow{position:relative;margin:12px 2px 4px;padding-top:10px}
 .ow-row{display:grid;grid-template-columns:repeat(16,1fr);box-shadow:0 0 0 2px var(--ink0)}
@@ -426,6 +433,17 @@ function paceBanner(d){ // Nat 26 Nov rule: alert when an agent is >5 pts behind
   if(!A.length) return "";
   return `<div class="pace" role="status"><span class="pz-i">!</span><div>${A.map(a=>{const why=String(a.text||"").split(/ - /).slice(1).join(" - ");
     return `<div><b>${esc(cap1(a.agent))} ${esc(a.gap_pts)} pts behind pace</b>${why?` <span class="dim">· ${esc(why)}</span>`:""}</div>`}).join("")}</div></div>`}
+function usageRow(d){ // compact weekly usage for the five plan accounts; tap -> Fleet
+  const K=["sinny","pinny","minny","chinny","cinny","binny"], rows=fleetRows(d).filter(r=>!r.worker&&K.includes(String(r.key).toLowerCase()));
+  if(!rows.length) return "";
+  const PA=new Set((Array.isArray(d.pace_alerts)?d.pace_alerts:[]).map(a=>String(a&&a.agent||"").toLowerCase()));
+  const P=v=>{const x=v*100; return (x>0&&x<10?(Math.round(x*10)/10).toFixed(1).replace(/\.0$/,""):String(Math.round(x)))+"%"};
+  return `<h3 class="sec">Usage <span class="c">weekly · tap for Fleet</span></h3><div class="card ur">${rows.map(r=>{
+    const behind=PA.has(String(r.key).toLowerCase())||(r.u!=null&&r.tg!=null&&(r.tg-r.u)*100>5), max=r.u!=null&&r.u>=.995;
+    const val=r.nolimit?"no limit":r.u==null?(/mac/i.test(r.probe)?"waiting":"—"):max?"maxed":P(r.u);
+    const bar=r.nolimit?`<div class="bar thin nl"></div>`:r.u==null?`<div class="bar thin empty"></div>`
+      :`<div class="bar thin"><i style="width:${max?100:Math.max(r.u*100,r.u>0?1.5:0).toFixed(1)}%;background:${max?"var(--hp-y)":behind?"var(--hp-y)":"var(--acc)"}"></i>${r.tg!=null?`<s style="left:${Math.round(r.tg*100)}%"></s>`:""}</div>`;
+    return `<a class="urow${behind?" behind":""}" href="#fleet" aria-label="${esc(r.name)}: ${esc(val)}${r.tg!=null&&r.u!=null&&!max?` of weekly, target ${esc(P(r.tg))}`:""}"><span class="uav">${face(r)}</span><span class="un">${esc(r.name)}</span>${bar}<span class="uv mono">${esc(val)}</span></a>`}).join("")}</div>`}
 function fleetView(d){
   const rows=fleetRows(d), B=broken(d), ST={stalled:"bad",working:"good","between runs":"acc",queued:"acc",idle:"dim",paused:"dim"};
   const work=rows.filter(r=>r.st==="working").length;
@@ -479,7 +497,7 @@ function render(){
     <h3 class="sec" id="queue">Needs you <span class="c">${act(Qn)?act(Qn)+" · soonest first":""}</span><span class="keys">j/k move · d done · s skip</span></h3>
     <div class="q">${nowT.length?nowT.map(([n,i])=>needCard(n,i)).join(""):act(Qn)?`<div class="zeroq" style="padding:14px"><b style="font-size:15px">That's the only one ↑</b>Clear it and you're at inbox zero.</div>`:`<div class="zeroq">${lvlUp(streakNum(d))}<b>Inbox zero</b>Nothing is waiting on you.</div>`}</div>
     ${later.length?`<details class="later"><summary>${later.length} for later</summary><ul>${later.map(([n])=>`<li><span>${esc(n.title)}</span><span>${dueOf(n)?esc(dueOf(n).txt):""}</span></li>`).join("")}</ul></details>`:""}
-    </div><div class="col side">${goals(d)}${dayPlan(d)}
+    </div><div class="col side">${usageRow(d)}${goals(d)}${dayPlan(d)}
     <a class="fleet" href="#fleet"><div><b>Fleet &amp; machine</b><div class="s">${(d.agents||[]).length} agents · usage, burn, shipped, issues</div></div><span aria-hidden="true">→</span></a></div></div>`;
   app.innerHTML=head+(fleet?fleetView(d):home)+`<div class="foot">Updated ${esc(tm(d.updated))} PT · <a href="classic.html">Classic HQ</a> </div>`;
   app.querySelectorAll("[data-more]").forEach(b=>{const el=b.previousElementSibling; if(el.scrollHeight<=el.clientHeight+2){b.remove();return}
