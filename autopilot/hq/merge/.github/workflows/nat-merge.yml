@@ -1,0 +1,55 @@
+# "/merge" comment on a PR squash-merges it, only when ALL hold:
+#   - the commenter is the repo owner (zuzivian), not a bot or collaborator
+#   - the PR is open, not a draft, and carries `sinny:reviewed`
+#   - every check on the head commit has passed, including a successful sinny-gate run on that exact SHA
+#   - the head commit is unchanged since the checks ran (--match-head-commit)
+# Uses the built-in GITHUB_TOKEN only; no stored token anywhere.
+# Note: a merge made with GITHUB_TOKEN does not start other Actions workflows on the
+# default branch. Vercel's Git integration deploys normally; an Actions-based deploy would not run.
+name: nat-merge
+on:
+  issue_comment:
+    types: [created]
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+  statuses: read
+concurrency:
+  group: nat-merge-${{ github.event.issue.number }}
+  cancel-in-progress: false
+jobs:
+  merge:
+    if: >-
+      github.event.issue.pull_request &&
+      github.event.comment.user.login == 'zuzivian' &&
+      github.event.comment.author_association == 'OWNER' &&
+      startsWith(github.event.comment.body, '/merge')
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ github.event.issue.number }}
+    steps:
+      - name: Check the PR is ready
+        id: chk
+        run: |
+          set -euo pipefail
+          j=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json state,isDraft,labels,headRefOid)
+          [ "$(jq -r .state <<<"$j")" = "OPEN" ] || { echo "PR is not open."; exit 1; }
+          [ "$(jq -r .isDraft <<<"$j")" = "false" ] || { echo "PR is a draft."; exit 1; }
+          jq -e '.labels|map(.name)|index("sinny:reviewed")' <<<"$j" >/dev/null || { echo "Missing sinny:reviewed."; exit 1; }
+          # all checks finished and green (exit 0); pending = 8, failing = 1
+          gh pr checks "$PR" --repo "$GITHUB_REPOSITORY" || { echo "Checks are not all green."; exit 1; }
+          sha=$(jq -r .headRefOid <<<"$j")
+          # The label alone is not enough: a push made with GITHUB_TOKEN fires no pull_request
+          # workflow, so the label can outlive the review. Require sinny-gate to have PASSED on this exact head.
+          gate=$(gh api "repos/$GITHUB_REPOSITORY/commits/$sha/check-runs?check_name=sinny-gate&filter=latest" \
+            --jq '[.check_runs[] | select(.status=="completed")] | sort_by(.completed_at) | last | .conclusion // "none"')
+          [ "$gate" = "success" ] || { echo "sinny-gate has not passed on head $sha (latest: $gate)."; exit 1; }
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+      - name: Squash-merge
+        run: gh pr merge "$PR" --repo "$GITHUB_REPOSITORY" --squash --delete-branch --match-head-commit "${{ steps.chk.outputs.sha }}"
+      - name: Say why it did not merge
+        if: failure()
+        run: |
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "nat-merge did not merge. See the run log ($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID). Needs: not a draft, the sinny:reviewed label, all checks green."
