@@ -104,3 +104,4 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 | — | Pace banner gap uses the same reading+target as the usage rows (was Fleet Ops gap_pts 23 vs row 14); falls back to gap_pts when no reading; drops alerts ≤5 pts | done | R67b |
 | — | A11y pass (pace heal): contrast audit of all text nodes + keyboard focus walk; fixed "% booked" text (HP green 2.68:1 -> --good token, AA); focus states all visible | done | R68b |
 | — | Projects (Fleet): board[] as one quest-log window — status pill, last push, counts, next step (2-line clamp), repo link; dormant folded (Nat-approved backlog, slice 1 of 2) | done | R68c |
+| — | Tappable timeline rows (Today & tomorrow): meeting rows expand to a 3-line brief preview + Full brief; rows with an https url link out; whole row is the tap target (Nat-approved backlog, slice 2 of 2) | done | R68d |

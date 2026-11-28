@@ -204,6 +204,11 @@ h3.sec .c{font:13px var(--px);letter-spacing:0;color:var(--ink-3);text-transform
 .st.warn{background:#fff3cf;color:#6b4a00;box-shadow:inset 0 0 0 2px #f0b828}
 .pj-a{font-size:12.5px;flex-basis:100%}.pj-s{font-size:13.5px;margin-top:4px;color:var(--ink-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .pjs+.later,.card .later{margin-top:6px}.card .later ul{box-shadow:none;margin:0;padding:0 2px;background:none}
+.tl li.tap{display:block;padding:0}.tlx summary,.tla{display:flex;gap:10px;padding:8px 4px;cursor:pointer;list-style:none;color:var(--ink);text-decoration:none;min-height:44px;align-items:center}
+.tlx summary::-webkit-details-marker{display:none}.tlx summary::after{content:"▸";margin-left:auto;color:var(--ink-3)}.tlx[open] summary::after{content:"▾"}
+.tlx summary:hover,.tla:hover,.tlx summary:focus-visible,.tla:focus-visible{background:var(--win2);outline:none}
+.tl li.tap .mono{color:var(--acc2);min-width:118px;white-space:nowrap;font:13px var(--caps)}
+.tlb{padding:4px 6px 10px 4px;font:13px/1.5 var(--mono);color:var(--ink-2)}.tlb p{margin:4px 0}.tlb a{font:400 11px var(--caps);text-transform:uppercase}
 /* overworld strip */
 .ow{position:relative;margin:12px 2px 4px;padding-top:10px}
 .ow-row{display:grid;grid-template-columns:repeat(16,1fr);box-shadow:0 0 0 2px var(--ink0)}
@@ -391,9 +396,16 @@ function dayPlan(d){
       ${x.pct!=null?`<span class="mono" style="margin-left:auto;color:${x.pct>=85?"var(--bad)":x.pct>70?"var(--warn)":"var(--good)"}">${x.pct}% booked</span>`:""}</div>
       ${x.pct!=null?`<div class="bar thin"><i style="width:${Math.min(x.pct,100)}%;background:${capCol(x.pct)}"></i><s style="left:70%"></s></div>`:""}
       ${overworld(x,j===0)}
-      ${(()=>{const KL={meeting:"Meeting",class:"Class",focus:"Focus"}, items=[...x.ms.map(m=>({t:m.when,h:`${m.id?`<a href="classic.html#m-${esc(encodeURIComponent(m.id))}">${esc(m.title)}</a>`:esc(m.title)}${m.location?` <span class="dim">· ${esc(m.location)}</span>`:""}`,k:"meeting"})),
-          ...x.bl.map(b=>({t:b.start,e:b.end,h:`${esc(b.title||KL[b.kind]||"Busy")}${b.title&&KL[b.kind]?` <span class="dim">· ${esc(KL[b.kind].toLowerCase())}</span>`:""}`,k:b.kind||"meeting"}))].sort((a,b)=>new Date(a.t)-new Date(b.t));
-        return items.length?`<ul class="tl">${items.map(i=>`<li class="k-${esc(i.k)}"><span class="mono">${esc(tm(i.t))}${isDate(i.e)?`<span class="dim">–${esc(tm(i.e))}</span>`:""}</span><span>${i.h}</span></li>`).join("")}</ul>`
+      ${(()=>{const KL={meeting:"Meeting",class:"Class",focus:"Focus"}, items=[...x.ms.map(m=>({m,t:m.when,h:`${m.id?`<a href="classic.html#m-${esc(encodeURIComponent(m.id))}">${esc(m.title)}</a>`:esc(m.title)}${m.location?` <span class="dim">· ${esc(m.location)}</span>`:""}`,k:"meeting"})),
+          ...x.bl.map(b=>({u:link(b.url),t:b.start,e:b.end,h:`${esc(b.title||KL[b.kind]||"Busy")}${b.title&&KL[b.kind]?` <span class="dim">· ${esc(KL[b.kind].toLowerCase())}</span>`:""}`,k:b.kind||"meeting"}))].sort((a,b)=>new Date(a.t)-new Date(b.t));
+        const tmS=i=>`<span class="mono">${esc(tm(i.t))}${isDate(i.e)?`<span class="dim">–${esc(tm(i.e))}</span>`:""}</span>`;
+        const plain=h=>String(h).replace(/<[^>]+>/g,""); // row title without its inner link (the whole row is the tap target)
+        return items.length?`<ul class="tl">${items.map(i=>{
+          if(i.m&&(i.m.brief||i.m.id)){const br=String(i.m.brief||"").split("\n").filter(Boolean).slice(0,3);
+            return `<li class="k-${esc(i.k)} tap"><details class="tlx"><summary>${tmS(i)}<span>${plain(i.h)}</span></summary>
+              <div class="tlb">${br.map(l=>`<p>${esc(l)}</p>`).join("")}${i.m.id?`<a href="classic.html#m-${esc(encodeURIComponent(i.m.id))}">Full brief →</a>`:""}</div></details></li>`}
+          if(i.u) return `<li class="k-${esc(i.k)} tap"><a class="tla" href="${esc(i.u)}" target="_blank" rel="noopener">${tmS(i)}<span>${plain(i.h)} ↗</span></a></li>`;
+          return `<li class="k-${esc(i.k)}">${tmS(i)}<span>${i.h}</span></li>`}).join("")}</ul>`
           :`<div class="dim" style="font-size:13px;margin-top:6px">${Array.isArray(d.calendar_blocks)?"Nothing on the calendar. Open time.":"No meetings with a brief on the calendar."}</div>`})()}</div>`).join("")}</div>`;
 }
 
