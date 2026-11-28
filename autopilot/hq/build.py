@@ -455,6 +455,14 @@ for b in board.values():
         b["last_activity"] = out if out.startswith("20") else None
     except Exception:
         b["last_activity"] = None
+    # 2026-11-27: career has no repo of its own; its work lands in ops-bus research/career (newest commit there).
+    if not b.get("last_activity") and b["project"] == "career":
+        try:
+            _c = _sp.run(["git", "-C", "/home/user/ops-bus", "log", "-1", "--format=%cI", "--", "research/career", "PLAYBOOK.md"],
+                         capture_output=True, text=True, timeout=15).stdout.strip()
+            b["last_activity"] = _c if _c.startswith("20") else None
+        except Exception:
+            pass
 try:  # (e) HQ has no repo of its own: use the newest commit on the HQ branch
     _hq = _sp.run(["gh", "api", "repos/zuzivian/new-repo/branches/claude/token-usage-auto-allocation-1hmsvv",
                    "--jq", ".commit.commit.committer.date"], capture_output=True, text=True, timeout=15).stdout.strip()
