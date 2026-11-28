@@ -383,7 +383,7 @@ function dayPlan(d){
     const cd=days.find(x=>x&&x.date===k); return {k,t,ms,bl,pct:cd?num(cd.pct):null}};
   const D2=[mk(0),mk(1)], capCol=p=>p>=85?"var(--hp-r)":p>70?"var(--hp-y)":"var(--hp-g)";
   return `<h3 class="sec">Today &amp; tomorrow</h3><div class="plan">${D2.map((x,j)=>`<div class="pday"><div class="ph"><b>${j?"Tomorrow":"Today"}</b><span class="dim">${esc(dayLbl(x.t))}</span>
-      ${x.pct!=null?`<span class="mono" style="margin-left:auto;color:${capCol(x.pct)}">${x.pct}% booked</span>`:""}</div>
+      ${x.pct!=null?`<span class="mono" style="margin-left:auto;color:${x.pct>=85?"var(--bad)":x.pct>70?"var(--warn)":"var(--good)"}">${x.pct}% booked</span>`:""}</div>
       ${x.pct!=null?`<div class="bar thin"><i style="width:${Math.min(x.pct,100)}%;background:${capCol(x.pct)}"></i><s style="left:70%"></s></div>`:""}
       ${overworld(x,j===0)}
       ${(()=>{const KL={meeting:"Meeting",class:"Class",focus:"Focus"}, items=[...x.ms.map(m=>({t:m.when,h:`${m.id?`<a href="classic.html#m-${esc(encodeURIComponent(m.id))}">${esc(m.title)}</a>`:esc(m.title)}${m.location?` <span class="dim">· ${esc(m.location)}</span>`:""}`,k:"meeting"})),

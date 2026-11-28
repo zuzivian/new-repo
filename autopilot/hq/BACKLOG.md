@@ -102,3 +102,4 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 | — | Fleet gauges in fixed order Sinny/Pinny/Minny/Chinny/Binny; maxed state (100% -> "Maxed · resets …", yellow not red); honest empty frame ("waiting for first Mac run") that fills when used/target arrive | done | R66g |
 | — | Compact usage row on home (top of side column: beside On track on desktop, under Needs on phone): Sinny/Pinny/Minny/Chinny/Binny, thin bar + pace tick, maxed/waiting/no-limit states, amber when >5 pts behind; tap -> #fleet | done | R66h |
 | — | Pace banner gap uses the same reading+target as the usage rows (was Fleet Ops gap_pts 23 vs row 14); falls back to gap_pts when no reading; drops alerts ≤5 pts | done | R67b |
+| — | A11y pass (pace heal): contrast audit of all text nodes + keyboard focus walk; fixed "% booked" text (HP green 2.68:1 -> --good token, AA); focus states all visible | done | R68b |
