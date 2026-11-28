@@ -263,9 +263,9 @@ function queue(d){ // needs + Nat's live actions, one list, soonest first
   const seen=new Set(), out=[];
   for(const n of [...(d.needs||[]),...acts]){if(!n||!n.title||!live(n)||verifying(n)) continue; const k=n.title.toLowerCase(); if(seen.has(k)||gone.has(k)) continue; seen.add(k); out.push(n)}
   const dueKey=n=>isDate(n.due)?ptDay(asDay(n.due)):"9999", tierW=n=>({now:0,week:1,later:2})[String(n.tier||"").toLowerCase()]??1;
-  return out.sort((a,b)=>tierW(a)-tierW(b)||dueKey(a).localeCompare(dueKey(b)));
+  return out.sort((a,b)=>(a.stale===true)-(b.stale===true)||tierW(a)-tierW(b)||dueKey(a).localeCompare(dueKey(b))); // stale: true sinks to the bottom
 }
-const notLater=n=>String(n.tier||"").toLowerCase()!=="later", act=Qn=>Qn.filter(notLater).length;
+const notLater=n=>String(n.tier||"").toLowerCase()!=="later"&&n.stale!==true, act=Qn=>Qn.filter(notLater).length;
 const dueOf=n=>{if(!isDate(n.due)) return null; const k=ptDay(asDay(n.due)), t=ptDay(NOW()); return {over:k<t,today:k===t,txt:k<t?"overdue":k===t?"today":dayLbl(asDay(n.due))}};
 
 /* ---------- context ---------- */
@@ -273,7 +273,7 @@ function moment(d,Qn){
   const now=NOW(), h=ptHour(now), dow=ptDow(now), today=ptDay(now);
   const meets=(d.meetings||[]).filter(m=>m&&isDate(m.when)).sort((a,b)=>new Date(a.when)-new Date(b.when));
   const next=meets.find(m=>{const mu=minsUntil(m.when);return mu>-30&&mu<=45});
-  const wk=Qn.find(n=>n.project==="weekly-review");
+  const wk=Qn.find(n=>n.project==="weekly-review"&&n.stale!==true);
   if(next) return {kind:"meet",m:next};
   const WR=d.week_review&&d.week_review.show===true?d.week_review:null;
   if((dow==="Sun"||dow==="Sat"||dow==="Mon"&&h<12)&&(wk||WR)) return {kind:"week",n:wk||null,wr:WR};
