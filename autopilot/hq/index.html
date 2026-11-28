@@ -199,6 +199,11 @@ h3.sec .c{font:13px var(--px);letter-spacing:0;color:var(--ink-3);text-transform
 .un{font:400 11px var(--caps);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .urow .bar{margin-top:0}.bar.nl{background:repeating-linear-gradient(90deg,var(--track) 0 4px,transparent 4px 8px);opacity:.6}
 .uv{font:400 11px var(--caps);text-transform:uppercase;text-align:right;white-space:nowrap}
+.pjs{list-style:none;margin:0;padding:0}.pj{padding:10px 0;border-top:2px dashed var(--frame2)}.pj:first-child{border-top:0;padding-top:2px}
+.pj-h{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}.pj-n{font:400 13px var(--caps);text-transform:uppercase}.pj-n a{color:var(--ink);text-decoration:none}.pj-n a:hover{text-decoration:underline}
+.st.warn{background:#fff3cf;color:#6b4a00;box-shadow:inset 0 0 0 2px #f0b828}
+.pj-a{font-size:12.5px;flex-basis:100%}.pj-s{font-size:13.5px;margin-top:4px;color:var(--ink-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.pjs+.later,.card .later{margin-top:6px}.card .later ul{box-shadow:none;margin:0;padding:0 2px;background:none}
 /* overworld strip */
 .ow{position:relative;margin:12px 2px 4px;padding-top:10px}
 .ow-row{display:grid;grid-template-columns:repeat(16,1fr);box-shadow:0 0 0 2px var(--ink0)}
@@ -446,6 +451,19 @@ function usageRow(d){ // compact weekly usage for the five plan accounts; tap ->
     const bar=r.nolimit?`<div class="bar thin nl"></div>`:r.u==null?`<div class="bar thin empty"></div>`
       :`<div class="bar thin"><i style="width:${max?100:Math.max(r.u*100,r.u>0?1.5:0).toFixed(1)}%;background:${max?"var(--hp-y)":behind?"var(--hp-y)":"var(--acc)"}"></i>${r.tg!=null?`<s style="left:${Math.round(r.tg*100)}%"></s>`:""}</div>`;
     return `<a class="urow${behind?" behind":""}" href="#fleet" aria-label="${esc(r.name)}: ${esc(val)}${r.tg!=null&&r.u!=null&&!max?` of weekly, target ${esc(P(r.tg))}`:""}"><span class="uav">${face(r)}</span><span class="un">${esc(r.name)}</span>${bar}<span class="uv mono">${esc(val)}</span></a>`}).join("")}</div>`}
+function projects(d){ // board[] as one quest-log window: last push + next step; dormant ones folded
+  const B=(Array.isArray(d.board)?d.board:[]).filter(p=>p&&p.project);
+  if(!B.length) return "";
+  const dormant=p=>/^(idle|off|not attached)$/i.test(p.status||"")&&!p.running&&!p.queued&&!p.needs&&!(p.next_step&&!/^(not attached|idle)/i.test(p.next_step));
+  const live=B.filter(p=>!dormant(p)), sleep=B.filter(dormant);
+  const SC={running:"good","needs you":"warn",queued:"acc",paused:"dim",idle:"dim"};
+  const repoU=p=>typeof p.repo==="string"&&/^[\w.-]+$/.test(p.repo)?"https://github.com/zuzivian/"+p.repo:"";
+  const row=p=>{const bits=[p.running?p.running+" running":"",p.queued?p.queued+" queued":"",p.needs?p.needs+" for you":""].filter(Boolean), u=repoU(p);
+    return `<li class="pj"><div class="pj-h"><span class="pj-n">${u?`<a href="${esc(u)}" target="_blank" rel="noopener">${esc(p.project==="new-repo"?"HQ":p.project)}</a>`:esc(p.project)}</span><span class="st ${SC[String(p.status).toLowerCase()]||"dim"}">${esc(p.status||"—")}</span>
+      <span class="pj-a dim">${isDate(p.last_activity)?"last push "+esc(ago(p.last_activity)):"last push —"}${bits.length?" · "+esc(bits.join(" · ")):""}</span></div>
+      ${p.next_step?`<div class="pj-s"><span class="dim">Next:</span> ${esc(p.next_step)}</div>`:""}</li>`};
+  return `<h3 class="sec">Projects <span class="c">${live.length} active${sleep.length?` · ${sleep.length} dormant`:""}</span></h3>
+    <div class="card"><ul class="pjs">${live.map(row).join("")}</ul>${sleep.length?`<details class="later"><summary>${sleep.length} dormant</summary><ul class="pjs">${sleep.map(row).join("")}</ul></details>`:""}</div>`}
 function fleetView(d){
   const rows=fleetRows(d), B=broken(d), ST={stalled:"bad",working:"good","between runs":"acc",queued:"acc",idle:"dim",paused:"dim"};
   const work=rows.filter(r=>r.st==="working").length;
@@ -465,6 +483,7 @@ function fleetView(d){
         <div class="ad">${esc(r.doing||"—")}</div><div class="dim" style="font-size:12px">${r.last?(r.started?"started ":"")+esc(ago(r.last)):""}${r.done?`${r.last?" · ":""}${r.done} done in 24 h`:""}${r.reset&&!r.worker?` · resets ${esc(dayLbl(r.reset))}`:""}</div>
         ${gauge(r)}</div></div>`).join("")}</div>
     </div><div class="col">
+    ${projects(d)}
     <h3 class="sec">Burn by project <span class="c">this week</span></h3>
     <div class="card">${basis?`<div class="dim" style="font-size:12px;margin-bottom:8px">${esc(basis)}</div>`:""}
       ${SP.length?SP.map(s=>`<div class="brow${paused(s)?" pz":""}"><span>${esc(s.project==="new-repo"?"HQ":s.project)}${paused(s)?" · paused":""}</span><span class="mono">$${s.usd.toFixed(0)}</span></div><div class="bar thin"><i style="width:${(s.usd/maxc*100).toFixed(1)}%;background:${paused(s)?"var(--line)":"linear-gradient(90deg,var(--acc),var(--acc2))"}"></i></div>`).join("")
