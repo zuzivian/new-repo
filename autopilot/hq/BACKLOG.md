@@ -105,3 +105,4 @@ Running list from the fresh-eyes critic passes (persona: Nat checks HQ on his ph
 | — | A11y pass (pace heal): contrast audit of all text nodes + keyboard focus walk; fixed "% booked" text (HP green 2.68:1 -> --good token, AA); focus states all visible | done | R68b |
 | — | Projects (Fleet): board[] as one quest-log window — status pill, last push, counts, next step (2-line clamp), repo link; dormant folded (Nat-approved backlog, slice 1 of 2) | done | R68c |
 | — | Tappable timeline rows (Today & tomorrow): meeting rows expand to a 3-line brief preview + Full brief; rows with an https url link out; whole row is the tap target (Nat-approved backlog, slice 2 of 2) | done | R68d |
+| — | Weekly visual QA (28 Nov): 5 moments x 390/1280 with live data - no overflow/clip/NaN, AA clean; fixed desktop "On track?" heading flush against the Usage window (stale #goals margin rule) | done | R68e |
